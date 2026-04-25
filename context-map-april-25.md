@@ -1,4 +1,14 @@
-# Context Map
+# Context Map from April 25th
+
+This is a snapshot from April 25, 2026.
+
+Treat it as useful but possibly outdated.
+
+The project has evolved since this file was written.
+
+Do not treat this file as final truth.
+
+Ask follow-up questions when newer thinking conflicts with this map.
 
 ## Purpose
 
@@ -8,9 +18,9 @@
 
 ## Confirmed Final-Round Facts
 
-- Role: Solutions Architect - Defence and National Security.
+- Role: Solutions Architect, Defence and National Security.
 - Stage: third interview, presentation interview.
-- Date/time: Thursday, May 7, 2026, 1:30 PM - 2:30 PM EDT.
+- Date/time: Thursday, May 7, 2026, 1:30 PM to 2:30 PM EDT.
 - Panel: Shabna Nazar, Kasim Patel, and Mitchell Wong.
 - Format: 60 minutes total, with 20-25 minutes for presentation/discussion and remaining time for open Q&A.
 - Interview style: role-play with customer-side stakeholders asking technical and business questions throughout.
@@ -20,7 +30,7 @@
 ## Assignment Source
 
 - Original PDF: `source-materials/Nov 2025 - SA Presentation Interview Instructions (1).pdf`
-- Verbatim extraction: `source-materials/assignment-instructions-verbatim.md`
+- Extracted text: `source-materials/presentation-interview-instructions.md`
 - Core assignment: analyze a customer scenario, propose a Cohere-based solution, explain the problem, walk through technical architecture, answer questions, and show a live demo.
 - DefTech scenario: a national defence technology agency wants an AI assistant over PDFs and DOCX manuals/procedures/doctrine to improve central planning staff efficiency and output while preserving accuracy and traceability.
 
