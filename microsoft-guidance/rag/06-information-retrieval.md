@@ -14,15 +14,26 @@
 
 ## Source Map
 
-- Page 300: Article start and retrieval overview.
-- Pages 301 to 304: Indexing and search types.
-- Pages 305 to 310: Query transformations and multiple-query handling.
-- Pages 311 to 314: Scoring, weighting, ranking, and reranking.
-- Page 315: Retrieval evaluation.
+- Page 300: article start, retrieval overview, and search index configuration.
+- Page 301: index configuration continuation.
+- Page 302: vector search.
+- Page 303: full-text search and hybrid search.
+- Page 304: hybrid search continuation and manual multiple queries.
+- Page 305: query translation and augmentation.
+- Page 306: query augmentation prompt guidance.
+- Page 307: decomposition guidance starts.
+- Page 308: decomposition classification prompt guidance.
+- Page 309: decomposition examples and rewriting starts.
+- Page 310: HyDE and query translation pipeline.
+- Page 311: image queries, filtering, and field weighting.
+- Page 312: weighting continuation and reranking starts.
+- Page 313: language model reranking prompt guidance.
+- Page 314: cross-encoder reranking, semantic ranking, and general search guidance.
+- Page 315: search result evaluation, next step, and related resources.
 
 ## Image References
 
-- No raster image objects detected in this page range.
+- PDF page 310, figure marker: query translation pipeline diagram.
 
 ## Verbatim Text Provided By User
 

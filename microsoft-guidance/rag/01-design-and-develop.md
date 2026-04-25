@@ -16,15 +16,16 @@
 
 ## Source Map
 
-- Page 260: Article start, series overview, RAG architecture, application flow.
-- Page 261: Application flow continuation, data pipeline flow, design and evaluation considerations.
-- Page 262: Phase list starts.
-- Page 263: Phase list continues.
-- Page 264: Contributors, next steps, related resources.
+- Page 260: article start, series scope, RAG architecture, and application flow start.
+- Page 261: application flow continuation, data pipeline flow, and design questions diagram.
+- Page 262: development phases for preparation, chunking, enrichment, and embeddings.
+- Page 263: development phases for search options and evaluation.
+- Page 264: contributors, next steps, and related resources.
 
 ## Image References
 
 - PDF page 260, image object 243: RAG architecture diagram.
+- PDF page 261, figure marker: RAG design and evaluation considerations diagram.
 - PDF page 261, image object 245: small Microsoft Learn export image. Treat as nonessential.
 
 ## Verbatim Text Provided By User

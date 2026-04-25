@@ -33,6 +33,14 @@ Use this file to find the right source page, phase file, and user-provided verba
 | 6 | [Information retrieval](rag/06-information-retrieval.md) | 300 to 315 | [Microsoft Learn](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/rag/rag-information-retrieval) |
 | 7 | [End-to-end evaluation](rag/07-end-to-end-evaluation.md) | 316 to 327 | [Microsoft Learn](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/rag/rag-llm-evaluation-phase) |
 
+## Coverage Check
+
+- The RAG series in the main PDF runs from page 260 through page 327.
+- The seven files cover every page in that range.
+- No page in the RAG range is intentionally skipped.
+- Image references are page-level references only.
+- Verbatim sections are empty until the user provides exact text.
+
 ## How To Add Verbatim Text
 
 1. Paste the exact Microsoft text into the chat.
@@ -40,4 +48,3 @@ Use this file to find the right source page, phase file, and user-provided verba
 3. Place the text under `## Verbatim Text Provided By User` in the matching phase file.
 4. Do not rewrite the pasted text.
 5. Add only short local notes under `## Notes For Future Use`.
-

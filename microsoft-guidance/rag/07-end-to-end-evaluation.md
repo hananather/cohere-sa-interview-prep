@@ -14,11 +14,18 @@
 
 ## Source Map
 
-- Page 316: Article start and evaluation overview.
-- Pages 317 to 320: Groundedness, completeness, utilization, and relevance.
-- Pages 321 to 323: Similarity, correctness, and metric relationships.
-- Pages 324 to 326: Responsible AI, safety, monitoring, and tooling.
-- Page 327: Contributors.
+- Page 316: article start, evaluation overview, and language model evaluation metrics.
+- Page 317: groundedness and completeness.
+- Page 318: completeness continuation and utilization.
+- Page 319: utilization evaluation and relevance.
+- Page 320: relevance evaluation and correctness starts.
+- Page 321: correctness, similarity, and evaluation metrics.
+- Page 322: metric examples and multiple-metric guidance.
+- Page 323: metric relationships, documentation, reporting, and aggregation.
+- Page 324: responsible AI, content safety, and intellectual property.
+- Page 325: security, adversarial threats, privacy, and data protection.
+- Page 326: key considerations and experiment tooling.
+- Page 327: contributors, next steps, and related resource.
 
 ## Image References
 

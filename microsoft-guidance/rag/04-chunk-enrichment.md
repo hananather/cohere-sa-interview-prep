@@ -14,13 +14,16 @@
 
 ## Source Map
 
-- Page 287: Article start and enrichment overview.
-- Pages 288 to 289: Cleaning guidance.
-- Pages 290 to 291: Metadata guidance and search support.
+- Page 287: article start, enrichment overview, and enriched chunk example.
+- Page 288: cleaning guidance starts.
+- Page 289: cleaning continuation and metadata search-use diagram.
+- Page 290: metadata fields and augmented chunk guidance.
+- Page 291: multimodal enrichment, augmentation cost, next step, and related resources.
 
 ## Image References
 
 - PDF page 287, image object 248: enriched chunk record example.
+- PDF page 289, figure marker: metadata use in search diagram.
 
 ## Verbatim Text Provided By User
 
