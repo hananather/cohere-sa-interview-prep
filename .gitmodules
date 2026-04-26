@@ -1,4 +1,4 @@
 [submodule "rag-resources/systematically-improving-rag"]
 	path = rag-resources/systematically-improving-rag
-	url = https://github.com/jxnl/systematically-improving-rag.git
+	url = https://github.com/hananather/systematically-improving-rag-private.git
 	branch = main
