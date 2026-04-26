@@ -24,7 +24,7 @@ uv run mkdocs serve -a 127.0.0.1:8001
 Open:
 
 ```text
-http://127.0.0.1:8001
+http://127.0.0.1:8001/systematically-improving-rag/
 ```
 
 ## Build The Static Site
