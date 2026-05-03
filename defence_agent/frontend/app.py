@@ -31,6 +31,7 @@ DEMO_QUERIES = [
     "What does Restricted Annex B say about exception handling?",
     "Summarize the exception handling guidance from the test document.",
 ]
+CITATION_PATTERN = re.compile(r"\[C(\d+)\]")
 
 
 def api_request(method: str, path: str, persona: str, **kwargs: Any) -> requests.Response:
@@ -59,6 +60,23 @@ def citation_source_pairs(data: dict[str, Any]) -> list[tuple[dict[str, Any], di
     return [(citation, sources[index] if index < len(sources) else None) for index, citation in enumerate(citations)]
 
 
+def answer_citation_ids(answer: str) -> list[str]:
+    seen: set[str] = set()
+    citation_ids: list[str] = []
+    for match in CITATION_PATTERN.finditer(answer or ""):
+        citation_id = f"C{match.group(1)}"
+        if citation_id not in seen:
+            seen.add(citation_id)
+            citation_ids.append(citation_id)
+    return citation_ids
+
+
+def cited_source_pairs(data: dict[str, Any]) -> list[tuple[dict[str, Any], dict[str, Any] | None]]:
+    pairs = citation_source_pairs(data)
+    pair_by_id = {citation.get("id"): (citation, source) for citation, source in pairs}
+    return [pair_by_id[citation_id] for citation_id in answer_citation_ids(data.get("answer", "")) if citation_id in pair_by_id]
+
+
 def citation_tooltip(citation: dict[str, Any], source: dict[str, Any] | None) -> str:
     parts = [
         citation.get("title") or (source or {}).get("title"),
@@ -84,7 +102,7 @@ def render_answer(answer: str, data: dict[str, Any]) -> None:
         return f'<a class="citation-chip" href="{target}" data-tooltip="{tooltip}" title="{tooltip}">{label}</a>'
 
     escaped_answer = html.escape(answer)
-    linked_answer = re.sub(r"\[C(\d+)\]", replacement, escaped_answer)
+    linked_answer = CITATION_PATTERN.sub(replacement, escaped_answer)
     st.markdown(f'<div class="answer-copy">{linked_answer}</div>', unsafe_allow_html=True)
 
 
@@ -97,12 +115,12 @@ def source_label(citation: dict[str, Any], source: dict[str, Any] | None) -> str
 
 
 def render_source_cards(data: dict[str, Any], persona: str) -> None:
-    pairs = citation_source_pairs(data)
+    pairs = cited_source_pairs(data)
     if not pairs:
         return
 
     st.markdown("#### Sources")
-    st.caption("Open a source to inspect the exact passage used for the answer.")
+    st.caption("Open a cited source to inspect the exact passage used for the answer.")
     selected = st.session_state.get("selected_source")
     for citation, source in pairs:
         citation_id = citation["id"]
@@ -273,10 +291,12 @@ def render_user_view(persona: str, route_override: str, debug: bool, use_streami
 
 def render_trace_tab(persona: str) -> None:
     data = st.session_state.get("last_response", {})
+    cited_pairs = cited_source_pairs(data)
     stats = [
         ("Route", data.get("route", "not run")),
         ("Trace", str(data.get("trace_id", ""))[-8:] or "none"),
-        ("Sources", len(data.get("sources", []))),
+        ("Cited", len(cited_pairs)),
+        ("Retrieved", len(data.get("sources", []))),
         ("Latency", f"{int(data.get('latency_ms') or 0)} ms"),
         ("Review", "yes" if data.get("needs_human_review") else "no"),
     ]
@@ -292,6 +312,26 @@ def render_trace_tab(persona: str) -> None:
 
     if data.get("token_cost_estimate"):
         st.json({"token_cost_estimate": data["token_cost_estimate"], "degradations": data.get("degradations", [])})
+
+    sources = data.get("sources", [])
+    if sources:
+        st.markdown("#### Retrieved Candidates")
+        st.caption("These are the authorized chunks retrieved for the workflow. The user view only shows chunks cited inline in the final answer.")
+        st.dataframe(
+            [
+                {
+                    "title": source.get("title"),
+                    "section": source.get("section"),
+                    "page": source.get("page"),
+                    "classification": source.get("classification"),
+                    "rerank_score": source.get("rerank_score"),
+                    "cited_inline": f"C{index + 1}" in {citation.get("id") for citation, _ in cited_pairs},
+                }
+                for index, source in enumerate(sources)
+            ],
+            width="stretch",
+            hide_index=True,
+        )
 
     trace_id = st.text_input("Trace ID", value=st.session_state.get("last_trace_id", ""))
     if trace_id and st.button("Load trace"):
