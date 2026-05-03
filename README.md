@@ -5,6 +5,7 @@ Private workspace for the final-round Cohere Solutions Architect interview proje
 ## High-Signal Files
 
 - `project-notes.md`: current product thesis and Canadian Defence staff decision-support framing.
+- `defence_agent/`: runnable Defence Agent Streamlit + FastAPI prototype for the Cohere final-round demo.
 - `context-map-april-25.md`: April 25 context snapshot. Treat it as useful but possibly stale.
 - `source-materials/presentation-interview-instructions.md`: text extracted from the interview assignment PDF.
 - `source-materials/Nov 2025 - SA Presentation Interview Instructions (1).pdf`: original assignment PDF.

@@ -1,0 +1,9 @@
+.git
+.env
+*.egg-info/
+__pycache__/
+.pytest_cache/
+defence_agent/data/
+defence_agent/**/*.db
+defence_agent/**/*.jsonl
+cohere-compass-sdk/

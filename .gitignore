@@ -1,2 +1,10 @@
 .DS_Store
 cohere-compass-sdk/
+defence_agent/data/
+defence_agent/**/*.db
+defence_agent/**/*.db-*
+defence_agent/**/*.jsonl
+__pycache__/
+.pytest_cache/
+.env
+*.egg-info/
