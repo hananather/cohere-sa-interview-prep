@@ -116,15 +116,23 @@ class SandboxRun(SQLModel, table=True):
 class Citation(BaseModel):
     id: str
     chunk_id: str
+    document_id: str | None = None
     title: str
     section: str
     page: int
     source_uri: str
+    filename: str | None = None
+    classification: str | None = None
+    version: str | None = None
+    effective_date: str | None = None
+    doc_type: str | None = None
 
 
 class SourceChunk(BaseModel):
     chunk_id: str
+    document_id: str | None = None
     title: str
+    filename: str | None = None
     section: str
     page: int
     text: str

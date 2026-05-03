@@ -12,7 +12,7 @@ from defence_agent.auth.context import AuthContext
 from defence_agent.auth.policy import policy_engine
 from defence_agent.cohere_gateway import cohere_gateway
 from defence_agent.db import engine
-from defence_agent.models import Chunk, SourceChunk
+from defence_agent.models import Chunk, Document, SourceChunk
 from defence_agent.observability.tracing import trace_manager
 from defence_agent.retrieval.vector_store import vector_store
 from defence_agent.safety import sanitize_retrieved_text
@@ -205,9 +205,13 @@ class HybridRetriever:
 
     def _to_source_chunk(self, candidate: Candidate) -> SourceChunk:
         chunk = candidate.chunk
+        with Session(engine) as session:
+            document = session.get(Document, chunk.document_id)
         return SourceChunk(
             chunk_id=chunk.id,
+            document_id=chunk.document_id,
             title=chunk.title,
+            filename=document.filename if document else None,
             section=chunk.section,
             page=chunk.page,
             text=sanitize_retrieved_text(chunk.text),

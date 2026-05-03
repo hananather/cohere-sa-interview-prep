@@ -15,10 +15,16 @@ def make_citations(sources: list[SourceChunk]) -> list[Citation]:
         Citation(
             id=f"C{index + 1}",
             chunk_id=source.chunk_id,
+            document_id=source.document_id,
             title=source.title,
             section=source.section,
             page=source.page,
             source_uri=source.source_uri,
+            filename=source.filename,
+            classification=source.classification,
+            version=source.version,
+            effective_date=source.effective_date,
+            doc_type=source.doc_type,
         )
         for index, source in enumerate(sources)
     ]

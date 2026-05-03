@@ -1,22 +1,22 @@
 from __future__ import annotations
 
+import json
 import time
 from typing import Any
 
-import json
-
 from fastapi import Depends, FastAPI, HTTPException, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from sqlmodel import Session, select
 
 from defence_agent.agent.service import agent_service
 from defence_agent.auth.context import AuthContext, get_auth_context
 from defence_agent.auth.policy import policy_engine
 from defence_agent.config import get_settings
-from defence_agent.db import init_db
+from defence_agent.db import engine, init_db
 from defence_agent.ingestion.indexer import corpus_has_chunks, document_registry_status, reindex_corpus
-from defence_agent.models import AskRequest
-from defence_agent.observability.metrics import ERROR_COUNT, REQUEST_COUNT, REQUEST_LATENCY
+from defence_agent.models import AskRequest, Chunk, Document
+from defence_agent.observability.metrics import ERROR_COUNT, REQUEST_COUNT, REQUEST_LATENCY, UNAUTHORIZED_ATTEMPTS
 from defence_agent.observability.tracing import trace_manager
 from defence_agent.tools.registry import tool_registry
 
@@ -124,6 +124,60 @@ def admin_corpus(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any
     return corpus(auth)
 
 
+@app.get("/v1/documents")
+def list_documents(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    with Session(engine) as session:
+        documents = session.exec(select(Document).order_by(Document.title)).all()
+    authorized = [document for document in documents if policy_engine.can_access_chunk(auth, document)]
+    return {"documents": [_document_payload(document) for document in authorized]}
+
+
+@app.get("/v1/documents/{document_id}")
+def get_document(document_id: str, auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    document = _authorized_document(document_id, auth)
+    with Session(engine) as session:
+        chunks = session.exec(select(Chunk).where(Chunk.document_id == document_id).order_by(Chunk.chunk_index)).all()
+    authorized_chunks = [chunk for chunk in chunks if policy_engine.can_access_chunk(auth, chunk)]
+    return {
+        "document": _document_payload(document),
+        "chunks": [_chunk_payload(chunk) for chunk in authorized_chunks],
+    }
+
+
+@app.get("/v1/documents/{document_id}/chunks/{chunk_id}")
+def get_document_chunk(document_id: str, chunk_id: str, auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    document = _authorized_document(document_id, auth)
+    with Session(engine) as session:
+        chunk = session.get(Chunk, chunk_id)
+        if not chunk or chunk.document_id != document_id:
+            raise HTTPException(status_code=404, detail="Chunk not found")
+        if not policy_engine.can_access_chunk(auth, chunk):
+            UNAUTHORIZED_ATTEMPTS.labels(resource=f"document_chunk:{document_id}").inc()
+            raise HTTPException(status_code=403, detail="You do not have access to this source chunk")
+        nearby = session.exec(
+            select(Chunk)
+            .where(Chunk.document_id == document_id)
+            .where(Chunk.chunk_index >= max(0, chunk.chunk_index - 1))
+            .where(Chunk.chunk_index <= chunk.chunk_index + 1)
+            .order_by(Chunk.chunk_index)
+        ).all()
+    return {
+        "document": _document_payload(document),
+        "chunk": _chunk_payload(chunk),
+        "nearby_chunks": [_chunk_payload(item) for item in nearby if policy_engine.can_access_chunk(auth, item)],
+    }
+
+
+@app.get("/v1/documents/{document_id}/file")
+def get_document_file(document_id: str, auth: AuthContext = Depends(get_auth_context)) -> FileResponse:
+    document = _authorized_document(document_id, auth)
+    with Session(engine) as session:
+        chunk = session.exec(select(Chunk).where(Chunk.document_id == document_id).limit(1)).first()
+    if not chunk:
+        raise HTTPException(status_code=404, detail="Document file not found")
+    return FileResponse(path=chunk.source_uri, filename=document.filename)
+
+
 @app.get("/v1/security/audit")
 def security_audit(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
     if auth.role not in {"auditor", "admin"}:
@@ -181,3 +235,49 @@ def eval_results(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any
 @app.get("/metrics")
 def metrics() -> Response:
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+def _authorized_document(document_id: str, auth: AuthContext) -> Document:
+    with Session(engine) as session:
+        document = session.get(Document, document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not policy_engine.can_access_chunk(auth, document):
+        UNAUTHORIZED_ATTEMPTS.labels(resource=f"document:{document_id}").inc()
+        raise HTTPException(status_code=403, detail="You do not have access to this source document")
+    return document
+
+
+def _document_payload(document: Document) -> dict[str, Any]:
+    return {
+        "id": document.id,
+        "title": document.title,
+        "filename": document.filename,
+        "doc_type": document.doc_type,
+        "classification": document.classification,
+        "allowed_roles": json.loads(document.allowed_roles_json),
+        "version": document.version,
+        "effective_date": document.effective_date,
+        "parser_status": document.parser_status,
+        "parser_confidence": document.parser_confidence,
+    }
+
+
+def _chunk_payload(chunk: Chunk) -> dict[str, Any]:
+    return {
+        "chunk_id": chunk.id,
+        "document_id": chunk.document_id,
+        "chunk_index": chunk.chunk_index,
+        "title": chunk.title,
+        "section": chunk.section,
+        "page": chunk.page,
+        "text": chunk.text,
+        "summary": chunk.summary,
+        "classification": chunk.classification,
+        "version": chunk.version,
+        "effective_date": chunk.effective_date,
+        "doc_type": chunk.doc_type,
+        "table_markdown": chunk.table_markdown,
+        "parser_status": chunk.parser_status,
+        "parser_confidence": chunk.parser_confidence,
+    }

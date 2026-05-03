@@ -98,6 +98,29 @@ def test_stream_endpoint_returns_sse_final_event() -> None:
     assert final_payload["citations"]
 
 
+def test_document_source_endpoints_enforce_acl() -> None:
+    with TestClient(app) as client:
+        lead_sources = client.post(
+            "/v1/agent/query",
+            headers={"X-Demo-User": "planning_lead"},
+            json={"query": "What does Restricted Annex B say about exception handling?"},
+        ).json()["sources"]
+        restricted = next(source for source in lead_sources if source["title"] == "Restricted Annex B")
+
+        allowed = client.get(
+            f"/v1/documents/{restricted['document_id']}/chunks/{restricted['chunk_id']}",
+            headers={"X-Demo-User": "planning_lead"},
+        )
+        blocked = client.get(
+            f"/v1/documents/{restricted['document_id']}/chunks/{restricted['chunk_id']}",
+            headers={"X-Demo-User": "planning_analyst"},
+        )
+
+    assert allowed.status_code == 200
+    assert allowed.json()["chunk"]["chunk_id"] == restricted["chunk_id"]
+    assert blocked.status_code == 403
+
+
 def test_eval_dataset_has_24_cases() -> None:
     cases = eval_runner.load_cases()
     assert len(cases) >= 24
