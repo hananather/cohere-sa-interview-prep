@@ -4,6 +4,7 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1
 
 COPY pyproject.toml README.md ./
+COPY .streamlit ./.streamlit
 COPY defence_agent ./defence_agent
 
 RUN pip install --no-cache-dir -e .

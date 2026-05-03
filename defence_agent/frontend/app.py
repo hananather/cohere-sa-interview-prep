@@ -434,13 +434,45 @@ st.set_page_config(page_title="Defence Agent", layout="wide")
 st.markdown(
     """
     <style>
+    :root {
+        color-scheme: dark;
+        --da-bg: #080d12;
+        --da-panel: #0f1720;
+        --da-panel-2: #161922;
+        --da-control: #1f2430;
+        --da-border: rgba(148, 163, 184, 0.28);
+        --da-text: #f8fafc;
+        --da-muted: #9aa8ba;
+        --da-accent: #ff4b4b;
+        --da-cite: #72f0ad;
+    }
+    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stAppViewContainer"] > .main {
+        background: var(--da-bg) !important;
+        color: var(--da-text) !important;
+    }
+    [data-testid="stSidebar"], [data-testid="stSidebar"] > div {
+        background: var(--da-panel-2) !important;
+        color: var(--da-text) !important;
+    }
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] div {
+        color: var(--da-text);
+    }
+    h1, h2, h3, h4, h5, h6, p, label, span, div[data-testid="stMarkdown"] {
+        color: var(--da-text);
+    }
     header[data-testid="stHeader"] {display: none;}
     .block-container {padding-top: 1rem; padding-bottom: 2rem; max-width: 1220px;}
-    .demo-title {font-size: 2.15rem; font-weight: 760; letter-spacing: 0; line-height: 1.12; margin: 0 0 0.25rem 0;}
-    .demo-subtitle {color: #9aa8ba; font-size: 1rem; margin-bottom: 1rem;}
+    .demo-title {font-size: 2.15rem; font-weight: 760; letter-spacing: 0; line-height: 1.12; margin: 0 0 0.25rem 0; color: var(--da-text);}
+    .demo-subtitle {color: var(--da-muted); font-size: 1rem; margin-bottom: 1rem;}
     .view-heading {font-size: 1.45rem; font-weight: 720; line-height: 1.2; margin: 0.25rem 0 0.25rem 0;}
-    .view-subtitle {color: #9aa8ba; margin-bottom: 1rem;}
-    .answer-copy {font-size: 1.08rem; line-height: 1.75; color: #f8fafc; max-width: 980px;}
+    .view-subtitle {color: var(--da-muted); margin-bottom: 1rem;}
+    .answer-copy {font-size: 1.08rem; line-height: 1.75; color: var(--da-text); max-width: 980px;}
     .citation-chip {
         position: relative;
         display: inline-flex;
@@ -452,7 +484,7 @@ st.markdown(
         margin: 0 0.08rem;
         border-radius: 999px;
         background: #12352f;
-        color: #72f0ad !important;
+        color: var(--da-cite) !important;
         border: 1px solid rgba(114, 240, 173, 0.45);
         font-size: 0.76rem;
         font-weight: 760;
@@ -479,13 +511,13 @@ st.markdown(
         white-space: normal;
     }
     .source-card, .drilldown {
-        border: 1px solid rgba(148, 163, 184, 0.26);
+        border: 1px solid var(--da-border);
         border-radius: 8px;
         padding: 0.9rem 1rem;
         margin: 0.75rem 0 0.35rem 0;
-        background: #0f1720;
+        background: var(--da-panel);
     }
-    .source-card:target {border-color: #72f0ad; box-shadow: 0 0 0 2px rgba(114, 240, 173, 0.18);}
+    .source-card:target {border-color: var(--da-cite); box-shadow: 0 0 0 2px rgba(114, 240, 173, 0.18);}
     .source-card-top {display: flex; gap: 0.65rem; align-items: center; margin-bottom: 0.45rem;}
     .source-id {
         display: inline-flex;
@@ -500,7 +532,7 @@ st.markdown(
         font-size: 0.82rem;
         font-weight: 760;
     }
-    .source-title {font-weight: 700; color: #f8fafc;}
+    .source-title {font-weight: 700; color: var(--da-text);}
     .source-meta {display: flex; flex-wrap: wrap; gap: 0.45rem; margin-bottom: 0.5rem;}
     .source-meta span {
         border: 1px solid rgba(148, 163, 184, 0.28);
@@ -511,14 +543,14 @@ st.markdown(
     }
     .source-card p {color: #d7dee8; margin: 0.25rem 0 0 0; line-height: 1.55;}
     .cited-passage {
-        border-left: 4px solid #72f0ad;
+        border-left: 4px solid var(--da-cite);
         background: #101821;
         border-radius: 0 8px 8px 0;
         padding: 0.9rem 1rem;
         line-height: 1.62;
-        color: #f8fafc;
+        color: var(--da-text);
     }
-    .pdf-preview {width: 100%; min-height: 540px; border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 8px;}
+    .pdf-preview {width: 100%; min-height: 540px; border: 1px solid var(--da-border); border-radius: 8px;}
     .console-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
@@ -526,7 +558,7 @@ st.markdown(
         margin: 0.8rem 0 1rem 0;
     }
     .console-stat {
-        border: 1px solid rgba(148, 163, 184, 0.26);
+        border: 1px solid var(--da-border);
         border-radius: 8px;
         background: #101821;
         padding: 0.65rem 0.75rem;
@@ -534,7 +566,7 @@ st.markdown(
     }
     .console-stat div {color: #94a3b8; font-size: 0.76rem; margin-bottom: 0.25rem;}
     .console-stat strong {
-        color: #f8fafc;
+        color: var(--da-text);
         display: block;
         font-size: 0.94rem;
         line-height: 1.25;
@@ -542,12 +574,55 @@ st.markdown(
     }
     div[data-testid="stMetric"] {
         background: #101821;
-        border: 1px solid rgba(148, 163, 184, 0.26);
+        border: 1px solid var(--da-border);
         padding: 0.65rem 0.75rem;
         border-radius: 8px;
     }
     div[data-testid="stAlert"] {border-radius: 8px;}
-    textarea {font-size: 1rem !important;}
+    textarea, input {
+        background: var(--da-control) !important;
+        color: var(--da-text) !important;
+        border-color: var(--da-border) !important;
+        caret-color: var(--da-text) !important;
+        font-size: 1rem !important;
+    }
+    textarea::placeholder, input::placeholder {color: var(--da-muted) !important;}
+    div[data-baseweb="select"] > div {
+        background: #0b1118 !important;
+        border-color: var(--da-border) !important;
+        color: var(--da-text) !important;
+    }
+    div[data-baseweb="select"] span, div[data-baseweb="select"] svg {
+        color: var(--da-text) !important;
+        fill: var(--da-text) !important;
+    }
+    [data-testid="stBaseButton-secondary"] {
+        background: var(--da-panel-2) !important;
+        color: var(--da-text) !important;
+        border: 1px solid var(--da-border) !important;
+    }
+    [data-testid="stBaseButton-primary"] {
+        background: var(--da-accent) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 0 0 0 3px rgba(255, 75, 75, 0.12);
+    }
+    [data-testid="stBaseButton-secondary"]:hover,
+    [data-testid="stBaseButton-primary"]:hover {
+        filter: brightness(1.05);
+    }
+    [data-testid="stMarkdownContainer"] a:not(.citation-chip) {color: var(--da-cite) !important;}
+    .stRadio label, .stCheckbox label, .stToggle label {color: var(--da-text) !important;}
+    div[data-testid="stNotification"], div[data-testid="stAlert"] {
+        background: var(--da-panel) !important;
+        color: var(--da-text) !important;
+        border-color: var(--da-border) !important;
+    }
+    section[data-testid="stSidebar"] .stButton button {
+        background: #202530 !important;
+        color: var(--da-text) !important;
+        border-color: rgba(148, 163, 184, 0.34) !important;
+    }
     @media (max-width: 760px) {
         .demo-title {font-size: 1.75rem;}
         .answer-copy {font-size: 1rem;}
