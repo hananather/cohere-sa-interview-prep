@@ -42,6 +42,7 @@ class HybridRetriever:
         trace_id: str,
         top_k: int = 6,
         filters: dict[str, Any] | None = None,
+        variant: str = "hybrid_plus_rerank_pro",
     ) -> RetrievalResult:
         filters = filters or {}
         degradations: list[str] = []
@@ -58,16 +59,20 @@ class HybridRetriever:
             },
         )
 
-        with trace_manager.span(trace_id, "lexical_search_completed", {"query": query}) as span:
-            lexical = self._lexical_search(query, auth, limit=top_k * 4, filters=filters)
+        with trace_manager.span(trace_id, "lexical_search_completed", {"query": query, "variant": variant}) as span:
+            lexical = [] if variant == "embedding_only" else self._lexical_search(query, auth, limit=top_k * 4, filters=filters)
             span.attributes_json = json.dumps({"candidate_count": len(lexical), "chunk_ids": [item[0] for item in lexical]})
 
-        with trace_manager.span(trace_id, "vector_search_completed", {"query": query}) as span:
+        with trace_manager.span(trace_id, "vector_search_completed", {"query": query, "variant": variant}) as span:
             try:
-                query_vector = cohere_gateway.embed_query(query)
-                vector, backend = vector_store.search(query_vector, auth, limit=top_k * 4)
-                if backend != "qdrant":
-                    degradations.append("vector_search_used_sqlite_fallback")
+                if variant == "keyword_only":
+                    vector = []
+                    backend = "disabled_for_keyword_only"
+                else:
+                    query_vector = cohere_gateway.embed_query(query)
+                    vector, backend = vector_store.search(query_vector, auth, limit=top_k * 4)
+                    if backend != "qdrant":
+                        degradations.append("vector_search_used_sqlite_fallback")
                 span.attributes_json = json.dumps({"candidate_count": len(vector), "backend": backend, "chunk_ids": [item[0] for item in vector]})
             except Exception as exc:
                 vector = []
@@ -79,21 +84,26 @@ class HybridRetriever:
         if not candidates:
             return RetrievalResult(chunks=[], trace={"candidate_count": 0}, degradations=degradations)
 
-        with trace_manager.span(trace_id, "rerank_completed", {"candidate_count": len(candidates)}) as span:
+        with trace_manager.span(trace_id, "rerank_completed", {"candidate_count": len(candidates), "variant": variant}) as span:
             try:
-                rerank_inputs = [sanitize_retrieved_text(candidate.chunk.text) for candidate in candidates]
-                scores = cohere_gateway.rerank(query, rerank_inputs)
-                for candidate, score in zip(candidates, scores):
-                    candidate.rerank_score = score
-                candidates.sort(key=lambda item: item.rerank_score if item.rerank_score is not None else item.hybrid_score, reverse=True)
-                span.attributes_json = json.dumps(
-                    {
-                        "scores": [
-                            {"chunk_id": candidate.chunk.id, "rerank_score": candidate.rerank_score}
-                            for candidate in candidates
-                        ]
-                    }
-                )
+                if variant in {"keyword_only", "embedding_only", "hybrid_no_rerank"}:
+                    candidates.sort(key=lambda item: item.hybrid_score, reverse=True)
+                    span.attributes_json = json.dumps({"scores": [], "skipped": True})
+                else:
+                    rerank_inputs = [sanitize_retrieved_text(candidate.chunk.text) for candidate in candidates]
+                    scores = cohere_gateway.rerank(query, rerank_inputs)
+                    for candidate, score in zip(candidates, scores):
+                        candidate.rerank_score = score
+                    candidates.sort(key=lambda item: item.rerank_score if item.rerank_score is not None else item.hybrid_score, reverse=True)
+                    span.attributes_json = json.dumps(
+                        {
+                            "scores": [
+                                {"chunk_id": candidate.chunk.id, "rerank_score": candidate.rerank_score}
+                                for candidate in candidates
+                            ],
+                            "model_family": "cohere_rerank",
+                        }
+                    )
             except Exception as exc:
                 degradations.append("rerank_failed_used_hybrid_score")
                 candidates.sort(key=lambda item: item.hybrid_score, reverse=True)
@@ -108,6 +118,7 @@ class HybridRetriever:
                 "final_chunk_ids": [chunk.chunk_id for chunk in final],
                 "source_count": len(final),
                 "degradations": degradations,
+                "variant": variant,
             },
         )
         return RetrievalResult(

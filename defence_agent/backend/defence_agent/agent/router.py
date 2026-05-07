@@ -65,18 +65,34 @@ class Router:
             return self._decision("bilingual_retrieval", 0.95, "French language query detected", ["search_documents", "validate_answer_citations"])
         if re.search(r"\b(overdue|group by|days overdue|how many|count)\b", lowered):
             return self._decision("structured_table_analysis", 0.97, "Query asks for deterministic table grouping or date math", ["get_table", "run_table_analysis", "validate_answer_citations"])
-        if "current approved" in lowered or "do not use drafts" in lowered or "old versions" in lowered:
+        if (
+            "current approved" in lowered
+            or "do not use drafts" in lowered
+            or "do not cite draft" in lowered
+            or "only approved" in lowered
+            or "ignore superseded" in lowered
+            or "old versions" in lowered
+            or ("ignore metadata" in lowered and "draft" in lowered)
+            or ("newest" in lowered and "draft" in lowered)
+            or ("2026" in lowered and "draft" in lowered and "current" in lowered)
+        ):
             return self._decision("metadata_aware_retrieval", 0.96, "Query asks for current approved guidance and excludes drafts or old versions", ["search_documents", "validate_answer_citations"])
         if re.search(r"\b(compare|changed|change|difference|versions?|2024)\b", lowered):
             return self._decision("version_comparison", 0.94, "Version comparison terms matched", ["compare_versions", "validate_citations"])
         if re.search(r"\b(supported|is this statement|verify|claim)\b", lowered):
             return self._decision("claim_verification", 0.94, "Claim verification terms matched", ["search_documents", "validate_answer_citations"])
-        if "include in a planning brief" in lowered or "before it goes for review" in lowered or "pb-chk" in lowered or "checklist require" in lowered:
+        if (
+            "include in a planning brief" in lowered
+            or "before it goes for review" in lowered
+            or "pb-chk" in lowered
+            or "checklist require" in lowered
+            or ("evidence checklist" in lowered and ("support" in lowered or "sop" in lowered))
+        ):
             return self._decision("cross_source_synthesis", 0.92, "Query requires SOP plus referenced checklist evidence", ["search_documents", "follow_references", "validate_answer_citations"])
-        if "summarize" in lowered or "summary" in lowered:
-            return self._decision("grounded_summary", 0.91, "Summarization terms matched", ["search_documents", "validate_answer_citations"])
         if "restricted annex handling" in lowered or ("restricted" in lowered and "annex" in lowered) or "external distribution" in lowered:
             return self._decision("permission_sensitive_retrieval", 0.96, "Restricted-source terms matched", ["search_documents", "validate_answer_citations"])
+        if "summarize" in lowered or "summary" in lowered:
+            return self._decision("grounded_summary", 0.91, "Summarization terms matched", ["search_documents", "validate_answer_citations"])
         if "not covered by any approved document" in lowered or "private meeting yesterday" in lowered:
             return self._decision("refuse_or_clarify", 0.91, "Query asks beyond approved evidence", ["request_human_review"])
         if re.search(r"\b(readiness|table|threshold|below|percent|%)\b", lowered):

@@ -12,7 +12,7 @@ Production-shaped interview prototype for a fictional DefTech Doctrine Intellige
 - Identity-aware retrieval. Unauthorized chunks never enter model context.
 - Sandboxed Python table analysis.
 - Synthetic PDF/DOCX/Markdown corpus plus a doctrine review tracker table.
-- Golden eval suite with 24 cases across lookup, metadata filtering, multi-hop, comparison, structured analysis, permission, bilingual, and refusal behavior.
+- Golden eval suite plus a 170-case advanced harness across lookup, metadata filtering, multi-hop, comparison, structured analysis, permission, bilingual, adversarial, OCR, and refusal behavior.
 
 ## Fast Start
 
@@ -103,6 +103,10 @@ Use `X-Demo-User` on API calls.
 ```bash
 make test
 make eval
+make eval-validate
+make eval-advanced
+make eval-compare
+make eval-demo
 python defence_agent/scripts/smoke_demo.py
 ```
 
@@ -112,6 +116,20 @@ The fixture-mode acceptance gate is:
 - 100% permission correctness.
 - 100% citation validation.
 - Exact structured-analysis result for overdue review counts as of `2026-05-06`.
+
+Advanced eval reports are written to `reports/eval/latest/`.
+
+Run the advanced harness directly:
+
+```bash
+PYTHONPATH=defence_agent/backend USE_MOCK_COHERE=true python defence_agent/scripts/run_eval_harness.py run --suite canonical --mode fixture
+```
+
+Run live mode only when a local `.env` contains `COHERE_API_KEY`:
+
+```bash
+PYTHONPATH=defence_agent/backend USE_MOCK_COHERE=false python defence_agent/scripts/run_eval_harness.py run --suite canonical --mode live
+```
 
 ## Interview Docs
 

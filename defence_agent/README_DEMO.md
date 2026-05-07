@@ -10,12 +10,15 @@ For free-form policy questions, the assistant uses retrieval and reranking. For 
 
 ## Demo Sequence
 
-1. Q1 evidence lookup: `What review steps are required before a planning brief is approved?`
-2. Q3 metadata-aware retrieval: `What is the current approved procedure for approving a planning brief? Do not use drafts or old versions.`
-3. Q5 version comparison: `What changed between the 2024 and 2025 planning-brief review process? Cite both versions.`
-4. Q6 structured analysis: `Which planning procedures are overdue for review? Group them by owner and show how many days overdue.`
-5. Q8 security trim: run `What restricted annex handling steps apply before external distribution?` as `planning_analyst`, then as `planning_lead`.
-6. Q9 bilingual: `Quels sont les délais dans la procédure de communications d’urgence?`
+The latest demo selector recommends this sequence:
+
+1. Evidence lookup: `What review steps are required before a planning brief is approved?`
+2. Metadata-aware retrieval: `What is the current approved procedure for approving a planning brief? Do not use drafts or old versions.`
+3. Cross-source synthesis: `What should I include in a planning brief before it goes for review?`
+4. Version comparison: `What changed between the 2024 and 2025 planning-brief review process? Cite both versions.`
+5. Structured analysis: `Which planning procedures are overdue for review? Group them by owner and show how many days overdue.`
+6. Permission-sensitive access: run `What restricted annex handling steps apply before external distribution?` as `planning_analyst`, then `As a restricted user, what high-level rules apply to restricted annexes?`
+7. Bilingual retrieval: `Quels sont les délais dans la procédure de communications d’urgence?`
 
 ## Why Not Just Simple RAG
 
@@ -32,13 +35,19 @@ Simple retrieval works for Q1. It is not enough for current-approved filtering, 
 
 ## Eval Story
 
-The fixture eval suite has 24 cases. It checks routing, retrieval source IDs, metadata filters, citation presence, citation validation, permission behavior, refusal behavior, bilingual retrieval, and exact sandbox output.
+The fixture canonical suite has 24 cases. It checks routing, retrieval source IDs, metadata filters, citation presence, citation validation, permission behavior, refusal behavior, bilingual retrieval, and exact sandbox output.
+
+The broader generated suite has 170 cases. It covers find, answer, summarize, synthesize, compare, verify, refusal, permission, bilingual, structured analysis, scanned/OCR, adversarial, and demo-candidate tasks.
 
 Run it:
 
 ```bash
 make eval
+make eval-advanced
+make eval-demo
 ```
+
+Open `reports/eval/latest/demo_selection_report.md` for the selected sequence and `reports/eval/latest/demo_scorecard.md` for backup queries.
 
 Run a smoke test against the local API:
 

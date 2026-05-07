@@ -11,6 +11,8 @@ os.environ.setdefault("COHERE_RERANK_MODEL", "rerank-v4.0-pro")
 from fastapi.testclient import TestClient
 
 from defence_agent.api import app
+from defence_agent.evals.advanced_runner import advanced_eval_runner
+from defence_agent.evals.load_cases import load_suite
 from defence_agent.evals.runner import eval_runner
 from defence_agent.sandbox.python_sandbox import validate_code, SandboxValidationError
 
@@ -147,3 +149,29 @@ def test_golden_eval_suite_passes_fixture_mode() -> None:
     assert summary.metrics["route_accuracy"] == 1.0
     assert summary.metrics["permission_correctness"] == 1.0
     assert summary.metrics["structured_exact"] == 1.0
+
+
+def test_advanced_eval_dataset_meets_distribution_targets() -> None:
+    validation = advanced_eval_runner.validate()
+    assert validation["ok"] is True
+    assert validation["suite_counts"]["generated"] >= 120
+    generated = load_suite("generated").cases
+    task_counts: dict[str, int] = {}
+    complexity_counts: dict[str, int] = {}
+    for case in generated:
+        task_counts[case.task_type] = task_counts.get(case.task_type, 0) + 1
+        complexity_counts[case.complexity_level] = complexity_counts.get(case.complexity_level, 0) + 1
+    assert task_counts["structured_analysis"] >= 10
+    assert task_counts["bilingual"] >= 10
+    assert task_counts["permission_sensitive"] >= 10
+    assert task_counts["adversarial"] >= 8
+    assert complexity_counts.get("L4", 0) + complexity_counts.get("L5", 0) >= 30
+
+
+def test_advanced_canonical_fixture_eval_passes() -> None:
+    report = advanced_eval_runner.run_suite("canonical", mode="fixture", variant="agentic_rag_tools")
+    assert report.metrics["case_count"] == 24
+    assert report.metrics["pass_rate"] == 1.0
+    assert report.metrics["route_accuracy"] == 1.0
+    assert report.metrics["citation_validation_pass_rate"] == 1.0
+    assert report.metrics["structured_analysis_exact_correctness"] == 1.0

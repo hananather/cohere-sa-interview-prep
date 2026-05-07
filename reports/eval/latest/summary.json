@@ -1,0 +1,3451 @@
+{
+  "run_id": "eval_canonical_178a881101",
+  "suite": "canonical",
+  "mode": "fixture",
+  "variant": "agentic_rag_tools",
+  "metrics": {
+    "suite": "canonical",
+    "case_count": 24,
+    "pass_rate": 1.0,
+    "route_accuracy": 1.0,
+    "tool_accuracy": 1.0,
+    "retrieval_recall_at_k": 1.0,
+    "precision_at_k": 0.5173611111111112,
+    "mrr": 0.9444444444444444,
+    "filter_correctness": 1.0,
+    "access_control_correctness": 1.0,
+    "citation_validation_pass_rate": 1.0,
+    "refusal_precision_recall_proxy": 1.0,
+    "structured_analysis_exact_correctness": 1.0,
+    "latency_avg_ms": 61.65213366451402,
+    "latency_p95_ms": 103.87875000014901,
+    "top_failure_categories": [],
+    "by_task_type": {
+      "adversarial": {
+        "case_count": 1,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "answer": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "bilingual": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "compare": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "find": {
+        "case_count": 6,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "permission_sensitive": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "refuse_or_clarify": {
+        "case_count": 1,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "structured_analysis": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "summarize": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "synthesize": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "verify": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      }
+    },
+    "by_complexity": {
+      "L1": {
+        "case_count": 7,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "L2": {
+        "case_count": 6,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "L3": {
+        "case_count": 3,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "L4": {
+        "case_count": 7,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "L5": {
+        "case_count": 1,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      }
+    },
+    "by_route": {
+      "bilingual_retrieval": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "claim_verification": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "cross_source_synthesis": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "evidence_lookup": {
+        "case_count": 6,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "grounded_summary": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "metadata_aware_retrieval": {
+        "case_count": 3,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "permission_sensitive_retrieval": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "refuse_or_clarify": {
+        "case_count": 1,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "structured_table_analysis": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      },
+      "version_comparison": {
+        "case_count": 2,
+        "pass_rate": 1.0,
+        "route_accuracy": 1.0
+      }
+    }
+  },
+  "cases": [
+    {
+      "query_id": "CAN_Q_FIND_001",
+      "task_type": "find",
+      "complexity_level": "L1",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_538446515ce145adbfe8140dbfa80398",
+      "route": "evidence_lookup",
+      "latency_ms": 47.66979199484922,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "evidence_lookup",
+          "actual_route": "evidence_lookup",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "run_table_analysis"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "PB-SOP-2025"
+          ],
+          "actual_sources": [
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-SOP-2025"
+          ],
+          "disallowed_sources": [
+            "PB-SOP-2026-DRAFT",
+            "PB-SOP-2024"
+          ],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.3333333333333333,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 4
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.645,
+            0.5487,
+            0.2904
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 3,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 47.66979199484922,
+          "trace_id": "tr_538446515ce145adbfe8140dbfa80398",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 133,
+            "output_tokens_estimate": 86,
+            "total_tokens_estimate": 219,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "The current approved planning brief approval process requires intake and purpose classification, evidence pack review, planning brief drafting, section chief review within 2 business days, legal or policy review when the brief includes external distribution, restricted annexes, or cross-departmental commitments, director approval before circulation, and archival of the evidence and decision log [C1]. Use the cited source details to confirm the section before operational use.",
+      "sources": [
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-SOP-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_FIND_002",
+      "task_type": "find",
+      "complexity_level": "L1",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_91908bdf83a244f7870c0b8040e7e484",
+      "route": "evidence_lookup",
+      "latency_ms": 55.63224999059457,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "evidence_lookup",
+          "actual_route": "evidence_lookup",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "run_table_analysis"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "PB-CHK-2025"
+          ],
+          "actual_sources": [
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-CHK-2025"
+          ],
+          "disallowed_sources": [],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.3333333333333333,
+          "mrr": 0.3333333333333333,
+          "context_sufficient": true,
+          "candidate_count": 4
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            1.0,
+            0.8111,
+            0.6204
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 3,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 55.63224999059457,
+          "trace_id": "tr_91908bdf83a244f7870c0b8040e7e484",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 135,
+            "output_tokens_estimate": 29,
+            "total_tokens_estimate": 164,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "Before review, the required evidence pack must satisfy PB-CHK-2025 [C1]. Use the cited source details to confirm the section before operational use.",
+      "sources": [
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-CHK-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_FIND_003",
+      "task_type": "find",
+      "complexity_level": "L1",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_050cee2db857487f8989b81d519747f4",
+      "route": "evidence_lookup",
+      "latency_ms": 97.81049999583047,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "evidence_lookup",
+          "actual_route": "evidence_lookup",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "run_table_analysis"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "PB-SOP-2025"
+          ],
+          "actual_sources": [
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "LOG-RET-2025"
+          ],
+          "disallowed_sources": [],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.3333333333333333,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 4
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.387,
+            0.1829,
+            0.1733
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 3,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 97.81049999583047,
+          "trace_id": "tr_050cee2db857487f8989b81d519747f4",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 114,
+            "output_tokens_estimate": 86,
+            "total_tokens_estimate": 200,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "The current approved planning brief approval process requires intake and purpose classification, evidence pack review, planning brief drafting, section chief review within 2 business days, legal or policy review when the brief includes external distribution, restricted annexes, or cross-departmental commitments, director approval before circulation, and archival of the evidence and decision log [C1]. Use the cited source details to confirm the section before operational use.",
+      "sources": [
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "LOG-RET-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_FIND_004",
+      "task_type": "find",
+      "complexity_level": "L1",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_3fc2bd810a2c4a45a02f3822fffc507d",
+      "route": "evidence_lookup",
+      "latency_ms": 84.19012499507517,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "evidence_lookup",
+          "actual_route": "evidence_lookup",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "run_table_analysis"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "EC-PROC-2025"
+          ],
+          "actual_sources": [
+            "EC-PROC-2025",
+            "PB-SOP-2025",
+            "EC-PROC-2025"
+          ],
+          "disallowed_sources": [
+            "PB-SOP-2026-DRAFT",
+            "PB-SOP-2024"
+          ],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.3333333333333333,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 4
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.3507,
+            0.1496,
+            0.0
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 3,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 84.19012499507517,
+          "trace_id": "tr_3fc2bd810a2c4a45a02f3822fffc507d",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 129,
+            "output_tokens_estimate": 33,
+            "total_tokens_estimate": 162,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "The emergency communications procedure covers activation conditions, approval gates, and required evidence [C1]. Use the cited source details to confirm the section before operational use.",
+      "sources": [
+        "EC-PROC-2025",
+        "PB-SOP-2025",
+        "EC-PROC-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_FIND_005",
+      "task_type": "find",
+      "complexity_level": "L1",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_a8096f479ace4782949e67899f4c4a06",
+      "route": "evidence_lookup",
+      "latency_ms": 36.98025000630878,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "evidence_lookup",
+          "actual_route": "evidence_lookup",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "run_table_analysis"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "LOG-RET-2025"
+          ],
+          "actual_sources": [
+            "PB-CHK-2025",
+            "PB-SOP-2025",
+            "LOG-RET-2025"
+          ],
+          "disallowed_sources": [],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.3333333333333333,
+          "mrr": 0.3333333333333333,
+          "context_sufficient": true,
+          "candidate_count": 4
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.585,
+            0.5521,
+            0.5062
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 3,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 36.98025000630878,
+          "trace_id": "tr_a8096f479ace4782949e67899f4c4a06",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 150,
+            "output_tokens_estimate": 57,
+            "total_tokens_estimate": 207,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "Before review, the evidence pack must include a problem statement, policy basis, source list, assumptions, impacted stakeholders, risk rating, options considered, recommendation, citation table, open questions, and decision log stub [C1]. Use the cited source details to confirm the section before operational use.",
+      "sources": [
+        "PB-CHK-2025",
+        "PB-SOP-2025",
+        "LOG-RET-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_FIND_011",
+      "task_type": "find",
+      "complexity_level": "L1",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_4a8e2a15f6114953bc56860278798419",
+      "route": "evidence_lookup",
+      "latency_ms": 39.12345800199546,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "evidence_lookup",
+          "actual_route": "evidence_lookup",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "run_table_analysis"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "PB-SOP-2025"
+          ],
+          "actual_sources": [
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-SOP-2025"
+          ],
+          "disallowed_sources": [],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.3333333333333333,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 4
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.7924,
+            0.5093,
+            0.4635
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 3,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 39.12345800199546,
+          "trace_id": "tr_4a8e2a15f6114953bc56860278798419",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 133,
+            "output_tokens_estimate": 34,
+            "total_tokens_estimate": 167,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "Urgency may compress the order of sign-offs, but it cannot skip evidence review [C1]. Use the cited source details to confirm the section before operational use.",
+      "sources": [
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-SOP-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_SUM_033",
+      "task_type": "summarize",
+      "complexity_level": "L2",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_d6419bb4633741689fcb600bf5226b61",
+      "route": "grounded_summary",
+      "latency_ms": 46.658042003400624,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "grounded_summary",
+          "actual_route": "grounded_summary",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "run_table_analysis"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "EC-PROC-2025"
+          ],
+          "actual_sources": [
+            "EC-PROC-2025",
+            "EC-PROC-2025",
+            "EC-PROC-2025"
+          ],
+          "disallowed_sources": [],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.3333333333333333,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 3
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            1.0,
+            0.4172,
+            0.2833
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 3,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 46.658042003400624,
+          "trace_id": "tr_d6419bb4633741689fcb600bf5226b61",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 105,
+            "output_tokens_estimate": 82,
+            "total_tokens_estimate": 187,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "The emergency communications procedure has three parts: activation and approval gates, timeline obligations, and required evidence. The timeline is acknowledgement within 15 minutes, situation update within 45 minutes, executive summary within 90 minutes, and final record within 1 business day [C2]. The evidence pack includes the source event log, responsible desk, time of receipt, confidence level, distribution list, and approving official [C3].",
+      "sources": [
+        "EC-PROC-2025",
+        "EC-PROC-2025",
+        "EC-PROC-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_SUM_034",
+      "task_type": "summarize",
+      "complexity_level": "L2",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_d51ba22bd8444a10b2bbfb08965f9dad",
+      "route": "grounded_summary",
+      "latency_ms": 54.025374993216246,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "grounded_summary",
+          "actual_route": "grounded_summary",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "run_table_analysis"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "PB-SOP-2025"
+          ],
+          "actual_sources": [
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-SOP-2025"
+          ],
+          "disallowed_sources": [],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.3333333333333333,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 3
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.6901,
+            0.3085,
+            0.1919
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 3,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 54.025374993216246,
+          "trace_id": "tr_d51ba22bd8444a10b2bbfb08965f9dad",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 130,
+            "output_tokens_estimate": 82,
+            "total_tokens_estimate": 212,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "The emergency communications procedure has three parts: activation and approval gates, timeline obligations, and required evidence. The timeline is acknowledgement within 15 minutes, situation update within 45 minutes, executive summary within 90 minutes, and final record within 1 business day [C2]. The evidence pack includes the source event log, responsible desk, time of receipt, confidence level, distribution list, and approving official [C3].",
+      "sources": [
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-SOP-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_ANS_025",
+      "task_type": "answer",
+      "complexity_level": "L4",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_2e23b25eb4a442c99ad692e444318b4b",
+      "route": "metadata_aware_retrieval",
+      "latency_ms": 46.387540991418064,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "metadata_aware_retrieval",
+          "actual_route": "metadata_aware_retrieval",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "run_table_analysis"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "PB-SOP-2025"
+          ],
+          "actual_sources": [
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-SOP-2025"
+          ],
+          "disallowed_sources": [
+            "PB-SOP-2026-DRAFT",
+            "PB-SOP-2024"
+          ],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.3333333333333333,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 3
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.516,
+            0.1571,
+            0.1194
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 3,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 46.387540991418064,
+          "trace_id": "tr_2e23b25eb4a442c99ad692e444318b4b",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 142,
+            "output_tokens_estimate": 78,
+            "total_tokens_estimate": 220,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "The current approved planning brief procedure is PB-SOP-2025. It requires intake and purpose classification, evidence pack review, drafting, section chief review within 2 business days, required legal or policy review for external distribution, restricted annexes, or cross-departmental commitments, director approval, and evidence and decision log archival [C1]. Draft and superseded versions are excluded from this answer by metadata filter.",
+      "sources": [
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-SOP-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_ANS_027",
+      "task_type": "answer",
+      "complexity_level": "L3",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_8e96f8163a3449169cb94079b3f4b4d8",
+      "route": "metadata_aware_retrieval",
+      "latency_ms": 50.81004100793507,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "metadata_aware_retrieval",
+          "actual_route": "metadata_aware_retrieval",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "run_table_analysis"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "PB-SOP-2025"
+          ],
+          "actual_sources": [
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-SOP-2025"
+          ],
+          "disallowed_sources": [
+            "PB-SOP-2026-DRAFT",
+            "PB-SOP-2024"
+          ],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.3333333333333333,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 3
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.1757,
+            0.138,
+            0.1218
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 3,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 50.81004100793507,
+          "trace_id": "tr_8e96f8163a3449169cb94079b3f4b4d8",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 135,
+            "output_tokens_estimate": 47,
+            "total_tokens_estimate": 182,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "The current approved urgent exception rule says urgency may compress the order of sign-offs, but it cannot skip evidence review. The rationale must be recorded and retrospective director confirmation is required within 1 business day [C1].",
+      "sources": [
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-SOP-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_SYN_045",
+      "task_type": "synthesize",
+      "complexity_level": "L3",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_626abf70ae084bdf99543bcb15373b81",
+      "route": "cross_source_synthesis",
+      "latency_ms": 82.89462501124945,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "cross_source_synthesis",
+          "actual_route": "cross_source_synthesis",
+          "expected_tools": [
+            "follow_references",
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "follow_references",
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "PB-SOP-2025",
+            "PB-CHK-2025"
+          ],
+          "actual_sources": [
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-CHK-2025"
+          ],
+          "disallowed_sources": [],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.5,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 3
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.7307,
+            0.7027,
+            0.138,
+            0.3723
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "follow_references",
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "follow_references",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 3
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 4,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 82.89462501124945,
+          "trace_id": "tr_626abf70ae084bdf99543bcb15373b81",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 175,
+            "output_tokens_estimate": 74,
+            "total_tokens_estimate": 249,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "Before a planning brief goes for review, include the SOP-required evidence pack and the checklist contents. The SOP requires evidence pack review before the brief proceeds [C1]. The checklist specifies the pack contents: problem statement, policy basis, source list, assumptions, impacted stakeholders, risk rating, options considered, recommendation, citation table, open questions, and decision log stub [C2].",
+      "sources": [
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-CHK-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_SYN_046",
+      "task_type": "synthesize",
+      "complexity_level": "L3",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_9e53bf98d2b94e408f105fa62ab3af10",
+      "route": "cross_source_synthesis",
+      "latency_ms": 84.99350000056438,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "cross_source_synthesis",
+          "actual_route": "cross_source_synthesis",
+          "expected_tools": [
+            "follow_references",
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "follow_references",
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "PB-SOP-2025",
+            "PB-CHK-2025"
+          ],
+          "actual_sources": [
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-CHK-2025"
+          ],
+          "disallowed_sources": [],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.5,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 3
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.7307,
+            0.7027,
+            0.138,
+            0.3169
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "follow_references",
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "follow_references",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 3
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 4,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 84.99350000056438,
+          "trace_id": "tr_9e53bf98d2b94e408f105fa62ab3af10",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 178,
+            "output_tokens_estimate": 74,
+            "total_tokens_estimate": 252,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "Before a planning brief goes for review, include the SOP-required evidence pack and the checklist contents. The SOP requires evidence pack review before the brief proceeds [C1]. The checklist specifies the pack contents: problem statement, policy basis, source list, assumptions, impacted stakeholders, risk rating, options considered, recommendation, citation table, open questions, and decision log stub [C2].",
+      "sources": [
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-CHK-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_CMP_059",
+      "task_type": "compare",
+      "complexity_level": "L4",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_b754b8d3584b476cb997276f31aa519e",
+      "route": "version_comparison",
+      "latency_ms": 103.87875000014901,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "version_comparison",
+          "actual_route": "version_comparison",
+          "expected_tools": [
+            "compare_document_versions",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "compare_document_versions",
+            "validate_citations"
+          ],
+          "disallowed_tools": [],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "PB-SOP-2024",
+            "PB-SOP-2025"
+          ],
+          "actual_sources": [
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-SOP-2024",
+            "PB-SOP-2024"
+          ],
+          "disallowed_sources": [],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.4,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 2
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.6192,
+            0.4713,
+            0.3582,
+            0.8473,
+            0.1339
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "compare_document_versions",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "compare_document_versions",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 5,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 103.87875000014901,
+          "trace_id": "tr_b754b8d3584b476cb997276f31aa519e",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 194,
+            "output_tokens_estimate": 115,
+            "total_tokens_estimate": 309,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "The 2025 process tightens the 2024 guidance in four ways. Section chief review moves from 3 business days to 2 business days [C3] [C1]. Evidence review changes from recommended before urgent provisional circulation to mandatory before review, even when urgency compresses sign-offs [C4] [C2]. Legal and policy review expands beyond public release to external distribution, restricted annexes, and cross-departmental commitments [C3] [C1]. The urgent exception path moves away from duty officer approval and now requires recorded rationale and retrospective director confirmation within 1 business day [C4] [C2].",
+      "sources": [
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-SOP-2024",
+        "PB-SOP-2024"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_CMP_060",
+      "task_type": "compare",
+      "complexity_level": "L4",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_3da23aee9a3d4657b988c56a2efca530",
+      "route": "version_comparison",
+      "latency_ms": 156.1997499957215,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "version_comparison",
+          "actual_route": "version_comparison",
+          "expected_tools": [
+            "compare_document_versions",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "compare_document_versions",
+            "validate_citations"
+          ],
+          "disallowed_tools": [],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "PB-SOP-2024",
+            "PB-SOP-2025"
+          ],
+          "actual_sources": [
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-SOP-2024",
+            "PB-SOP-2024"
+          ],
+          "disallowed_sources": [],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.4,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 2
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.4635,
+            0.3395,
+            0.2641,
+            0.6686,
+            0.1466
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "compare_document_versions",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "compare_document_versions",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 5,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 156.1997499957215,
+          "trace_id": "tr_3da23aee9a3d4657b988c56a2efca530",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 192,
+            "output_tokens_estimate": 115,
+            "total_tokens_estimate": 307,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "The 2025 process tightens the 2024 guidance in four ways. Section chief review moves from 3 business days to 2 business days [C3] [C1]. Evidence review changes from recommended before urgent provisional circulation to mandatory before review, even when urgency compresses sign-offs [C4] [C2]. Legal and policy review expands beyond public release to external distribution, restricted annexes, and cross-departmental commitments [C3] [C1]. The urgent exception path moves away from duty officer approval and now requires recorded rationale and retrospective director confirmation within 1 business day [C4] [C2].",
+      "sources": [
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-SOP-2024",
+        "PB-SOP-2024"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_VER_071",
+      "task_type": "verify",
+      "complexity_level": "L2",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_1d3eab28de154ee3828319272b18f104",
+      "route": "claim_verification",
+      "latency_ms": 41.423624992603436,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "claim_verification",
+          "actual_route": "claim_verification",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "PB-SOP-2025"
+          ],
+          "actual_sources": [
+            "PB-SOP-2025"
+          ],
+          "disallowed_sources": [
+            "PB-SOP-2026-DRAFT",
+            "PB-SOP-2024"
+          ],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 1.0,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 3
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.6633
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 1,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 41.423624992603436,
+          "trace_id": "tr_1d3eab28de154ee3828319272b18f104",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 61,
+            "output_tokens_estimate": 50,
+            "total_tokens_estimate": 111,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "The statement is not supported by approved guidance. The current approved SOP says urgency may compress sign-off order, but it cannot skip evidence review [C1]. Draft or superseded language should not be used to approve current procedure questions.",
+      "sources": [
+        "PB-SOP-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_VER_073",
+      "task_type": "verify",
+      "complexity_level": "L1",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_ffe3de2b94444788aed53945c21ee666",
+      "route": "claim_verification",
+      "latency_ms": 83.49279199319426,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "claim_verification",
+          "actual_route": "claim_verification",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "EC-PROC-2025"
+          ],
+          "actual_sources": [
+            "EC-PROC-2025"
+          ],
+          "disallowed_sources": [],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 1.0,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 3
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            1.0
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 1,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 83.49279199319426,
+          "trace_id": "tr_ffe3de2b94444788aed53945c21ee666",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 55,
+            "output_tokens_estimate": 22,
+            "total_tokens_estimate": 77,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "The statement is supported. The approved emergency communications procedure requires an initial acknowledgement within 15 minutes [C1].",
+      "sources": [
+        "EC-PROC-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_REF_083",
+      "task_type": "refuse_or_clarify",
+      "complexity_level": "L2",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_e12da9c3ab164be58537410ae823f113",
+      "route": "refuse_or_clarify",
+      "latency_ms": 11.921416007680818,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "refuse_or_clarify",
+          "actual_route": "refuse_or_clarify",
+          "expected_tools": [
+            "request_human_review",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "request_human_review",
+            "validate_citations"
+          ],
+          "disallowed_tools": [],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [],
+          "actual_sources": [],
+          "disallowed_sources": [
+            "PB-SOP-2026-DRAFT",
+            "PB-SOP-2024"
+          ],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 1.0,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": null
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": []
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "request_human_review",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "request_human_review",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": true,
+          "expected_refusal": true,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": false,
+          "citation_count": 0,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 11.921416007680818,
+          "trace_id": "tr_e12da9c3ab164be58537410ae823f113",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 19,
+            "output_tokens_estimate": 33,
+            "total_tokens_estimate": 52,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "The approved documents do not provide enough support for that request. Please clarify the scenario or route it to an authorized subject-matter expert for review.",
+      "sources": []
+    },
+    {
+      "query_id": "CAN_Q_PERM_095",
+      "task_type": "permission_sensitive",
+      "complexity_level": "L4",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_c986c53a93d3470384996609e3fa1653",
+      "route": "permission_sensitive_retrieval",
+      "latency_ms": 34.71154200087767,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "permission_sensitive_retrieval",
+          "actual_route": "permission_sensitive_retrieval",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [],
+          "actual_sources": [],
+          "disallowed_sources": [
+            "ANNEX-HANDLING-2025"
+          ],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 1.0,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": null
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": []
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": true,
+          "expected_refusal": true,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": false,
+          "citation_count": 0,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 34.71154200087767,
+          "trace_id": "tr_c986c53a93d3470384996609e3fa1653",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 11,
+            "output_tokens_estimate": 30,
+            "total_tokens_estimate": 41,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "This answer requires a restricted source that is not available to the current user. Request access or escalate to an authorized planning lead.",
+      "sources": []
+    },
+    {
+      "query_id": "CAN_Q_PERM_097",
+      "task_type": "permission_sensitive",
+      "complexity_level": "L4",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_6818b7101d6c40649672bac07495886c",
+      "route": "permission_sensitive_retrieval",
+      "latency_ms": 30.30395800305996,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "permission_sensitive_retrieval",
+          "actual_route": "permission_sensitive_retrieval",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "ANNEX-HANDLING-2025"
+          ],
+          "actual_sources": [
+            "ANNEX-HANDLING-2025",
+            "ANNEX-HANDLING-2025"
+          ],
+          "disallowed_sources": [],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.5,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 2
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.1783,
+            0.1559
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 2,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 30.30395800305996,
+          "trace_id": "tr_6818b7101d6c40649672bac07495886c",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 71,
+            "output_tokens_estimate": 33,
+            "total_tokens_estimate": 104,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "For authorized users, restricted annex handling before external distribution requires access confirmation, lead approval, distribution minimization, annex marking validation, and an evidence log entry [C1].",
+      "sources": [
+        "ANNEX-HANDLING-2025",
+        "ANNEX-HANDLING-2025"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_BIL_105",
+      "task_type": "bilingual",
+      "complexity_level": "L2",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_654b365aefe7415b9ed31dec35b211fe",
+      "route": "bilingual_retrieval",
+      "latency_ms": 74.68937498924788,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "bilingual_retrieval",
+          "actual_route": "bilingual_retrieval",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "run_table_analysis"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "EC-PROC-2025-FR"
+          ],
+          "actual_sources": [
+            "EC-PROC-2025-FR"
+          ],
+          "disallowed_sources": [],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 1.0,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 1
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.6101
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 1,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 74.68937498924788,
+          "trace_id": "tr_654b365aefe7415b9ed31dec35b211fe",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 65,
+            "output_tokens_estimate": 54,
+            "total_tokens_estimate": 119,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "Selon la procedure de communications d'urgence, l'accuse de reception initial est requis dans les 15 minutes, la mise a jour operationnelle dans les 45 minutes, le resume executif dans les 90 minutes, et le dossier final dans un jour ouvrable [C1].",
+      "sources": [
+        "EC-PROC-2025-FR"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_BIL_114",
+      "task_type": "bilingual",
+      "complexity_level": "L2",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_e5a93e959ea549a0a4854bf4bd076de0",
+      "route": "bilingual_retrieval",
+      "latency_ms": 62.58579199493397,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "bilingual_retrieval",
+          "actual_route": "bilingual_retrieval",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "run_table_analysis"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "EC-PROC-2025-FR"
+          ],
+          "actual_sources": [
+            "EC-PROC-2025-FR"
+          ],
+          "disallowed_sources": [
+            "PB-SOP-2026-DRAFT",
+            "PB-SOP-2024"
+          ],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 1.0,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 1
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.1394
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 1,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 62.58579199493397,
+          "trace_id": "tr_e5a93e959ea549a0a4854bf4bd076de0",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 70,
+            "output_tokens_estimate": 54,
+            "total_tokens_estimate": 124,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "Selon la procedure de communications d'urgence, l'accuse de reception initial est requis dans les 15 minutes, la mise a jour operationnelle dans les 45 minutes, le resume executif dans les 90 minutes, et le dossier final dans un jour ouvrable [C1].",
+      "sources": [
+        "EC-PROC-2025-FR"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_TAB_123",
+      "task_type": "structured_analysis",
+      "complexity_level": "L4",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_a4044e700573411a95517981a2f52411",
+      "route": "structured_table_analysis",
+      "latency_ms": 59.44604199612513,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "structured_table_analysis",
+          "actual_route": "structured_table_analysis",
+          "expected_tools": [
+            "get_table",
+            "run_table_analysis",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "get_table",
+            "run_table_analysis",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "search_documents"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "doctrine_review_tracker"
+          ],
+          "actual_sources": [
+            "doctrine_review_tracker",
+            "doctrine_review_tracker",
+            "doctrine_review_tracker",
+            "doctrine_review_tracker"
+          ],
+          "disallowed_sources": [],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.25,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": null
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": false,
+          "skipped_for_table_analysis": true
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "get_table",
+            "run_table_analysis",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "get_table",
+            "run_table_analysis",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 3
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_used": true,
+          "exact_result_correct": true,
+          "policy_visible": true,
+          "network_disabled": true,
+          "row_ids_preserved": true
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 4,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 59.44604199612513,
+          "trace_id": "tr_a4044e700573411a95517981a2f52411",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 167,
+            "output_tokens_estimate": 131,
+            "total_tokens_estimate": 298,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "As of 2026-05-06, the approved planning procedures overdue for review are:\n- LOG-RET-2025 owned by Records Management Office is 96 days overdue (2026-01-30) [C4].\n- PB-SOP-2025 owned by Planning Policy Directorate is 52 days overdue (2026-03-15) [C1].\n- EC-PROC-2025 owned by Emergency Coordination Office is 35 days overdue (2026-04-01) [C2].\n- EC-PROC-2025-FR owned by Emergency Coordination Office is 35 days overdue (2026-04-01) [C3].\n\nGrouped by owner:\n- Records Management Office: 1 overdue document(s), max 96 days overdue.\n- Planning Policy Directorate: 1 overdue document(s), max 52 days overdue.\n- Emergency Coordination Office: 2 overdue document(s), max 35 days overdue.",
+      "sources": [
+        "doctrine_review_tracker",
+        "doctrine_review_tracker",
+        "doctrine_review_tracker",
+        "doctrine_review_tracker"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_TAB_124",
+      "task_type": "structured_analysis",
+      "complexity_level": "L4",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_77afce8ba64f4d31b415a8912334b5bc",
+      "route": "structured_table_analysis",
+      "latency_ms": 41.47699999157339,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "structured_table_analysis",
+          "actual_route": "structured_table_analysis",
+          "expected_tools": [
+            "get_table",
+            "run_table_analysis",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "get_table",
+            "run_table_analysis",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "search_documents"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "doctrine_review_tracker"
+          ],
+          "actual_sources": [
+            "doctrine_review_tracker",
+            "doctrine_review_tracker",
+            "doctrine_review_tracker",
+            "doctrine_review_tracker",
+            "doctrine_review_tracker"
+          ],
+          "disallowed_sources": [
+            "PB-SOP-2026-DRAFT",
+            "PB-SOP-2024"
+          ],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.2,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": null
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": false,
+          "skipped_for_table_analysis": true
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "get_table",
+            "run_table_analysis",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "get_table",
+            "run_table_analysis",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 3
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_used": true,
+          "exact_result_correct": true,
+          "policy_visible": true,
+          "network_disabled": true,
+          "row_ids_preserved": true
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 5,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 41.47699999157339,
+          "trace_id": "tr_77afce8ba64f4d31b415a8912334b5bc",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 187,
+            "output_tokens_estimate": 90,
+            "total_tokens_estimate": 277,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "Approved documents grouped by owner:\n- Emergency Coordination Office: 2 approved document(s).\n- Planning Policy Directorate: 2 approved document(s).\n- Records Management Office: 1 approved document(s).\n\nRows used:\n- PB-SOP-2025 contributes to Planning Policy Directorate [C1].\n- PB-CHK-2025 contributes to Planning Policy Directorate [C2].\n- EC-PROC-2025 contributes to Emergency Coordination Office [C3].\n- EC-PROC-2025-FR contributes to Emergency Coordination Office [C4].\n- LOG-RET-2025 contributes to Records Management Office [C5].",
+      "sources": [
+        "doctrine_review_tracker",
+        "doctrine_review_tracker",
+        "doctrine_review_tracker",
+        "doctrine_review_tracker",
+        "doctrine_review_tracker"
+      ]
+    },
+    {
+      "query_id": "CAN_Q_ADV_149",
+      "task_type": "adversarial",
+      "complexity_level": "L5",
+      "passed": true,
+      "failure_categories": [],
+      "trace_id": "tr_5bcfe82b7a54486288deb4148fdcb2b9",
+      "route": "metadata_aware_retrieval",
+      "latency_ms": 52.34566699073184,
+      "grades": {
+        "route": {
+          "passed": true,
+          "failure_category": null,
+          "expected_route": "metadata_aware_retrieval",
+          "actual_route": "metadata_aware_retrieval",
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "disallowed_tools": [
+            "run_table_analysis"
+          ],
+          "route_reason_present": true
+        },
+        "retrieval": {
+          "passed": true,
+          "failure_category": null,
+          "expected_sources": [
+            "PB-SOP-2025"
+          ],
+          "actual_sources": [
+            "PB-SOP-2025",
+            "PB-SOP-2025",
+            "PB-SOP-2025"
+          ],
+          "disallowed_sources": [
+            "PB-SOP-2026-DRAFT",
+            "PB-SOP-2024"
+          ],
+          "disallowed_hits": [],
+          "recall_at_k": 1.0,
+          "precision_at_k": 0.3333333333333333,
+          "mrr": 1.0,
+          "context_sufficient": true,
+          "candidate_count": 3
+        },
+        "filters": {
+          "passed": true,
+          "failure_category": null,
+          "status_filter_correct": true,
+          "language_filter_correct": true,
+          "access_filter_correct": true,
+          "disallowed_hits": []
+        },
+        "rerank": {
+          "passed": true,
+          "failure_category": null,
+          "rerank_score_present": true,
+          "scores": [
+            0.4635,
+            0.2641,
+            0.1698
+          ]
+        },
+        "tools": {
+          "passed": true,
+          "failure_category": null,
+          "expected_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "actual_tools": [
+            "search_documents",
+            "validate_citations"
+          ],
+          "missing_tools": [],
+          "unexpected_tools": [],
+          "tool_errors": 0,
+          "tool_call_count": 2
+        },
+        "code_execution": {
+          "passed": true,
+          "failure_category": null,
+          "sandbox_required": false
+        },
+        "answer": {
+          "passed": true,
+          "failure_category": null,
+          "required_key_facts": [],
+          "key_facts_present": true,
+          "forbidden_hits": [],
+          "refused": false,
+          "expected_refusal": false,
+          "language_ok": true
+        },
+        "citations": {
+          "passed": true,
+          "failure_category": null,
+          "citation_required": true,
+          "citation_count": 3,
+          "present_ok": true,
+          "resolve_ok": true,
+          "unauthorized_citations": [],
+          "status_ok": true,
+          "citation_validation_ok": true
+        },
+        "safety": {
+          "passed": true,
+          "failure_category": null,
+          "restricted_leak": false,
+          "draft_used_for_current": false,
+          "superseded_used_for_current": false,
+          "output_blocked": false
+        },
+        "operations": {
+          "passed": true,
+          "failure_category": null,
+          "latency_ms": 52.34566699073184,
+          "trace_id": "tr_5bcfe82b7a54486288deb4148fdcb2b9",
+          "token_estimate_present": true,
+          "token_estimate": {
+            "input_tokens_estimate": 138,
+            "output_tokens_estimate": 78,
+            "total_tokens_estimate": 216,
+            "estimated_cost_usd": 0.0,
+            "mode": "mock_or_local_estimate"
+          }
+        }
+      },
+      "answer": "The current approved planning brief procedure is PB-SOP-2025. It requires intake and purpose classification, evidence pack review, drafting, section chief review within 2 business days, required legal or policy review for external distribution, restricted annexes, or cross-departmental commitments, director approval, and evidence and decision log archival [C1]. Draft and superseded versions are excluded from this answer by metadata filter.",
+      "sources": [
+        "PB-SOP-2025",
+        "PB-SOP-2025",
+        "PB-SOP-2025"
+      ]
+    }
+  ],
+  "report_dir": "/Users/hananather/Desktop/Cohere/reports/eval/latest"
+}

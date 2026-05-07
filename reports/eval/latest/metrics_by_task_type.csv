@@ -1,0 +1,12 @@
+group,case_count,pass_rate,route_accuracy,citation_pass_rate
+adversarial,1,1.0,1.0,1.0
+answer,2,1.0,1.0,1.0
+bilingual,2,1.0,1.0,1.0
+compare,2,1.0,1.0,1.0
+find,6,1.0,1.0,1.0
+permission_sensitive,2,1.0,1.0,1.0
+refuse_or_clarify,1,1.0,1.0,1.0
+structured_analysis,2,1.0,1.0,1.0
+summarize,2,1.0,1.0,1.0
+synthesize,2,1.0,1.0,1.0
+verify,2,1.0,1.0,1.0

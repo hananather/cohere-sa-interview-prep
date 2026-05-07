@@ -1,54 +1,137 @@
 # Evaluation
 
-## Dataset
+## What Is Evaluated
 
-Canonical demo queries live in `defence_agent/data/evals/demo_queries.yaml`.
+The demo now has two eval layers:
 
-The executable golden dataset lives in `defence_agent/evals/golden_dataset.yaml`.
+- Legacy golden suite: `defence_agent/evals/golden_dataset.yaml`.
+- Advanced harness: `defence_agent/data/evals/*.yaml`.
 
-Each case includes:
+The advanced harness grades the pipeline by component instead of producing one vague score.
 
-- query
-- user persona
-- expected route
-- expected tools
-- expected source document IDs
-- forbidden sources when relevant
-- expected answer substrings
-- citation expectation
-- refusal expectation
+It checks:
 
-## Metrics
+- Corpus readiness.
+- Route and tool selection.
+- Metadata and access filters.
+- Retrieval recall, precision, and mean reciprocal rank.
+- Rerank score capture.
+- Tool execution.
+- Structured table/code execution.
+- Answer behavior.
+- Citation validation.
+- Safety behavior.
+- Latency, trace ID, and token/cost estimate presence.
 
-- Route accuracy
-- Tool accuracy
-- Retrieval recall at K
-- Context precision
-- Citation presence
-- Citation validation
-- Permission correctness
-- Abstention correctness
-- Safety pass rate
-- Structured-analysis exactness
-- Latency
-- Error rate
+## Eval Suites
 
-## Acceptance Gate
+- `canonical_eval_set.yaml`: stable 24-case acceptance gate.
+- `generated_eval_set.yaml`: 170 broad coverage cases.
+- `heldout_eval_set.yaml`: generated cases reserved for regression review.
+- `regression_eval_set.yaml`: canonical cases that should keep passing.
+- `adversarial_eval_set.yaml`: prompt-injection, metadata-bypass, and access-bypass cases.
+- `demo_candidates.yaml`: candidate live-demo queries.
 
-Fixture mode must pass:
+## Task Complexity
 
-- 100% route accuracy.
-- 100% permission correctness.
-- 100% citation validation.
-- Exact overdue-review results for Q6:
-  - `PB-SOP-2025`: 52 days overdue.
-  - `EC-PROC-2025`: 35 days overdue.
-  - `EC-PROC-2025-FR`: 35 days overdue.
-  - `LOG-RET-2025`: 96 days overdue.
+Each case has:
 
-Run:
+- `task_type`
+- `capability_tags`
+- `complexity_level`
+- `complexity_score`
+- `complexity_dimensions`
+
+Complexity is based on concrete dimensions such as access control, multi-hop retrieval, metadata filters, bilingual retrieval, deterministic calculation, and adversarial wording.
+
+## Commands
+
+Validate schema and source references:
 
 ```bash
-make eval
-python -m pytest
+PYTHONPATH=defence_agent/backend USE_MOCK_COHERE=true python defence_agent/scripts/run_eval_harness.py validate
 ```
+
+Run canonical fixture eval:
+
+```bash
+PYTHONPATH=defence_agent/backend USE_MOCK_COHERE=true python defence_agent/scripts/run_eval_harness.py run --suite canonical --mode fixture
+```
+
+Compare retrieval/agent variants:
+
+```bash
+PYTHONPATH=defence_agent/backend USE_MOCK_COHERE=true python defence_agent/scripts/run_eval_harness.py compare --suite canonical --limit 24
+```
+
+Select reliable demo queries:
+
+```bash
+PYTHONPATH=defence_agent/backend USE_MOCK_COHERE=true python defence_agent/scripts/run_eval_harness.py select-demo --mode fixture --runs 3
+```
+
+Run everything local:
+
+```bash
+make verify
+```
+
+## Reports
+
+Reports are written under `reports/eval/latest/`.
+
+Key files:
+
+- `summary.json`
+- `summary.md`
+- `metrics_by_task_type.csv`
+- `metrics_by_complexity.csv`
+- `metrics_by_route.csv`
+- `metrics_by_tool.csv`
+- `retrieval_metrics.csv`
+- `citation_metrics.csv`
+- `safety_metrics.csv`
+- `structured_analysis_metrics.csv`
+- `failure_analysis.md`
+- `confusion_matrix_route.csv`
+- `experiment_comparison.md`
+- `demo_scorecard.md`
+- `demo_selection_report.md`
+
+## Current Fixture Gate
+
+Latest canonical fixture run:
+
+- Cases: 24.
+- Pass rate: 100%.
+- Route accuracy: 100%.
+- Tool accuracy: 100%.
+- Retrieval recall@k: 100%.
+- Citation validation: 100%.
+- Access-control correctness: 100%.
+- Structured-analysis exactness: 100%.
+
+Structured-analysis gate uses deterministic `today = 2026-05-06`.
+
+Expected overdue results:
+
+- `PB-SOP-2025`: 52 days overdue.
+- `EC-PROC-2025`: 35 days overdue.
+- `EC-PROC-2025-FR`: 35 days overdue.
+- `LOG-RET-2025`: 96 days overdue.
+
+## Feedback-To-Eval Flywheel
+
+Feedback events are stored in:
+
+```text
+defence_agent/data/feedback/feedback_events.jsonl
+```
+
+Promote low-rated runs to draft eval cases:
+
+```bash
+PYTHONPATH=defence_agent/backend python defence_agent/scripts/promote_feedback_to_eval.py
+```
+
+This script creates draft cases only. A human should review them before adding them to the regression set.

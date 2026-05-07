@@ -372,7 +372,135 @@ def render_trace_tab(persona: str) -> None:
 
 
 def render_evaluation_tab(persona: str) -> None:
-    if st.button("Run evals"):
+    st.subheader("Evaluation Harness")
+    st.caption("Run layered route, retrieval, citation, safety, and structured-analysis checks.")
+    suites_response = api_request("GET", "/v1/evals/suites", persona)
+    suites = ["canonical", "generated", "heldout", "regression", "adversarial", "demo_candidates"]
+    if suites_response.ok:
+        suites = list(suites_response.json().get("suites", {}).keys()) or suites
+        with st.expander("Schema and corpus validation", expanded=False):
+            st.json(suites_response.json().get("validation", {}))
+    col_a, col_b, col_c = st.columns(3)
+    suite = col_a.selectbox("Eval suite", suites, index=0)
+    mode = col_b.selectbox("Run mode", ["fixture", "live"], index=0)
+    variant = col_c.selectbox(
+        "Experiment variant",
+        [
+            "agentic_rag_tools",
+            "keyword_only",
+            "embedding_only",
+            "hybrid_no_rerank",
+            "hybrid_plus_rerank_fast",
+            "hybrid_plus_rerank_pro",
+            "query_expansion_plus_hybrid_rerank",
+            "structured_analysis_tools",
+        ],
+        index=0,
+    )
+    cases_response = api_request("GET", f"/v1/evals/cases?suite={suite}", persona)
+    cases = cases_response.json().get("cases", []) if cases_response.ok else []
+    task_types = ["all"] + sorted({case.get("task_type") for case in cases if case.get("task_type")})
+    levels = ["all"] + sorted({case.get("complexity_level") for case in cases if case.get("complexity_level")})
+    filter_a, filter_b = st.columns(2)
+    task_filter = filter_a.selectbox("Task type", task_types)
+    level_filter = filter_b.selectbox("Complexity level", levels)
+    filtered_cases = [
+        case
+        for case in cases
+        if (task_filter == "all" or case.get("task_type") == task_filter)
+        and (level_filter == "all" or case.get("complexity_level") == level_filter)
+    ]
+    query_options = [case["query_id"] for case in filtered_cases]
+    selected_query = st.selectbox("Query ID", query_options or ["no matching cases"], index=0, disabled=not query_options)
+    if not query_options:
+        selected_query = None
+
+    actions = st.columns(4)
+    if actions[0].button("Run selected query", disabled=not selected_query):
+        payload = {"suite": suite, "query_id": selected_query, "mode": mode, "variant": variant}
+        response = api_request("POST", "/v1/evals/run_case", persona, json=payload)
+        if response.ok:
+            st.session_state["advanced_eval_case"] = response.json()
+        else:
+            st.error(response.text)
+    if actions[1].button("Run selected suite"):
+        payload = {"suite": suite, "mode": mode, "variant": variant}
+        with st.spinner("Running layered eval suite..."):
+            response = api_request("POST", "/v1/evals/run_suite", persona, json=payload)
+        if response.ok:
+            st.session_state["advanced_eval_report"] = response.json()
+        else:
+            st.error(response.text)
+    if actions[2].button("Compare variants"):
+        response = api_request("POST", "/v1/evals/compare", persona, json={"suite": suite, "limit": 30})
+        if response.ok:
+            st.session_state["variant_comparison"] = response.json()
+        else:
+            st.error(response.text)
+    if actions[3].button("Select best demo sequence"):
+        with st.spinner("Running pass^3 demo selection..."):
+            response = api_request("POST", "/v1/evals/select_demo", persona, json={"suite": "demo_candidates", "mode": mode, "runs": 3})
+        if response.ok:
+            st.session_state["demo_selection"] = response.json()
+        else:
+            st.error(response.text)
+
+    if st.session_state.get("advanced_eval_case"):
+        st.markdown("#### Selected Query Result")
+        result = st.session_state["advanced_eval_case"]
+        st.json(
+            {
+                "query_id": result.get("query_id"),
+                "passed": result.get("passed"),
+                "route": result.get("route"),
+                "trace_id": result.get("trace_id"),
+                "failure_categories": result.get("failure_categories"),
+                "sources": result.get("sources"),
+                "grades": result.get("grades"),
+            }
+        )
+        st.markdown("**Answer**")
+        st.write(result.get("answer", ""))
+
+    if st.session_state.get("advanced_eval_report"):
+        st.markdown("#### Suite Metrics")
+        report = st.session_state["advanced_eval_report"]
+        metrics = report.get("metrics", {})
+        metric_cols = st.columns(5)
+        metric_cols[0].metric("Pass rate", f"{metrics.get('pass_rate', 0):.0%}")
+        metric_cols[1].metric("Route", f"{metrics.get('route_accuracy', 0):.0%}")
+        metric_cols[2].metric("Retrieval", f"{metrics.get('retrieval_recall_at_k', 0):.2f}")
+        metric_cols[3].metric("Citations", f"{metrics.get('citation_validation_pass_rate', 0):.0%}")
+        metric_cols[4].metric("Cases", metrics.get("case_count", 0))
+        st.json(metrics)
+        st.dataframe(
+            [
+                {
+                    "query_id": case.get("query_id"),
+                    "task_type": case.get("task_type"),
+                    "complexity": case.get("complexity_level"),
+                    "passed": case.get("passed"),
+                    "route": case.get("route"),
+                    "failures": ", ".join(case.get("failure_categories", [])),
+                    "trace_id": case.get("trace_id"),
+                }
+                for case in report.get("cases", [])
+            ],
+            width="stretch",
+            hide_index=True,
+        )
+
+    if st.session_state.get("variant_comparison"):
+        st.markdown("#### Variant Comparison")
+        st.dataframe(st.session_state["variant_comparison"].get("variants", []), width="stretch", hide_index=True)
+
+    if st.session_state.get("demo_selection"):
+        st.markdown("#### Recommended Demo Sequence")
+        st.dataframe(st.session_state["demo_selection"].get("recommended", []), width="stretch", hide_index=True)
+
+    st.divider()
+    st.subheader("Legacy Golden Eval")
+    if st.button("Run legacy golden evals"):
         with st.spinner("Running golden dataset..."):
             response = api_request("POST", "/v1/evals/run", persona)
         if response.ok:

@@ -32,6 +32,14 @@ Policy shown in traces:
 
 The runner blocks imports and dangerous names with AST validation, runs in a separate process, and times out.
 
+## Feedback And Audit Logs
+
+- Feedback events are stored locally in `defence_agent/data/feedback/feedback_events.jsonl`.
+- Feedback captures trace ID, query ID, route, tools, rating, and selected failure type.
+- Feedback is not treated as ground truth. It is promoted to draft eval cases for human review.
+- Production logs should scrub sensitive content before long-term retention.
+- Production audit events should flow to a SIEM, security information and event management system.
+
 ## Production Controls
 
 - OIDC or SAML SSO with RBAC/ABAC claims.

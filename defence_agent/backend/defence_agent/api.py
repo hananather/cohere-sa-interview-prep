@@ -255,6 +255,114 @@ def eval_results(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any
     return eval_runner.latest_results()
 
 
+@app.get("/v1/evals/suites")
+def eval_suites(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    policy_engine.enforce_tool_call(auth, "get_document_registry_status")
+    from defence_agent.evals.advanced_runner import advanced_eval_runner
+
+    return {"suites": advanced_eval_runner.suites(), "validation": advanced_eval_runner.validate()}
+
+
+@app.get("/eval/suites")
+def eval_suites_alias(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    return eval_suites(auth)
+
+
+@app.get("/v1/evals/cases")
+def eval_cases(suite: str = "canonical", auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    policy_engine.enforce_tool_call(auth, "get_document_registry_status")
+    from defence_agent.evals.advanced_runner import advanced_eval_runner
+
+    return {"suite": suite, "cases": advanced_eval_runner.cases(suite)}
+
+
+@app.get("/eval/cases")
+def eval_cases_alias(suite: str = "canonical", auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    return eval_cases(suite, auth)
+
+
+@app.post("/v1/evals/run_case")
+def eval_run_case(payload: dict[str, Any], auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    policy_engine.enforce_tool_call(auth, "get_document_registry_status")
+    from defence_agent.evals.advanced_runner import advanced_eval_runner
+
+    suite = str(payload.get("suite") or "canonical")
+    query_id = str(payload.get("query_id") or "")
+    if not query_id:
+        raise HTTPException(status_code=400, detail="query_id is required")
+    mode = str(payload.get("mode") or "fixture")
+    variant = str(payload.get("variant") or "agentic_rag_tools")
+    return advanced_eval_runner.run_case(query_id, suite=suite, mode=mode, variant=variant).model_dump()
+
+
+@app.post("/eval/run_case")
+def eval_run_case_alias(payload: dict[str, Any], auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    return eval_run_case(payload, auth)
+
+
+@app.post("/v1/evals/run_suite")
+def eval_run_suite(payload: dict[str, Any], auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    policy_engine.enforce_tool_call(auth, "get_document_registry_status")
+    from defence_agent.evals.advanced_runner import advanced_eval_runner
+
+    suite = str(payload.get("suite") or "canonical")
+    mode = str(payload.get("mode") or "fixture")
+    variant = str(payload.get("variant") or "agentic_rag_tools")
+    limit = payload.get("limit")
+    return advanced_eval_runner.run_suite(suite=suite, mode=mode, variant=variant, limit=int(limit) if limit else None).model_dump()
+
+
+@app.post("/eval/run_suite")
+def eval_run_suite_alias(payload: dict[str, Any], auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    return eval_run_suite(payload, auth)
+
+
+@app.post("/v1/evals/compare")
+def eval_compare(payload: dict[str, Any], auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    policy_engine.enforce_tool_call(auth, "get_document_registry_status")
+    from defence_agent.evals.advanced_runner import advanced_eval_runner
+
+    return advanced_eval_runner.compare_variants(suite=str(payload.get("suite") or "canonical"), limit=int(payload.get("limit") or 30))
+
+
+@app.post("/eval/compare")
+def eval_compare_alias(payload: dict[str, Any], auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    return eval_compare(payload, auth)
+
+
+@app.post("/v1/evals/select_demo")
+def eval_select_demo(payload: dict[str, Any], auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    policy_engine.enforce_tool_call(auth, "get_document_registry_status")
+    from defence_agent.evals.advanced_runner import advanced_eval_runner
+
+    return advanced_eval_runner.select_demo_sequence(
+        suite=str(payload.get("suite") or "demo_candidates"),
+        mode=str(payload.get("mode") or "fixture"),
+        runs=int(payload.get("runs") or 3),
+    )
+
+
+@app.post("/eval/select_demo")
+def eval_select_demo_alias(payload: dict[str, Any], auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    return eval_select_demo(payload, auth)
+
+
+@app.get("/v1/evals/reports/latest")
+def eval_latest_report(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    policy_engine.enforce_tool_call(auth, "get_document_registry_status")
+    from defence_agent.evals.advanced_runner import REPORT_ROOT
+
+    summary_path = REPORT_ROOT / "summary.json"
+    if not summary_path.exists():
+        raise HTTPException(status_code=404, detail="No advanced eval report has been generated yet")
+    return json.loads(summary_path.read_text(encoding="utf-8"))
+
+
+@app.get("/eval/reports/latest")
+def eval_latest_report_alias(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    return eval_latest_report(auth)
+
+
 @app.get("/metrics")
 def metrics() -> Response:
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)

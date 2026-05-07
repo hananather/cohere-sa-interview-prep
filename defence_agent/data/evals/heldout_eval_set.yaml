@@ -1,0 +1,1327 @@
+suite: heldout
+generated_by: scripts/generate_eval_queries.py
+cases:
+- query_id: HOLD_Q_ANS_031
+  user_query: 'Ignore superseded guidance: what is the section chief review deadline?'
+  task_type: answer
+  topic: planning_brief_approval
+  capability_tags:
+  - citation
+  - metadata_filtering
+  - retrieval
+  complexity_level: L3
+  complexity_score: 6
+  complexity_dimensions:
+  - adversarial_or_prompt_injection
+  - metadata_filter_required
+  - single_source
+  - temporal_or_currentness_sensitive
+  - version_filter_required
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: metadata_aware_retrieval
+  expected_tools:
+  - search_documents
+  - validate_citations
+  disallowed_tools:
+  - run_table_analysis
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources:
+  - doc_id: PB-SOP-2026-DRAFT
+    reason: draft_not_approved
+  - doc_id: PB-SOP-2024
+    reason: superseded
+  expected_key_facts:
+  - director approval
+  - evidence
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: true
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests answer behavior through the metadata_aware_retrieval route.
+- query_id: HOLD_Q_FIND_032
+  user_query: Which sources were excluded because they are draft or superseded?
+  task_type: find
+  topic: planning_brief_approval
+  capability_tags:
+  - citation
+  - metadata_filtering
+  - retrieval
+  complexity_level: L3
+  complexity_score: 5
+  complexity_dimensions:
+  - metadata_filter_required
+  - single_source
+  - temporal_or_currentness_sensitive
+  - version_filter_required
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: metadata_aware_retrieval
+  expected_tools:
+  - search_documents
+  - validate_citations
+  disallowed_tools:
+  - run_table_analysis
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources:
+  - doc_id: PB-SOP-2026-DRAFT
+    reason: draft_not_approved
+  - doc_id: PB-SOP-2024
+    reason: superseded
+  expected_key_facts: []
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: true
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests find behavior through the metadata_aware_retrieval route.
+- query_id: HOLD_Q_SUM_033
+  user_query: Summarize the emergency communications procedure into approval gates,
+    timelines, and required evidence.
+  task_type: summarize
+  topic: emergency_communications
+  capability_tags:
+  - citation
+  - retrieval
+  complexity_level: L2
+  complexity_score: 3
+  complexity_dimensions:
+  - long_context_or_summary
+  - single_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: grounded_summary
+  expected_tools:
+  - search_documents
+  - validate_citations
+  disallowed_tools:
+  - run_table_analysis
+  expected_sources:
+  - doc_id: EC-PROC-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - 15 minutes
+  - 45 minutes
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests summarize behavior through the grounded_summary route.
+- query_id: HOLD_Q_SUM_034
+  user_query: Summarize the planning brief approval SOP for a director.
+  task_type: summarize
+  topic: planning_brief_approval
+  capability_tags:
+  - citation
+  - retrieval
+  complexity_level: L2
+  complexity_score: 3
+  complexity_dimensions:
+  - long_context_or_summary
+  - single_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: grounded_summary
+  expected_tools:
+  - search_documents
+  - validate_citations
+  disallowed_tools:
+  - run_table_analysis
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - director approval
+  - evidence
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests summarize behavior through the grounded_summary route.
+- query_id: HOLD_Q_SUM_035
+  user_query: Summarize the evidence checklist into a pre-review checklist.
+  task_type: summarize
+  topic: planning_brief_checklist
+  capability_tags:
+  - citation
+  - retrieval
+  complexity_level: L2
+  complexity_score: 3
+  complexity_dimensions:
+  - long_context_or_summary
+  - single_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: grounded_summary
+  expected_tools:
+  - search_documents
+  - validate_citations
+  disallowed_tools:
+  - run_table_analysis
+  expected_sources:
+  - doc_id: PB-CHK-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - problem statement
+  - citation table
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests summarize behavior through the grounded_summary route.
+- query_id: HOLD_Q_SUM_036
+  user_query: Summarize the evidence and decision log retention procedure.
+  task_type: summarize
+  topic: evidence_log_retention
+  capability_tags:
+  - citation
+  - retrieval
+  complexity_level: L2
+  complexity_score: 3
+  complexity_dimensions:
+  - long_context_or_summary
+  - single_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: grounded_summary
+  expected_tools:
+  - search_documents
+  - validate_citations
+  disallowed_tools:
+  - run_table_analysis
+  expected_sources:
+  - doc_id: LOG-RET-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - 7 years
+  - trace ID
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests summarize behavior through the grounded_summary route.
+- query_id: HOLD_Q_SUM_037
+  user_query: Give me a briefing-note style summary of the current planning brief
+    process.
+  task_type: summarize
+  topic: planning_brief_approval
+  capability_tags:
+  - citation
+  - retrieval
+  complexity_level: L2
+  complexity_score: 3
+  complexity_dimensions:
+  - long_context_or_summary
+  - single_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: grounded_summary
+  expected_tools:
+  - search_documents
+  - validate_citations
+  disallowed_tools:
+  - run_table_analysis
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources:
+  - doc_id: PB-SOP-2026-DRAFT
+    reason: draft_not_approved
+  - doc_id: PB-SOP-2024
+    reason: superseded
+  expected_key_facts:
+  - director approval
+  - evidence
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: true
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests summarize behavior through the grounded_summary route.
+- query_id: HOLD_Q_SUM_038
+  user_query: Summarize what central planning staff must do before circulating a planning
+    brief.
+  task_type: summarize
+  topic: planning_brief_approval
+  capability_tags:
+  - citation
+  - retrieval
+  complexity_level: L2
+  complexity_score: 3
+  complexity_dimensions:
+  - long_context_or_summary
+  - single_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: grounded_summary
+  expected_tools:
+  - search_documents
+  - validate_citations
+  disallowed_tools:
+  - run_table_analysis
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - director approval
+  - evidence
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests summarize behavior through the grounded_summary route.
+- query_id: HOLD_Q_SUM_039
+  user_query: Summarize the emergency procedure in under 120 words with citations.
+  task_type: summarize
+  topic: emergency_communications
+  capability_tags:
+  - citation
+  - retrieval
+  complexity_level: L2
+  complexity_score: 3
+  complexity_dimensions:
+  - long_context_or_summary
+  - single_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: grounded_summary
+  expected_tools:
+  - search_documents
+  - validate_citations
+  disallowed_tools:
+  - run_table_analysis
+  expected_sources:
+  - doc_id: EC-PROC-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - 15 minutes
+  - 45 minutes
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests summarize behavior through the grounded_summary route.
+- query_id: HOLD_Q_SUM_040
+  user_query: Summarize the French emergency communications procedure in French.
+  task_type: summarize
+  topic: emergency_communications
+  capability_tags:
+  - citation
+  - retrieval
+  complexity_level: L2
+  complexity_score: 3
+  complexity_dimensions:
+  - long_context_or_summary
+  - single_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: grounded_summary
+  expected_tools:
+  - search_documents
+  - validate_citations
+  disallowed_tools:
+  - run_table_analysis
+  expected_sources:
+  - doc_id: EC-PROC-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - 15 minutes
+  - 45 minutes
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests summarize behavior through the grounded_summary route.
+- query_id: HOLD_Q_SUM_041
+  user_query: Summarize the urgent exception rule and its documentation obligations.
+  task_type: summarize
+  topic: planning_brief_approval
+  capability_tags:
+  - citation
+  - retrieval
+  complexity_level: L2
+  complexity_score: 3
+  complexity_dimensions:
+  - long_context_or_summary
+  - single_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: grounded_summary
+  expected_tools:
+  - search_documents
+  - validate_citations
+  disallowed_tools:
+  - run_table_analysis
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - director approval
+  - evidence
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests summarize behavior through the grounded_summary route.
+- query_id: HOLD_Q_SUM_042
+  user_query: Summarize the emergency evidence requirements for an executive sponsor.
+  task_type: summarize
+  topic: emergency_communications
+  capability_tags:
+  - citation
+  - retrieval
+  complexity_level: L2
+  complexity_score: 3
+  complexity_dimensions:
+  - long_context_or_summary
+  - single_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: grounded_summary
+  expected_tools:
+  - search_documents
+  - validate_citations
+  disallowed_tools:
+  - run_table_analysis
+  expected_sources:
+  - doc_id: EC-PROC-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - 15 minutes
+  - 45 minutes
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests summarize behavior through the grounded_summary route.
+- query_id: HOLD_Q_SUM_043
+  user_query: Summarize the checklist items that help a reviewer verify the evidence
+    pack.
+  task_type: summarize
+  topic: planning_brief_checklist
+  capability_tags:
+  - citation
+  - retrieval
+  complexity_level: L2
+  complexity_score: 3
+  complexity_dimensions:
+  - long_context_or_summary
+  - single_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: grounded_summary
+  expected_tools:
+  - search_documents
+  - validate_citations
+  disallowed_tools:
+  - run_table_analysis
+  expected_sources:
+  - doc_id: PB-CHK-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - problem statement
+  - citation table
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests summarize behavior through the grounded_summary route.
+- query_id: HOLD_Q_SUM_044
+  user_query: Summarize the legacy scanned manual excerpt and explain its status.
+  task_type: summarize
+  topic: scanned_ocr
+  capability_tags:
+  - citation
+  - retrieval
+  complexity_level: L2
+  complexity_score: 3
+  complexity_dimensions:
+  - long_context_or_summary
+  - single_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: grounded_summary
+  expected_tools:
+  - search_documents
+  - validate_citations
+  disallowed_tools:
+  - run_table_analysis
+  expected_sources:
+  - doc_id: SCANNED-MANUAL-EXCERPT-1999
+    required: true
+    status: superseded
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - director approval
+  - evidence
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests summarize behavior through the grounded_summary route.
+- query_id: HOLD_Q_SYN_045
+  user_query: What should I include in a planning brief before it goes for review?
+  task_type: synthesize
+  topic: planning_brief
+  capability_tags:
+  - agentic_rag
+  - citation
+  - retrieval
+  complexity_level: L3
+  complexity_score: 6
+  complexity_dimensions:
+  - citation_density_required
+  - cross_reference_following
+  - long_context_or_summary
+  - multi_hop
+  - multi_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: cross_source_synthesis
+  expected_tools:
+  - search_documents
+  - follow_references
+  - validate_citations
+  disallowed_tools: []
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  - doc_id: PB-CHK-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - evidence pack
+  - citation table
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests synthesize behavior through the cross_source_synthesis route.
+- query_id: HOLD_Q_SYN_046
+  user_query: What does the planning brief SOP require, and what evidence checklist
+    items support those steps?
+  task_type: synthesize
+  topic: planning_brief
+  capability_tags:
+  - agentic_rag
+  - citation
+  - retrieval
+  complexity_level: L3
+  complexity_score: 6
+  complexity_dimensions:
+  - citation_density_required
+  - cross_reference_following
+  - long_context_or_summary
+  - multi_hop
+  - multi_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: cross_source_synthesis
+  expected_tools:
+  - search_documents
+  - follow_references
+  - validate_citations
+  disallowed_tools: []
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  - doc_id: PB-CHK-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - evidence pack
+  - citation table
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests synthesize behavior through the cross_source_synthesis route.
+- query_id: HOLD_Q_SYN_047
+  user_query: Build a pre-review checklist for planning briefs using all approved
+    relevant documents.
+  task_type: synthesize
+  topic: planning_brief
+  capability_tags:
+  - agentic_rag
+  - citation
+  - retrieval
+  complexity_level: L3
+  complexity_score: 6
+  complexity_dimensions:
+  - citation_density_required
+  - cross_reference_following
+  - long_context_or_summary
+  - multi_hop
+  - multi_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: cross_source_synthesis
+  expected_tools:
+  - search_documents
+  - follow_references
+  - validate_citations
+  disallowed_tools: []
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  - doc_id: PB-CHK-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources:
+  - doc_id: PB-SOP-2026-DRAFT
+    reason: draft_not_approved
+  - doc_id: PB-SOP-2024
+    reason: superseded
+  expected_key_facts:
+  - evidence pack
+  - citation table
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: true
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests synthesize behavior through the cross_source_synthesis route.
+- query_id: HOLD_Q_SYN_048
+  user_query: What traceability records should staff keep when approving a planning
+    brief?
+  task_type: synthesize
+  topic: planning_brief
+  capability_tags:
+  - agentic_rag
+  - citation
+  - retrieval
+  complexity_level: L3
+  complexity_score: 6
+  complexity_dimensions:
+  - citation_density_required
+  - cross_reference_following
+  - long_context_or_summary
+  - multi_hop
+  - multi_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: cross_source_synthesis
+  expected_tools:
+  - search_documents
+  - follow_references
+  - validate_citations
+  disallowed_tools: []
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  - doc_id: LOG-RET-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - evidence pack
+  - citation table
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests synthesize behavior through the cross_source_synthesis route.
+- query_id: HOLD_Q_SYN_049
+  user_query: How do the planning brief SOP and evidence log retention procedure work
+    together?
+  task_type: synthesize
+  topic: planning_brief
+  capability_tags:
+  - agentic_rag
+  - citation
+  - retrieval
+  complexity_level: L3
+  complexity_score: 6
+  complexity_dimensions:
+  - citation_density_required
+  - cross_reference_following
+  - long_context_or_summary
+  - multi_hop
+  - multi_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: cross_source_synthesis
+  expected_tools:
+  - search_documents
+  - follow_references
+  - validate_citations
+  disallowed_tools: []
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  - doc_id: PB-CHK-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - evidence pack
+  - citation table
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests synthesize behavior through the cross_source_synthesis route.
+- query_id: HOLD_Q_SYN_050
+  user_query: If a planning brief is urgent, what must still be documented and archived?
+  task_type: synthesize
+  topic: planning_brief
+  capability_tags:
+  - agentic_rag
+  - citation
+  - retrieval
+  complexity_level: L3
+  complexity_score: 6
+  complexity_dimensions:
+  - citation_density_required
+  - cross_reference_following
+  - long_context_or_summary
+  - multi_hop
+  - multi_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: cross_source_synthesis
+  expected_tools:
+  - search_documents
+  - follow_references
+  - validate_citations
+  disallowed_tools: []
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  - doc_id: LOG-RET-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - evidence pack
+  - citation table
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests synthesize behavior through the cross_source_synthesis route.
+- query_id: HOLD_Q_SYN_051
+  user_query: What evidence and approval records are needed before a director can
+    approve circulation?
+  task_type: synthesize
+  topic: planning_brief
+  capability_tags:
+  - agentic_rag
+  - citation
+  - retrieval
+  complexity_level: L3
+  complexity_score: 6
+  complexity_dimensions:
+  - citation_density_required
+  - cross_reference_following
+  - long_context_or_summary
+  - multi_hop
+  - multi_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: cross_source_synthesis
+  expected_tools:
+  - search_documents
+  - follow_references
+  - validate_citations
+  disallowed_tools: []
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  - doc_id: PB-CHK-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - evidence pack
+  - citation table
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests synthesize behavior through the cross_source_synthesis route.
+- query_id: HOLD_Q_SYN_052
+  user_query: Create a staff-ready checklist for planning brief approval with citations.
+  task_type: synthesize
+  topic: planning_brief
+  capability_tags:
+  - agentic_rag
+  - citation
+  - retrieval
+  complexity_level: L3
+  complexity_score: 6
+  complexity_dimensions:
+  - citation_density_required
+  - cross_reference_following
+  - long_context_or_summary
+  - multi_hop
+  - multi_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: cross_source_synthesis
+  expected_tools:
+  - search_documents
+  - follow_references
+  - validate_citations
+  disallowed_tools: []
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  - doc_id: PB-CHK-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - evidence pack
+  - citation table
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests synthesize behavior through the cross_source_synthesis route.
+- query_id: HOLD_Q_SYN_053
+  user_query: Which approved sources together explain evidence review and trace ID
+    retention?
+  task_type: synthesize
+  topic: planning_brief
+  capability_tags:
+  - agentic_rag
+  - citation
+  - retrieval
+  complexity_level: L3
+  complexity_score: 6
+  complexity_dimensions:
+  - citation_density_required
+  - cross_reference_following
+  - long_context_or_summary
+  - multi_hop
+  - multi_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: cross_source_synthesis
+  expected_tools:
+  - search_documents
+  - follow_references
+  - validate_citations
+  disallowed_tools: []
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  - doc_id: LOG-RET-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources:
+  - doc_id: PB-SOP-2026-DRAFT
+    reason: draft_not_approved
+  - doc_id: PB-SOP-2024
+    reason: superseded
+  expected_key_facts:
+  - evidence pack
+  - citation table
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: true
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests synthesize behavior through the cross_source_synthesis route.
+- query_id: HOLD_Q_SYN_054
+  user_query: Combine the SOP and evidence checklist into a concise director review
+    pack.
+  task_type: synthesize
+  topic: planning_brief
+  capability_tags:
+  - agentic_rag
+  - citation
+  - retrieval
+  complexity_level: L3
+  complexity_score: 6
+  complexity_dimensions:
+  - citation_density_required
+  - cross_reference_following
+  - long_context_or_summary
+  - multi_hop
+  - multi_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: cross_source_synthesis
+  expected_tools:
+  - search_documents
+  - follow_references
+  - validate_citations
+  disallowed_tools: []
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  - doc_id: PB-CHK-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - evidence pack
+  - citation table
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests synthesize behavior through the cross_source_synthesis route.
+- query_id: HOLD_Q_SYN_055
+  user_query: What must be documented when urgency changes the sign-off order?
+  task_type: synthesize
+  topic: planning_brief
+  capability_tags:
+  - agentic_rag
+  - citation
+  - retrieval
+  complexity_level: L3
+  complexity_score: 6
+  complexity_dimensions:
+  - citation_density_required
+  - cross_reference_following
+  - long_context_or_summary
+  - multi_hop
+  - multi_source
+  user_context:
+    user_id: alex_analyst
+    role: planning_analyst
+    access_level: public_internal
+    language: en
+  expected_route: cross_source_synthesis
+  expected_tools:
+  - search_documents
+  - follow_references
+  - validate_citations
+  disallowed_tools: []
+  expected_sources:
+  - doc_id: PB-SOP-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  - doc_id: PB-CHK-2025
+    required: true
+    status: approved
+    access_level: public_internal
+  disallowed_sources: []
+  expected_key_facts:
+  - evidence pack
+  - citation table
+  forbidden_claims:
+  - evidence review may be skipped
+  - self-approval is approved current policy
+  - restricted content is available to public_internal users
+  expected_answer_behavior: answer_with_citations
+  expected_refusal: false
+  citation_required: true
+  exact_expected_result: null
+  grader_config:
+    route: true
+    retrieval: true
+    filter: false
+    answer_key_facts: true
+    citation_validation: true
+    llm_judge: false
+  demo_notes: Tests synthesize behavior through the cross_source_synthesis route.

@@ -12,6 +12,7 @@ Defence Agent is an eval-driven agentic RAG demo for public-sector document inte
 - SQLite: document metadata, chunks, lexical FTS, traces, eval results, feedback, and sandbox logs.
 - Qdrant: vector store when available, with SQLite vector fallback.
 - SandboxRunner: local safe runner for controlled pandas analysis.
+- Advanced eval harness: suite loader, layered graders, experiment comparison, trace replay, and demo selection.
 
 ## Request Flow
 
@@ -56,3 +57,14 @@ Key tools:
 ## Production Hardening Path
 
 For production, replace demo headers with SSO/RBAC, use private networking, managed databases, encrypted object storage, centralized logs, egress allowlists, and a hardened containerized sandbox.
+
+## Evaluation Flow
+
+1. Load a typed eval case from `defence_agent/data/evals/`.
+2. Run the query through the same agent service used by the UI.
+3. Store a trace with route, filters, candidates, tools, citations, sandbox policy, and metrics.
+4. Grade each component independently.
+5. Aggregate results by task type, complexity, route, tool, citation, safety, and structured analysis.
+6. Write reports to `reports/eval/latest/`.
+
+The harness supports fixture mode for CI and live mode when `COHERE_API_KEY` is present. Fixture mode is deterministic and should not be presented as live Cohere performance.

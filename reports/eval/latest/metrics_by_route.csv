@@ -1,0 +1,11 @@
+group,case_count,pass_rate,route_accuracy,citation_pass_rate
+bilingual_retrieval,2,1.0,1.0,1.0
+claim_verification,2,1.0,1.0,1.0
+cross_source_synthesis,2,1.0,1.0,1.0
+evidence_lookup,6,1.0,1.0,1.0
+grounded_summary,2,1.0,1.0,1.0
+metadata_aware_retrieval,3,1.0,1.0,1.0
+permission_sensitive_retrieval,2,1.0,1.0,1.0
+refuse_or_clarify,1,1.0,1.0,1.0
+structured_table_analysis,2,1.0,1.0,1.0
+version_comparison,2,1.0,1.0,1.0

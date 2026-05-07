@@ -2,7 +2,9 @@
 cohere-compass-sdk/
 defence_agent/data/*
 !defence_agent/data/evals/
-!defence_agent/data/evals/demo_queries.yaml
+!defence_agent/data/evals/*.yaml
+!defence_agent/data/evals/*.json
+!defence_agent/data/evals/*.md
 !defence_agent/data/synthetic_corpus/
 defence_agent/data/synthetic_corpus/*
 !defence_agent/data/synthetic_corpus/source_markdown/

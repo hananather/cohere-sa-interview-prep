@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any, Callable
 
 from fastapi import HTTPException, status
@@ -11,6 +11,7 @@ from sqlmodel import Session, select
 
 from defence_agent.auth.context import AuthContext
 from defence_agent.auth.policy import policy_engine
+from defence_agent.config import get_settings
 from defence_agent.db import engine
 from defence_agent.ingestion.indexer import document_registry_status
 from defence_agent.models import Chunk, Feedback
@@ -88,7 +89,16 @@ class HumanReviewInput(BaseModel):
 
 class FeedbackInput(BaseModel):
     trace_id: str
-    helpful: bool
+    helpful: bool | None = None
+    rating: str | None = None
+    query_id: str | None = None
+    user_query: str | None = None
+    answer: str | None = None
+    citations: list[dict[str, Any]] = Field(default_factory=list)
+    route: str | None = None
+    tools_called: list[str] = Field(default_factory=list)
+    reason: str | None = None
+    selected_failure_type: str | None = None
     comment: str | None = None
 
 
@@ -331,7 +341,7 @@ class ToolRegistry:
 
     def _run_table_analysis(self, payload: BaseModel, auth: AuthContext, trace_id: str) -> dict[str, Any]:
         data = payload.model_dump()
-        code = data.get("code") or DEFAULT_OVERDUE_ANALYSIS_CODE
+        code = data.get("code") or _analysis_code_for_goal(data["analysis_goal"])
         sandbox_result = run_sandboxed_python(
             code=code,
             input_data={"rows": data["rows"], "today": data["today"], "analysis_goal": data["analysis_goal"]},
@@ -384,16 +394,38 @@ class ToolRegistry:
 
     def _log_feedback(self, payload: BaseModel, auth: AuthContext, trace_id: str) -> dict[str, Any]:
         data = payload.model_dump()
+        helpful = data.get("helpful")
+        if helpful is None:
+            helpful = data.get("rating") == "yes"
         with Session(engine) as session:
             feedback = Feedback(
                 trace_id=data["trace_id"],
                 user_id=auth.user_id,
-                helpful=data["helpful"],
-                comment=data.get("comment"),
+                helpful=bool(helpful),
+                comment=data.get("comment") or data.get("reason"),
             )
             session.add(feedback)
             session.commit()
             session.refresh(feedback)
+        feedback_dir = get_settings().data_dir / "feedback"
+        feedback_dir.mkdir(parents=True, exist_ok=True)
+        event = {
+            "trace_id": data["trace_id"],
+            "query_id": data.get("query_id"),
+            "user_query": data.get("user_query"),
+            "answer": data.get("answer"),
+            "citations": data.get("citations") or [],
+            "route": data.get("route"),
+            "tools_called": data.get("tools_called") or [],
+            "rating": data.get("rating") or ("yes" if helpful else "no"),
+            "helpful": bool(helpful),
+            "reason": data.get("reason") or data.get("comment"),
+            "selected_failure_type": data.get("selected_failure_type"),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "user_id": auth.user_id,
+        }
+        with (feedback_dir / "feedback_events.jsonl").open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event, ensure_ascii=False) + "\n")
         return {"feedback_id": feedback.id, "stored": True}
 
 
@@ -507,6 +539,32 @@ result = {
     "row_ids": overdue["row_id"].tolist(),
 }
 """.strip()
+
+
+DEFAULT_COUNT_APPROVED_BY_OWNER_CODE = """
+df = pd.DataFrame(input_data["rows"])
+approved = df[df["status"] == "approved"].copy()
+grouped = (
+    approved.groupby("owner")
+    .agg(approved_documents=("doc_id", "count"))
+    .reset_index()
+    .sort_values(["approved_documents", "owner"], ascending=[False, True])
+)
+result = {
+    "analysis_type": "count_approved_by_owner",
+    "today": input_data["today"],
+    "rows": approved[["row_id", "doc_id", "title", "owner", "status"]].to_dict("records"),
+    "grouped": grouped.to_dict("records"),
+    "row_ids": approved["row_id"].tolist(),
+}
+""".strip()
+
+
+def _analysis_code_for_goal(goal: str) -> str:
+    lowered = goal.lower()
+    if "count approved" in lowered and "owner" in lowered:
+        return DEFAULT_COUNT_APPROVED_BY_OWNER_CODE
+    return DEFAULT_OVERDUE_ANALYSIS_CODE
 
 
 tool_registry = ToolRegistry()
