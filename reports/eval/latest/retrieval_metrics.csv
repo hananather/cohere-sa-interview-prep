@@ -18,8 +18,8 @@ CAN_Q_VER_073,True,claim_verification,1.0,1.0,1.0
 CAN_Q_REF_083,True,refuse_or_clarify,1.0,1.0,1.0
 CAN_Q_PERM_095,True,permission_sensitive_retrieval,1.0,1.0,1.0
 CAN_Q_PERM_097,True,permission_sensitive_retrieval,1.0,0.5,1.0
-CAN_Q_BIL_105,True,bilingual_retrieval,1.0,1.0,1.0
-CAN_Q_BIL_114,True,bilingual_retrieval,1.0,1.0,1.0
-CAN_Q_TAB_123,True,structured_table_analysis,1.0,0.25,1.0
-CAN_Q_TAB_124,True,structured_table_analysis,1.0,0.2,1.0
-CAN_Q_ADV_149,True,metadata_aware_retrieval,1.0,0.3333333333333333,1.0
+CAN_Q_BIL_108,True,bilingual_retrieval,1.0,1.0,1.0
+CAN_Q_BIL_117,True,bilingual_retrieval,1.0,1.0,1.0
+CAN_Q_TAB_126,True,structured_table_analysis,1.0,0.25,1.0
+CAN_Q_TAB_127,True,structured_table_analysis,1.0,0.2,1.0
+CAN_Q_ADV_152,True,metadata_aware_retrieval,1.0,0.3333333333333333,1.0

@@ -16,6 +16,7 @@ from defence_agent.db import engine
 from defence_agent.ingestion.indexer import document_registry_status
 from defence_agent.models import Chunk, Feedback
 from defence_agent.observability.metrics import TOOL_COUNT, UNAUTHORIZED_ATTEMPTS
+from defence_agent.observability.plugins import plugin_manager
 from defence_agent.observability.tracing import trace_manager
 from defence_agent.retrieval.hybrid import hybrid_retriever
 from defence_agent.safety import citation_ids_from_answer, sanitize_tool_output
@@ -180,6 +181,11 @@ class ToolRegistry:
                 self._log_feedback,
                 "Record answer feedback for evaluation and audit.",
             ),
+            "admin_reindex": (
+                EmptyInput,
+                self._admin_reindex,
+                "Admin-only corpus reindex control. Disabled as a model tool in the demo UI.",
+            ),
         }
 
     def call(self, name: str, payload: dict[str, Any], auth: AuthContext, trace_id: str) -> ToolEnvelope:
@@ -187,6 +193,7 @@ class ToolRegistry:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Unknown tool: {name}")
         input_model, handler, _ = self._tools[name]
         try:
+            plugin_manager.before_tool(trace_id, name, payload, auth)
             policy_engine.enforce_tool_call(auth, name)
         except HTTPException:
             UNAUTHORIZED_ATTEMPTS.labels(resource=name).inc()
@@ -197,10 +204,12 @@ class ToolRegistry:
             try:
                 data = handler(parsed, auth, trace_id)
                 data = sanitize_tool_output(data)
+                plugin_manager.after_tool(trace_id, name, data, auth)
                 TOOL_COUNT.labels(tool=name, status="ok").inc()
                 span.attributes_json = json.dumps({"tool": name, "ok": True, "output_keys": sorted(data.keys())})
                 return ToolEnvelope(ok=True, tool=name, data=data)
             except Exception as exc:
+                plugin_manager.on_tool_error(trace_id, name, str(exc), auth)
                 TOOL_COUNT.labels(tool=name, status="error").inc()
                 span.status = "error"
                 span.error = str(exc)
@@ -427,6 +436,12 @@ class ToolRegistry:
         with (feedback_dir / "feedback_events.jsonl").open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(event, ensure_ascii=False) + "\n")
         return {"feedback_id": feedback.id, "stored": True}
+
+    def _admin_reindex(self, payload: BaseModel, auth: AuthContext, trace_id: str) -> dict[str, Any]:
+        return {
+            "status": "disabled_in_demo_tool_registry",
+            "message": "Use the explicit admin API endpoint for reindexing. This registry entry exists to demonstrate admin tool governance.",
+        }
 
 
 def _markdown_table_to_rows(markdown: str) -> list[dict[str, Any]]:

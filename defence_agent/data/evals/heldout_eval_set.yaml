@@ -49,6 +49,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id001 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id001
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -102,6 +109,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id002 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id002
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -151,6 +165,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id003 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id003
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -199,6 +220,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id004 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id004
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -247,6 +275,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id005 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id005
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -295,6 +330,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id006 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id006
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -348,6 +390,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id007 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id007
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -397,6 +446,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id008 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id008
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -445,6 +501,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id009 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id009
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -493,6 +556,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id010 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id010
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -541,6 +611,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id011 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id011
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -589,6 +666,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id012 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id012
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -638,6 +722,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id013 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id013
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -686,6 +777,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id014 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id014
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -742,6 +840,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id015 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id015
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -799,6 +904,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id016 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id016
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -860,6 +972,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id017 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id017
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -917,6 +1036,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id018 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id018
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -974,6 +1100,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id019 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id019
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -1030,6 +1163,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id020 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id020
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -1087,6 +1227,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id021 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id021
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -1143,6 +1290,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id022 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id022
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -1204,6 +1358,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id023 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id023
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -1261,6 +1422,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id024 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id024
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true
@@ -1317,6 +1485,13 @@ cases:
   expected_refusal: false
   citation_required: true
   exact_expected_result: null
+  persona_id: planning_analyst
+  security_scenario: null
+  expected_policy_decision: null
+  expected_excluded_sources: &id025 []
+  expected_visible_sources: []
+  expected_hidden_sources: *id025
+  expected_trace_assertions: []
   grader_config:
     route: true
     retrieval: true

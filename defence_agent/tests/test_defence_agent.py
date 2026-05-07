@@ -15,6 +15,7 @@ from defence_agent.evals.advanced_runner import advanced_eval_runner
 from defence_agent.evals.load_cases import load_suite
 from defence_agent.evals.runner import eval_runner
 from defence_agent.sandbox.python_sandbox import validate_code, SandboxValidationError
+from defence_agent.tools.registry import tool_registry
 
 
 def test_evidence_lookup_returns_trace_and_citations() -> None:
@@ -175,3 +176,91 @@ def test_advanced_canonical_fixture_eval_passes() -> None:
     assert report.metrics["route_accuracy"] == 1.0
     assert report.metrics["citation_validation_pass_rate"] == 1.0
     assert report.metrics["structured_analysis_exact_correctness"] == 1.0
+
+
+def test_persona_compare_shows_partial_vs_restricted_answer() -> None:
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/persona/compare",
+            headers={"X-Demo-User": "planning_analyst"},
+            json={
+                "query": "What are the approval steps for a planning brief that includes restricted annexes?",
+                "left_persona": "planning_analyst",
+                "right_persona": "planning_lead",
+            },
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert "PB-SOP-2025" in {source["document_id"] for source in data["left"]["sources"]}
+    assert "ANNEX-HANDLING-2025" not in {source["document_id"] for source in data["left"]["sources"]}
+    assert "ANNEX-HANDLING-2025" in {source["document_id"] for source in data["right"]["sources"]}
+    assert "ANNEX-HANDLING-2025" in data["diff"]["documents_only_right"]
+
+
+def test_structured_trace_redacts_restricted_answer_for_auditor() -> None:
+    with TestClient(app) as client:
+        lead = client.post(
+            "/v1/agent/query",
+            headers={"X-Demo-User": "planning_lead"},
+            json={"query": "What restricted annex handling steps apply before external distribution?"},
+        )
+        trace_id = lead.json()["trace_id"]
+        auditor_trace = client.get(f"/v1/traces/{trace_id}/structured", headers={"X-Demo-User": "auditor"})
+        lead_trace = client.get(f"/v1/traces/{trace_id}/structured", headers={"X-Demo-User": "planning_lead"})
+    assert auditor_trace.status_code == 200
+    assert lead_trace.status_code == 200
+    assert auditor_trace.json()["generation"]["answer"].startswith("[answer redacted")
+    assert "restricted" in lead_trace.json()["generation"]["answer"].lower()
+
+
+def test_governance_endpoints_show_tool_registry_and_personas() -> None:
+    with TestClient(app) as client:
+        personas = client.get("/v1/personas", headers={"X-Demo-User": "auditor"})
+        registry = client.get("/v1/governance/tool-registry", headers={"X-Demo-User": "auditor"})
+        steps = client.get("/v1/demo/steps", headers={"X-Demo-User": "planning_analyst"})
+    assert personas.status_code == 200
+    assert registry.status_code == 200
+    assert steps.status_code == 200
+    assert any(item["display_name"] == "Alex Chen" for item in personas.json()["personas"])
+    assert any(item["tool_name"] == "run_table_analysis" for item in registry.json()["tools"])
+    assert len(steps.json()["steps"]) >= 7
+
+
+def test_tool_policy_blocks_unauthorized_admin_action_and_traces_decision() -> None:
+    from defence_agent.auth.context import DEMO_USERS
+    from defence_agent.observability.tracing import trace_manager
+
+    trace_id = trace_manager.new_trace_id()
+    trace_manager.start_trace(trace_id, "planning_analyst", {"test": "blocked_tool"})
+    try:
+        tool_registry.call("admin_reindex", {}, DEMO_USERS["planning_analyst"], trace_id)
+    except Exception:
+        pass
+    trace_manager.finish_trace(trace_id, "ok", {"blocked": True}, route="test", duration_ms=0)
+    trace = trace_manager.get_trace(trace_id)
+    assert trace
+    assert any(span["name"] == "before_tool_policy" and span["status"] == "blocked" for span in trace["spans"])
+
+
+def test_feedback_event_links_to_trace_id() -> None:
+    with TestClient(app) as client:
+        answer = client.post(
+            "/v1/agent/query",
+            headers={"X-Demo-User": "planning_analyst"},
+            json={"query": "What review steps are required before a planning brief is approved?"},
+        ).json()
+        feedback = client.post(
+            "/v1/feedback",
+            headers={"X-Demo-User": "planning_analyst"},
+            json={"trace_id": answer["trace_id"], "rating": "somewhat", "reason": "Missing source"},
+        )
+    assert feedback.status_code == 200
+    assert feedback.json()["data"]["stored"] is True
+
+
+def test_persona_security_graders_are_part_of_eval_breakdown() -> None:
+    outcome = advanced_eval_runner.run_case("CAN_Q_PERM_095", suite="canonical", mode="fixture", variant="agentic_rag_tools")
+    assert outcome.grades.persona_policy
+    assert outcome.grades.excluded_sources
+    assert outcome.grades.trace_completeness["passed"] is True
+    assert outcome.grades.redaction["passed"] is True

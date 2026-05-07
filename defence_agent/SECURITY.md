@@ -4,12 +4,26 @@
 
 - No anonymous access.
 - Demo personas carry role, groups, clearance, and tenant.
+- Personas are explicit:
+  - Alex Chen, Planning Analyst: public-internal doctrine only.
+  - Morgan Singh, Doctrine Steward: public-internal plus restricted doctrine.
+  - Priya Rao, Security Auditor: policy metadata and audit traces without restricted content by default.
+  - Sam Rivera, Platform Admin: platform administration without automatic restricted doctrine access.
 - Retrieval applies authorization before the model sees context.
 - Metadata filters enforce approved/current/language/access behavior.
 - Tools are allowlisted and Pydantic-validated.
 - Tool outputs are sanitized before generation.
 - Restricted sources are not returned to `planning_analyst` or `auditor`.
 - Traces record route, filters, candidates, tool calls, citation validation, and sandbox state.
+- Default structured trace views redact answers that used restricted sources when the viewer lacks restricted content permission.
+- Full prompt/context logging is disabled unless `DEFTECH_DEBUG_FULL_TRACE=true`.
+
+## Why The LLM Is Not The Boundary
+
+- Access control is enforced by the backend policy engine before retrieval and before tool execution.
+- Metadata filters exclude draft, superseded, language-mismatched, and unauthorized sources before generation.
+- The model can only answer from the evidence and tool results the orchestrator provides.
+- Retrieved text is treated as untrusted evidence, not as system instruction.
 
 ## Sandbox
 
@@ -39,6 +53,21 @@ The runner blocks imports and dangerous names with AST validation, runs in a sep
 - Feedback is not treated as ground truth. It is promoted to draft eval cases for human review.
 - Production logs should scrub sensitive content before long-term retention.
 - Production audit events should flow to a SIEM, security information and event management system.
+
+## Tool Risk Classification
+
+- `search_documents`, `get_document_sections`, `follow_references`, `compare_document_versions`, and citation validation are read-only.
+- `run_table_analysis` is sandboxed medium risk because it executes controlled analysis over authorized rows.
+- `export_brief_draft` is modeled as reversible write and requires approval before production use.
+- `admin_reindex` is admin-only and disabled as a model-invoked demo tool.
+
+Tool policy decisions are visible in the Governance view and in trace spans named `before_tool_policy`.
+
+## Prompt Injection Defense
+
+- Prompt-like text inside retrieved documents does not override system policy.
+- Draft and superseded documents remain excluded when the route asks for current approved guidance.
+- Access-control filters cannot be bypassed by user wording such as "ignore metadata" or "override access control."
 
 ## Production Controls
 

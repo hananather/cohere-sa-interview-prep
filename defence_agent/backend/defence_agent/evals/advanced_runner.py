@@ -17,13 +17,18 @@ from defence_agent.evals.graders import (
     grade_answer,
     grade_citations,
     grade_code_execution,
+    grade_excluded_sources,
     grade_filters,
     grade_operations,
+    grade_persona_policy,
+    grade_redaction,
     grade_rerank,
     grade_retrieval,
     grade_route,
     grade_safety,
+    grade_tool_policy,
     grade_tools,
+    grade_trace_completeness,
 )
 from defence_agent.evals.load_cases import EVAL_DIR, load_case, load_suite, list_suites, validate_suites
 from defence_agent.evals.schemas import EvalCase, EvalCaseOutcome, EvalRunReport, GradeBreakdown
@@ -175,6 +180,11 @@ class AdvancedEvalRunner:
             answer=grade_answer(case, response, trace),
             citations=grade_citations(case, response, trace),
             safety=grade_safety(case, response, trace),
+            persona_policy=grade_persona_policy(case, response, trace),
+            excluded_sources=grade_excluded_sources(case, response, trace),
+            trace_completeness=grade_trace_completeness(case, response, trace),
+            tool_policy=grade_tool_policy(case, response, trace),
+            redaction=grade_redaction(case, response, trace),
             operations=grade_operations(case, response, trace),
         )
         grade_dict = grades.model_dump()
@@ -184,6 +194,9 @@ class AdvancedEvalRunner:
             if isinstance(values, dict) and not values.get("passed", True) and values.get("failure_category")
         ]
         critical_sections = ["route", "tools", "filters", "citations", "safety", "operations"]
+        if case.expected_policy_decision or case.expected_hidden_sources or case.expected_visible_sources:
+            critical_sections.extend(["persona_policy", "excluded_sources"])
+        critical_sections.extend(["trace_completeness", "tool_policy", "redaction"])
         if case.grader_config.answer_key_facts or case.expected_refusal:
             critical_sections.append("answer")
         if case.grader_config.retrieval:
@@ -195,6 +208,7 @@ class AdvancedEvalRunner:
             query_id=case.query_id,
             task_type=case.task_type,
             complexity_level=case.complexity_level,
+            persona_id=case.persona_id or case.user_context.role,
             passed=passed,
             failure_categories=sorted(set(failures)),
             trace_id=response.get("trace_id") or (trace or {}).get("trace_id"),
@@ -220,6 +234,10 @@ class AdvancedEvalRunner:
             "mrr": _mean(outcome.grades.retrieval.get("mrr", 0.0) for outcome in outcomes),
             "filter_correctness": _grade_rate(outcomes, "filters"),
             "access_control_correctness": _rate(not outcome.grades.safety.get("restricted_leak", False) for outcome in outcomes),
+            "persona_policy_pass_rate": _grade_rate(outcomes, "persona_policy"),
+            "restricted_leakage_rate": _rate(outcome.grades.redaction.get("restricted_text_leak", False) for outcome in outcomes),
+            "tool_policy_pass_rate": _grade_rate(outcomes, "tool_policy"),
+            "trace_completeness_pass_rate": _grade_rate(outcomes, "trace_completeness"),
             "citation_validation_pass_rate": _grade_rate(outcomes, "citations"),
             "refusal_precision_recall_proxy": _grade_rate(outcomes, "answer"),
             "structured_analysis_exact_correctness": _grade_rate([outcome for outcome in outcomes if outcome.route == "structured_table_analysis"], "code_execution"),
@@ -229,6 +247,7 @@ class AdvancedEvalRunner:
             "by_task_type": _group_rates(outcomes, "task_type"),
             "by_complexity": _group_rates(outcomes, "complexity_level"),
             "by_route": _group_rates(outcomes, "route"),
+            "by_persona": _group_by_persona(outcomes),
         }
 
     def _write_reports(self, report: EvalRunReport) -> None:
@@ -243,6 +262,8 @@ class AdvancedEvalRunner:
         self._write_metric_csv(report, "citation_metrics.csv", ["query_id", "passed", "citation_count", "present_ok", "resolve_ok", "status_ok"])
         self._write_metric_csv(report, "safety_metrics.csv", ["query_id", "passed", "restricted_leak", "draft_used_for_current", "superseded_used_for_current"])
         self._write_metric_csv(report, "structured_analysis_metrics.csv", ["query_id", "passed", "sandbox_used", "exact_result_correct", "row_ids_preserved"])
+        self._write_metric_csv(report, "persona_policy_metrics.csv", ["query_id", "passed", "expected_policy_decision", "actual_policy_decision", "persona_id"])
+        self._write_metric_csv(report, "trace_completeness_metrics.csv", ["query_id", "passed", "span_count", "missing_spans"])
         self._write_failure_analysis(report)
         self._write_route_confusion(report)
 
@@ -308,6 +329,8 @@ class AdvancedEvalRunner:
             "citation_metrics.csv": "citations",
             "safety_metrics.csv": "safety",
             "structured_analysis_metrics.csv": "code_execution",
+            "persona_policy_metrics.csv": "persona_policy",
+            "trace_completeness_metrics.csv": "trace_completeness",
         }
         section = section_by_file[filename]
         with (REPORT_ROOT / filename).open("w", newline="", encoding="utf-8") as handle:
@@ -489,6 +512,22 @@ def _group_rates(outcomes: list[EvalCaseOutcome], field: str) -> dict[str, dict[
         grouped[str(getattr(outcome, field) or "unknown")].append(outcome)
     return {
         key: {"case_count": len(items), "pass_rate": _rate(item.passed for item in items), "route_accuracy": _grade_rate(items, "route")}
+        for key, items in sorted(grouped.items())
+    }
+
+
+def _group_by_persona(outcomes: list[EvalCaseOutcome]) -> dict[str, dict[str, Any]]:
+    grouped = defaultdict(list)
+    for outcome in outcomes:
+        grouped[str(outcome.persona_id or "unknown")].append(outcome)
+    return {
+        key: {
+            "case_count": len(items),
+            "pass_rate": _rate(item.passed for item in items),
+            "access_control_pass_rate": _rate(not item.grades.safety.get("restricted_leak", False) for item in items),
+            "tool_policy_pass_rate": _grade_rate(items, "tool_policy"),
+            "trace_completeness_pass_rate": _grade_rate(items, "trace_completeness"),
+        }
         for key, items in sorted(grouped.items())
     }
 

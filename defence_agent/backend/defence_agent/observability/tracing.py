@@ -153,8 +153,11 @@ class TraceManager:
             "duration_ms": record.duration_ms,
             "spans": [
                 {
+                    "span_id": span.id,
                     "name": span.name,
                     "status": span.status,
+                    "start_time": span.started_at.isoformat(),
+                    "end_time": span.ended_at.isoformat() if span.ended_at else None,
                     "duration_ms": span.duration_ms,
                     "attributes": json.loads(span.attributes_json or "{}"),
                     "error": span.error,
@@ -162,6 +165,22 @@ class TraceManager:
                 for span in spans
             ],
         }
+
+    def list_recent(self, limit: int = 25) -> list[dict[str, Any]]:
+        with Session(engine) as session:
+            records = session.exec(select(TraceRecord).order_by(TraceRecord.created_at.desc()).limit(limit)).all()
+        return [
+            {
+                "trace_id": record.trace_id,
+                "user_id": record.user_id,
+                "route": record.route,
+                "status": record.status,
+                "created_at": record.created_at.isoformat(),
+                "duration_ms": record.duration_ms,
+                "request": json.loads(record.request_json),
+            }
+            for record in records
+        ]
 
     def _append_jsonl(self, event: dict[str, Any]) -> None:
         event = {"ts": datetime.now(timezone.utc).isoformat(), **event}

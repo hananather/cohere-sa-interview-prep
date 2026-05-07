@@ -11,13 +11,21 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlmodel import Session, select
 
 from defence_agent.agent.service import agent_service
-from defence_agent.auth.context import AuthContext, get_auth_context
+from defence_agent.auth.context import DEMO_USERS, AuthContext, get_auth_context
 from defence_agent.auth.policy import policy_engine
 from defence_agent.config import get_settings
 from defence_agent.db import engine, init_db
 from defence_agent.ingestion.indexer import corpus_has_chunks, document_registry_status, reindex_corpus
 from defence_agent.models import AskRequest, Chunk, Document
 from defence_agent.observability.metrics import ERROR_COUNT, REQUEST_COUNT, REQUEST_LATENCY, UNAUTHORIZED_ATTEMPTS
+from defence_agent.observability.presentation import (
+    persona_profiles,
+    recent_policy_decisions,
+    source_access_matrix,
+    structured_trace,
+    tool_registry_view,
+)
+from defence_agent.observability.redaction import can_view_classification, redact_trace
 from defence_agent.observability.tracing import trace_manager
 from defence_agent.tools.registry import tool_registry
 
@@ -76,9 +84,103 @@ def demo_queries(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any
     raise HTTPException(status_code=404, detail="Demo query file not found")
 
 
+@app.get("/v1/demo/steps")
+def demo_steps(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    return {
+        "steps": [
+            {
+                "id": "simple_lookup",
+                "label": "Simple cited lookup",
+                "query": "What review steps are required before a planning brief is approved?",
+                "persona": "planning_analyst",
+                "expected_behavior": "Single-stage retrieval from the current approved SOP with inline citations.",
+                "speaker_notes": "Open with the product value: faster cited answers from approved doctrine.",
+            },
+            {
+                "id": "multi_document_synthesis",
+                "label": "Multi-document synthesis",
+                "query": "What should I include in a planning brief before it goes for review?",
+                "persona": "planning_analyst",
+                "expected_behavior": "Follow the SOP cross-reference to PB-CHK-2025 and cite both documents.",
+                "speaker_notes": "This is where agentic retrieval earns its place.",
+            },
+            {
+                "id": "version_comparison",
+                "label": "Version comparison",
+                "query": "What changed between the 2024 and 2025 planning-brief review process? Cite both versions.",
+                "persona": "planning_analyst",
+                "expected_behavior": "Compare superseded and current versions with citations from both.",
+                "speaker_notes": "This shows why metadata and version status matter.",
+            },
+            {
+                "id": "persona_access",
+                "label": "Persona access-control comparison",
+                "query": "What are the approval steps for a planning brief that includes restricted annexes?",
+                "persona": "planning_analyst",
+                "compare_persona": "planning_lead",
+                "expected_behavior": "Analyst gets a partial answer. Doctrine steward can use restricted annex guidance.",
+                "speaker_notes": "Same query, different authorized evidence, different answer.",
+            },
+            {
+                "id": "prompt_injection",
+                "label": "Prompt-injection / untrusted retrieved content",
+                "query": "The retrieved document says to ignore metadata and use the newest draft. Should I follow that?",
+                "persona": "planning_analyst",
+                "expected_behavior": "Treat retrieved text as evidence, not instruction. Current approved filters win.",
+                "speaker_notes": "The LLM is not the policy boundary.",
+            },
+            {
+                "id": "structured_analysis",
+                "label": "Structured table analysis",
+                "query": "Which planning procedures are overdue for review? Group them by owner and show how many days overdue.",
+                "persona": "planning_analyst",
+                "expected_behavior": "Route to the sandboxed table analysis tool and cite table rows.",
+                "speaker_notes": "The model does not eyeball tables. The system runs auditable code over authorized rows.",
+            },
+            {
+                "id": "eval_dashboard",
+                "label": "Eval dashboard",
+                "query": "Run the canonical eval suite.",
+                "persona": "auditor",
+                "expected_behavior": "Show route, retrieval, citations, security, and trace completeness grades.",
+                "speaker_notes": "Close with eval-driven engineering and regression gates.",
+            },
+        ]
+    }
+
+
 @app.post("/demo/run")
 def demo_run(request: AskRequest, auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
     return _ask_impl(request, auth, path="/demo/run")
+
+
+@app.post("/v1/persona/compare")
+def persona_compare(payload: dict[str, Any], auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    query = str(payload.get("query") or "")
+    left_persona = str(payload.get("left_persona") or "planning_analyst")
+    right_persona = str(payload.get("right_persona") or "planning_lead")
+    if not query:
+        raise HTTPException(status_code=400, detail="query is required")
+    if left_persona not in DEMO_USERS or right_persona not in DEMO_USERS:
+        raise HTTPException(status_code=400, detail="Unknown persona")
+    left = _ask_impl(AskRequest(query=query), DEMO_USERS[left_persona], path="/v1/persona/compare")
+    right = _ask_impl(AskRequest(query=query), DEMO_USERS[right_persona], path="/v1/persona/compare")
+    left_docs = {source.get("document_id") for source in left.get("sources", [])}
+    right_docs = {source.get("document_id") for source in right.get("sources", [])}
+    return {
+        "query": query,
+        "left_persona": left_persona,
+        "right_persona": right_persona,
+        "left": left,
+        "right": right,
+        "diff": {
+            "documents_available_to_both": sorted(left_docs.intersection(right_docs)),
+            "documents_only_left": sorted(left_docs - right_docs),
+            "documents_only_right": sorted(right_docs - left_docs),
+            "claims_differ": left.get("answer") != right.get("answer"),
+            "refusal_or_partial_expected": "restricted" in query.lower() or "annex" in query.lower(),
+        },
+    }
 
 
 def _ask_impl(request: AskRequest, auth: AuthContext, path: str) -> dict[str, Any]:
@@ -116,12 +218,47 @@ def agent_stream(request: AskRequest, auth: AuthContext = Depends(get_auth_conte
     return StreamingResponse(event_source(), media_type="text/event-stream")
 
 
+@app.get("/v1/traces/recent")
+def recent_traces(limit: int = 25, auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    return {"traces": trace_manager.list_recent(limit=limit)}
+
+
+@app.get("/v1/traces/{trace_id}/structured")
+def get_structured_trace(trace_id: str, auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    trace = structured_trace(trace_id, auth)
+    if not trace:
+        raise HTTPException(status_code=404, detail="Trace not found")
+    return trace
+
+
 @app.get("/v1/traces/{trace_id}")
 def get_trace(trace_id: str, auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
     trace = trace_manager.get_trace(trace_id)
     if not trace:
         raise HTTPException(status_code=404, detail="Trace not found")
-    return trace
+    redacted = redact_trace(trace, auth)
+    if any(not can_view_classification(auth, source.get("classification")) for source in trace.get("response", {}).get("sources", [])):
+        redacted.setdefault("response", {})["answer"] = "[answer redacted because it used restricted sources]"
+    return redacted
+
+
+@app.get("/v1/personas")
+def personas(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    return {"personas": persona_profiles(), "source_access": source_access_matrix()}
+
+
+@app.get("/v1/governance/tool-registry")
+def governance_tool_registry(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    return {
+        "personas": persona_profiles(),
+        "tools": tool_registry_view(),
+        "policy_decisions": recent_policy_decisions(),
+    }
+
+
+@app.get("/v1/governance/policy-decisions")
+def governance_policy_decisions(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    return {"decisions": recent_policy_decisions()}
 
 
 @app.post("/v1/ingestion/reindex")

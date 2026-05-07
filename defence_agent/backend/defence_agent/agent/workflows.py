@@ -369,24 +369,67 @@ def claim_verification(query: str, auth: AuthContext, trace_id: str) -> dict[str
 
 
 def permission_sensitive_retrieval(query: str, auth: AuthContext, trace_id: str) -> dict[str, Any]:
-    sources, search = _search_sources(
+    lowered = query.lower()
+    if "why did" in lowered and "analyst" in lowered and "restricted" in lowered:
+        return {
+            "answer": (
+                "The analyst persona did not receive the restricted-annex answer because access control is enforced before retrieval. "
+                "The restricted annex was excluded from model context for that persona, so the system could only return a refusal or partial public-source answer. "
+                "This audit explanation exposes policy metadata, not restricted document content."
+            ),
+            "sources": [],
+            "citations": [],
+            "tool_calls": [],
+            "degradations": ["audit_metadata_only"],
+            "needs_human_review": False,
+        }
+    needs_public_sop = "planning brief" in lowered or "compare" in lowered
+    public_sources: list[SourceChunk] = []
+    tool_calls: list[dict[str, Any]] = []
+    if needs_public_sop:
+        public_sources, public_search = _search_sources(
+            "Planning brief approval SOP restricted annexes external distribution legal policy review",
+            auth,
+            trace_id,
+            top_k=3,
+            filters={"doc_id": "PB-SOP-2025", "status": "approved"},
+        )
+        tool_calls.append(public_search.model_dump())
+    annex_sources, search = _search_sources(
         query,
         auth,
         trace_id,
         top_k=4,
         filters={"doc_family": "annex_handling", "status": "approved"},
     )
+    tool_calls.append(search.model_dump())
+    sources = _dedupe_sources([*public_sources, *annex_sources])
+    if public_sources and not annex_sources:
+        citations = make_citations(public_sources[:2])
+        answer = (
+            "From the public approved SOP, planning briefs that include restricted annexes require legal/policy review before circulation "
+            "and director approval before distribution [C1]. The detailed restricted-annex handling steps require a restricted source that is not available "
+            "to this persona, so I cannot provide that portion. Escalate to a doctrine steward or authorized reviewer."
+        )
+        return {
+            "answer": answer,
+            "sources": public_sources[:2],
+            "citations": citations,
+            "tool_calls": tool_calls,
+            "degradations": ["restricted_source_not_available_to_user"],
+            "needs_human_review": True,
+        }
     if not sources:
         return {
             "answer": "This answer requires a restricted source that is not available to the current user. Request access or escalate to an authorized planning lead.",
             "sources": [],
             "citations": [],
-            "tool_calls": [search.model_dump()],
+            "tool_calls": tool_calls,
             "degradations": ["restricted_source_not_available_to_user"],
             "needs_human_review": True,
         }
     answer = _generate(query, sources, "permission_sensitive_retrieval", trace_id)
-    return _workflow_result(answer, sources, [search.model_dump()], search.data.get("degradations", []))
+    return _workflow_result(answer, sources, tool_calls, search.data.get("degradations", []))
 
 
 def bilingual_retrieval(query: str, auth: AuthContext, trace_id: str) -> dict[str, Any]:

@@ -33,6 +33,7 @@ TOOL_ALLOWLIST: dict[str, set[str]] = {
     "validate_answer_citations": {"planning_analyst", "planning_lead", "auditor", "admin"},
     "request_human_review": {"planning_analyst", "planning_lead", "auditor", "admin"},
     "log_feedback": {"planning_analyst", "planning_lead", "auditor", "admin"},
+    "admin_reindex": {"admin"},
 }
 
 

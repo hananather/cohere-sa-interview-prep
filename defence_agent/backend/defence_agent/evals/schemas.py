@@ -71,6 +71,13 @@ class EvalCase(BaseModel):
     expected_refusal: bool = False
     citation_required: bool = True
     exact_expected_result: dict[str, Any] | None = None
+    persona_id: str | None = None
+    security_scenario: str | None = None
+    expected_policy_decision: str | None = None
+    expected_excluded_sources: list[str] = Field(default_factory=list)
+    expected_visible_sources: list[str] = Field(default_factory=list)
+    expected_hidden_sources: list[str] = Field(default_factory=list)
+    expected_trace_assertions: list[str] = Field(default_factory=list)
     grader_config: GraderConfig = Field(default_factory=GraderConfig)
     demo_notes: str = ""
 
@@ -91,6 +98,11 @@ class GradeBreakdown(BaseModel):
     answer: dict[str, Any] = Field(default_factory=dict)
     citations: dict[str, Any] = Field(default_factory=dict)
     safety: dict[str, Any] = Field(default_factory=dict)
+    persona_policy: dict[str, Any] = Field(default_factory=dict)
+    excluded_sources: dict[str, Any] = Field(default_factory=dict)
+    trace_completeness: dict[str, Any] = Field(default_factory=dict)
+    tool_policy: dict[str, Any] = Field(default_factory=dict)
+    redaction: dict[str, Any] = Field(default_factory=dict)
     operations: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -98,6 +110,7 @@ class EvalCaseOutcome(BaseModel):
     query_id: str
     task_type: str
     complexity_level: str
+    persona_id: str | None = None
     passed: bool
     failure_categories: list[str] = Field(default_factory=list)
     trace_id: str | None = None

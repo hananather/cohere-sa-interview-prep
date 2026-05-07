@@ -21,16 +21,31 @@ It checks:
 - Answer behavior.
 - Citation validation.
 - Safety behavior.
+- Persona policy behavior.
+- Excluded source behavior.
+- Trace completeness.
+- Tool policy enforcement.
+- Trace redaction.
 - Latency, trace ID, and token/cost estimate presence.
 
 ## Eval Suites
 
 - `canonical_eval_set.yaml`: stable 24-case acceptance gate.
-- `generated_eval_set.yaml`: 170 broad coverage cases.
+- `generated_eval_set.yaml`: 173 broad coverage cases.
 - `heldout_eval_set.yaml`: generated cases reserved for regression review.
 - `regression_eval_set.yaml`: canonical cases that should keep passing.
 - `adversarial_eval_set.yaml`: prompt-injection, metadata-bypass, and access-bypass cases.
 - `demo_candidates.yaml`: candidate live-demo queries.
+
+Persona/security fields are optional per case:
+
+- `persona_id`
+- `security_scenario`
+- `expected_policy_decision`
+- `expected_excluded_sources`
+- `expected_visible_sources`
+- `expected_hidden_sources`
+- `expected_trace_assertions`
 
 ## Task Complexity
 
@@ -92,6 +107,8 @@ Key files:
 - `citation_metrics.csv`
 - `safety_metrics.csv`
 - `structured_analysis_metrics.csv`
+- `persona_policy_metrics.csv`
+- `trace_completeness_metrics.csv`
 - `failure_analysis.md`
 - `confusion_matrix_route.csv`
 - `experiment_comparison.md`
@@ -109,6 +126,10 @@ Latest canonical fixture run:
 - Retrieval recall@k: 100%.
 - Citation validation: 100%.
 - Access-control correctness: 100%.
+- Persona-policy pass rate: 100%.
+- Tool-policy pass rate: 100%.
+- Trace-completeness pass rate: 100%.
+- Restricted leakage rate: 0%.
 - Structured-analysis exactness: 100%.
 
 Structured-analysis gate uses deterministic `today = 2026-05-06`.

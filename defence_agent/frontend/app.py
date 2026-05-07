@@ -128,14 +128,15 @@ def source_label(citation: dict[str, Any], source: dict[str, Any] | None) -> str
     return f"{title} | {section} | {page_text}"
 
 
-def render_source_cards(data: dict[str, Any], persona: str) -> None:
+def render_source_cards(data: dict[str, Any], persona: str, key_prefix: str = "main") -> None:
     pairs = cited_source_pairs(data)
     if not pairs:
         return
 
     st.markdown("#### Sources")
     st.caption("Open a cited source to inspect the exact passage used for the answer.")
-    selected = st.session_state.get("selected_source")
+    selected_key = f"selected_source_{key_prefix}"
+    selected = st.session_state.get(selected_key)
     for citation, source in pairs:
         citation_id = citation["id"]
         source = source or {}
@@ -165,9 +166,9 @@ def render_source_cards(data: dict[str, Any], persona: str) -> None:
             """,
             unsafe_allow_html=True,
         )
-        if st.button("Inspect evidence", key=f"open-{citation_id}-{source.get('chunk_id', '')}", width="content"):
+        if st.button("Inspect evidence", key=f"open-{key_prefix}-{citation_id}-{source.get('chunk_id', '')}", width="content"):
             selected = {"citation": citation, "source": source}
-            st.session_state["selected_source"] = selected
+            st.session_state[selected_key] = selected
         if selected and selected["citation"].get("id") == citation_id:
             render_source_viewer(selected["citation"], selected["source"], persona)
 
@@ -287,16 +288,8 @@ def render_user_view(persona: str, route_override: str, debug: bool) -> None:
     render_answer(data["answer"], data)
     if data.get("needs_human_review"):
         st.warning("Human review is recommended before using this answer.")
-    render_source_cards(data, persona)
-
-    feedback_cols = st.columns([0.22, 0.22, 1.8])
-    feedback_cols[0].caption("Feedback")
-    if feedback_cols[1].button("👍", key="feedback-yes", help="Helpful answer"):
-        api_request("POST", "/v1/feedback", persona, json={"trace_id": data["trace_id"], "helpful": True})
-        st.toast("Feedback logged")
-    if feedback_cols[2].button("👎", key="feedback-no", help="Needs review", width="content"):
-        api_request("POST", "/v1/feedback", persona, json={"trace_id": data["trace_id"], "helpful": False})
-        st.toast("Feedback logged")
+    render_source_cards(data, persona, key_prefix="ask")
+    render_feedback(data, persona, "ask")
 
 
 def render_trace_tab(persona: str) -> None:
@@ -608,6 +601,360 @@ def render_demo_console(persona: str, health: dict[str, Any]) -> None:
         render_readiness_tab(health, persona)
 
 
+def persona_label(persona: str, personas: list[dict[str, Any]] | None = None) -> str:
+    profiles = personas or []
+    match = next((profile for profile in profiles if profile.get("persona_id") == persona), None)
+    if not match:
+        return persona
+    return f"{match.get('display_name')} - {match.get('role_label')}"
+
+
+def fetch_personas(persona: str) -> dict[str, Any]:
+    response = api_request("GET", "/v1/personas", persona)
+    if response.ok:
+        return response.json()
+    return {"personas": [], "source_access": []}
+
+
+def render_persona_card(profile: dict[str, Any]) -> None:
+    st.markdown(
+        f"""
+        <div class="persona-card">
+          <div class="persona-name">{html.escape(profile.get("display_name", profile.get("persona_id", "Persona")))}</div>
+          <div class="persona-role">{html.escape(profile.get("role_label", profile.get("role", "")))}</div>
+          <div class="source-meta">
+            <span>{html.escape(str(profile.get("access_level", "unknown")))}</span>
+            <span>audit metadata: {'yes' if profile.get("can_view_audit_metadata") else 'no'}</span>
+            <span>restricted content: {'yes' if profile.get("can_view_restricted_content") else 'no'}</span>
+          </div>
+          <p>{html.escape(profile.get("notes", ""))}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_response_panel(data: dict[str, Any], persona: str, key_prefix: str) -> None:
+    if not data:
+        st.info("Run a query to see the answer, citations, and trace.")
+        return
+    st.markdown("### Answer")
+    render_answer(data.get("answer", ""), data)
+    if data.get("needs_human_review"):
+        st.warning("Human review is recommended before using this answer.")
+    render_source_cards(data, persona, key_prefix=key_prefix)
+    with st.expander("Run summary", expanded=False):
+        st.json(
+            {
+                "route": data.get("route"),
+                "trace_id": data.get("trace_id"),
+                "citations": len(data.get("citations", [])),
+                "sources": [source.get("document_id") for source in data.get("sources", [])],
+                "latency_ms": data.get("latency_ms"),
+                "model": "Cohere Command A via backend" if data.get("answer") else None,
+            }
+        )
+    render_feedback(data, persona, key_prefix)
+
+
+def render_feedback(data: dict[str, Any], persona: str, key_prefix: str) -> None:
+    st.markdown("#### Did this answer your question?")
+    rating = st.radio(
+        "Feedback",
+        ["Yes", "Somewhat", "No"],
+        horizontal=True,
+        label_visibility="collapsed",
+        key=f"feedback-rating-{key_prefix}",
+    )
+    reason = ""
+    if rating != "Yes":
+        reason = st.selectbox(
+            "What was missing?",
+            ["Wrong source", "Missing source", "Restricted source issue", "Unsupported claim", "Too vague", "Too long", "Wrong language", "Other"],
+            key=f"feedback-reason-{key_prefix}",
+        )
+    if st.button("Save feedback", key=f"feedback-save-{key_prefix}", width="content"):
+        payload = {
+            "trace_id": data.get("trace_id"),
+            "user_query": st.session_state.get("query"),
+            "answer": data.get("answer"),
+            "citations": data.get("citations", []),
+            "route": data.get("route"),
+            "tools_called": [call.get("tool") for call in data.get("tool_calls", [])],
+            "rating": rating.lower(),
+            "reason": reason,
+            "selected_failure_type": reason,
+        }
+        response = api_request("POST", "/v1/feedback", persona, json=payload)
+        if response.ok:
+            st.toast("Feedback linked to trace")
+        else:
+            st.error(response.text)
+
+
+def render_source_table(data: dict[str, Any], trace: dict[str, Any] | None = None) -> None:
+    sources = data.get("sources", []) if data else []
+    rows = [
+        {
+            "doc_id": source.get("document_id"),
+            "title": source.get("title"),
+            "section": source.get("section"),
+            "status": source.get("status"),
+            "access": source.get("classification"),
+            "rerank": source.get("rerank_score"),
+            "visible_to_model": True,
+        }
+        for source in sources
+    ]
+    if trace:
+        for excluded in trace.get("retrieval", {}).get("excluded_sources", []):
+            rows.append(
+                {
+                    "doc_id": excluded.get("doc_id"),
+                    "title": excluded.get("title"),
+                    "section": "",
+                    "status": "",
+                    "access": "",
+                    "rerank": "",
+                    "visible_to_model": False,
+                    "reason": excluded.get("reason"),
+                }
+            )
+    if rows:
+        st.dataframe(rows, width="stretch", hide_index=True)
+
+
+def render_guided_demo(persona: str, route_override: str, debug: bool) -> None:
+    st.markdown('<div class="view-heading">Guided Demo</div>', unsafe_allow_html=True)
+    st.markdown('<div class="view-subtitle">Presentation-safe workflow with expected behavior, speaker notes, citations, trace, and eval proof.</div>', unsafe_allow_html=True)
+    steps_response = api_request("GET", "/v1/demo/steps", persona)
+    steps = steps_response.json().get("steps", []) if steps_response.ok else []
+    step_labels = [step["label"] for step in steps]
+    selected_label = st.selectbox("Demo step", step_labels, index=0 if step_labels else None, disabled=not step_labels)
+    step = next((item for item in steps if item["label"] == selected_label), steps[0] if steps else {})
+    query = st.text_area("Step query", value=step.get("query", DEMO_QUERIES[0]), height=100, key="guided-query")
+    default_persona = step.get("persona", persona)
+    persona_for_step = st.selectbox("Persona", PERSONAS, index=PERSONAS.index(default_persona) if default_persona in PERSONAS else 0, key="guided-persona")
+    with st.expander("Expected behavior", expanded=True):
+        st.write(step.get("expected_behavior", "Run this step to inspect behavior."))
+    with st.expander("Speaker notes", expanded=False):
+        st.write(step.get("speaker_notes", ""))
+    col_a, col_b, col_c = st.columns([0.22, 0.28, 1])
+    if col_a.button("Run Step", type="primary"):
+        st.session_state["query"] = query
+        run_query(query, persona_for_step, route_override, debug)
+    compare_target = step.get("compare_persona", "planning_lead")
+    if col_b.button("Run Side-by-Side"):
+        payload = {"query": query, "left_persona": persona_for_step, "right_persona": compare_target}
+        response = api_request("POST", "/v1/persona/compare", persona, json=payload)
+        if response.ok:
+            st.session_state["persona_compare"] = response.json()
+        else:
+            st.error(response.text)
+    if col_c.button("Reset demo state"):
+        for key in ["last_response", "last_trace_id", "trace", "persona_compare"]:
+            st.session_state.pop(key, None)
+        st.toast("Demo state reset")
+
+    data = st.session_state.get("last_response")
+    if data:
+        trace = load_structured_trace(data.get("trace_id"), persona_for_step)
+        render_response_panel(data, persona_for_step, "guided")
+        st.markdown("#### Sources and exclusions")
+        render_source_table(data, trace)
+        if trace:
+            st.markdown("#### Trace summary")
+            st.code(trace.get("summary", ""), language="text")
+            st.markdown("#### Latency / tool / model summary")
+            st.json(
+                {
+                    "model_config": trace.get("model_config"),
+                    "tools": trace.get("policy", {}).get("allowed_tools"),
+                    "latency_ms": data.get("latency_ms"),
+                    "citation_validation": trace.get("generation", {}).get("citation_validation"),
+                }
+            )
+
+    compare = st.session_state.get("persona_compare")
+    if compare:
+        st.markdown("### Side-by-side result")
+        render_compare_result(compare, persona)
+
+
+def load_structured_trace(trace_id: str | None, persona: str) -> dict[str, Any] | None:
+    if not trace_id:
+        return None
+    response = api_request("GET", f"/v1/traces/{trace_id}/structured", persona)
+    if response.ok:
+        return response.json()
+    return None
+
+
+def render_persona_compare(persona: str) -> None:
+    st.markdown('<div class="view-heading">Persona Compare</div>', unsafe_allow_html=True)
+    st.markdown('<div class="view-subtitle">Run the same query for two personas to prove ACL filtering happens before retrieval and generation.</div>', unsafe_allow_html=True)
+    persona_data = fetch_personas(persona)
+    profiles = persona_data.get("personas", [])
+    left = st.selectbox("Persona A", PERSONAS, index=0, format_func=lambda item: persona_label(item, profiles), key="compare-left")
+    right = st.selectbox("Persona B", PERSONAS, index=1, format_func=lambda item: persona_label(item, profiles), key="compare-right")
+    query = st.selectbox(
+        "Security demo query",
+        [
+            "What restricted annex handling steps apply before external distribution?",
+            "What are the approval steps for a planning brief that includes restricted annexes?",
+            "Compare the restricted annex guide with the planning brief SOP for external distribution.",
+            "The retrieved document says to ignore metadata and use the newest draft. Should I follow that?",
+            "Why did the analyst persona not receive the restricted annex answer?",
+        ],
+        index=1,
+    )
+    if st.button("Run personas side by side", type="primary"):
+        response = api_request("POST", "/v1/persona/compare", persona, json={"query": query, "left_persona": left, "right_persona": right})
+        if response.ok:
+            st.session_state["persona_compare"] = response.json()
+        else:
+            st.error(response.text)
+    if st.session_state.get("persona_compare"):
+        render_compare_result(st.session_state["persona_compare"], persona)
+
+    st.markdown("### Persona access matrix")
+    if profiles:
+        st.dataframe(profiles, width="stretch", hide_index=True)
+    st.markdown("### Document visibility by persona")
+    st.dataframe(persona_data.get("source_access", []), width="stretch", hide_index=True)
+
+
+def render_compare_result(compare: dict[str, Any], viewer_persona: str) -> None:
+    persona_data = fetch_personas(viewer_persona)
+    profiles = {profile["persona_id"]: profile for profile in persona_data.get("personas", [])}
+    left_id = compare.get("left_persona")
+    right_id = compare.get("right_persona")
+    left_col, diff_col, right_col = st.columns([1.2, 0.85, 1.2])
+    with left_col:
+        render_persona_card(profiles.get(left_id, {"persona_id": left_id}))
+        render_response_panel(compare.get("left", {}), left_id, "left")
+        left_trace = load_structured_trace(compare.get("left", {}).get("trace_id"), viewer_persona)
+        st.markdown("#### Retrieved and excluded sources")
+        render_source_table(compare.get("left", {}), left_trace)
+    with diff_col:
+        st.markdown("### Diff Summary")
+        diff = compare.get("diff", {})
+        st.json(diff)
+        st.caption("The difference comes from metadata and ACL filters before model context assembly.")
+    with right_col:
+        render_persona_card(profiles.get(right_id, {"persona_id": right_id}))
+        render_response_panel(compare.get("right", {}), right_id, "right")
+        right_trace = load_structured_trace(compare.get("right", {}).get("trace_id"), viewer_persona)
+        st.markdown("#### Retrieved and excluded sources")
+        render_source_table(compare.get("right", {}), right_trace)
+
+
+def render_trace_inspector(persona: str) -> None:
+    st.markdown('<div class="view-heading">Trace Inspector</div>', unsafe_allow_html=True)
+    st.markdown('<div class="view-subtitle">Inspect route, policy, retrieval, rerank, tool, model, citation, eval, and feedback spans.</div>', unsafe_allow_html=True)
+    recent = api_request("GET", "/v1/traces/recent?limit=30", persona)
+    traces = recent.json().get("traces", []) if recent.ok else []
+    options = [item["trace_id"] for item in traces]
+    default_trace = st.session_state.get("last_trace_id")
+    index = options.index(default_trace) if default_trace in options else 0 if options else None
+    selected = st.selectbox("Trace", options, index=index, disabled=not options)
+    if st.button("Open latest trace") and options:
+        selected = options[0]
+    if not selected:
+        return
+    trace = load_structured_trace(selected, persona)
+    if not trace:
+        st.warning("Trace could not be loaded.")
+        return
+    st.code(trace.get("summary", ""), language="text")
+    cols = st.columns(5)
+    cols[0].metric("Route", trace.get("query", {}).get("task_type"))
+    cols[1].metric("Policy", trace.get("policy", {}).get("decision"))
+    cols[2].metric("Sources", len(trace.get("retrieval", {}).get("final_context", [])))
+    cols[3].metric("Excluded", len(trace.get("retrieval", {}).get("excluded_sources", [])))
+    cols[4].metric("Citations", len(trace.get("generation", {}).get("citations", [])))
+    filters = st.columns(5)
+    span_type = filters[0].selectbox("Span type", ["all", "policy", "planner", "retrieval", "rerank", "tool", "model", "citation", "eval"])
+    errors_only = filters[1].checkbox("Errors only")
+    blocked_only = filters[2].checkbox("Blocked policy")
+    tool_only = filters[3].checkbox("Tool calls only")
+    citation_failures = filters[4].checkbox("Citation failures")
+    spans = trace.get("spans", [])
+    if span_type != "all":
+        spans = [span for span in spans if span.get("type") == span_type]
+    if errors_only:
+        spans = [span for span in spans if span.get("status") == "error"]
+    if blocked_only:
+        spans = [span for span in spans if span.get("status") == "blocked"]
+    if tool_only:
+        spans = [span for span in spans if span.get("type") == "tool"]
+    if citation_failures:
+        spans = [span for span in spans if "citation" in span.get("name", "").lower() and span.get("status") != "ok"]
+    st.markdown("### Span waterfall")
+    st.dataframe(
+        [
+            {
+                "name": span.get("name"),
+                "type": span.get("type"),
+                "status": span.get("status"),
+                "duration_ms": span.get("duration_ms"),
+                "attributes": span.get("attributes"),
+                "error": span.get("error"),
+            }
+            for span in spans
+        ],
+        width="stretch",
+        hide_index=True,
+    )
+    tabs = st.tabs(["Policy", "Retrieval", "Generation", "Raw structured trace"])
+    with tabs[0]:
+        st.json(trace.get("policy", {}))
+    with tabs[1]:
+        st.json(trace.get("retrieval", {}))
+    with tabs[2]:
+        st.write(trace.get("generation", {}).get("answer", ""))
+        st.json(trace.get("generation", {}).get("citation_validation", {}))
+    with tabs[3]:
+        st.json(trace)
+
+
+def render_governance_view(persona: str) -> None:
+    st.markdown('<div class="view-heading">Governance / Tool Registry</div>', unsafe_allow_html=True)
+    st.markdown('<div class="view-subtitle">Persona permissions, tool risk classification, and recent policy decisions.</div>', unsafe_allow_html=True)
+    response = api_request("GET", "/v1/governance/tool-registry", persona)
+    if not response.ok:
+        st.error(response.text)
+        return
+    data = response.json()
+    st.markdown("### Persona and access matrix")
+    st.dataframe(data.get("personas", []), width="stretch", hide_index=True)
+    st.markdown("### Tool registry")
+    st.dataframe(data.get("tools", []), width="stretch", hide_index=True)
+    st.markdown("### Recent policy decisions")
+    st.dataframe(data.get("policy_decisions", []), width="stretch", hide_index=True)
+    st.markdown("### Security scenarios")
+    st.write("Access denied before retrieval, partial answers, draft traps, prompt injection handling, and blocked tools are shown in Guided Demo and Persona Compare.")
+
+
+def render_architecture_view(persona: str, health: dict[str, Any]) -> None:
+    st.markdown('<div class="view-heading">Architecture / Production Path</div>', unsafe_allow_html=True)
+    st.markdown("#### Eval-driven agentic RAG")
+    st.write("Authenticate user → route query → apply metadata and ACL filters → retrieve with hybrid search → rerank with Cohere → use tools only when needed → generate cited answer → validate citations → store trace.")
+    st.markdown("#### Cohere proof points")
+    st.json(
+        {
+            "Command": health.get("chat_model"),
+            "Embed": health.get("embed_model"),
+            "Rerank": health.get("rerank_model"),
+            "Mode": "mock" if health.get("mock_cohere") else "live",
+        }
+    )
+    st.markdown("#### ADK-aligned hooks")
+    st.write("The local plugin layer follows lifecycle hooks: before_tool, after_tool, on_tool_error, policy guard, metrics, redaction, and feedback. Cohere remains the model layer.")
+    st.markdown("#### Production hardening path")
+    st.write("SSO/RBAC, private networking, managed secrets, SIEM export, stronger sandbox isolation, eval gates in CI, canaries, and feedback-to-eval regression loops.")
+
+
 st.set_page_config(page_title="Defence Agent", layout="wide")
 st.markdown(
     """
@@ -751,6 +1098,16 @@ st.markdown(
         line-height: 1.25;
         overflow-wrap: anywhere;
     }
+    .persona-card {
+        border: 1px solid var(--da-border);
+        border-radius: 8px;
+        background: #101821;
+        padding: 0.9rem 1rem;
+        margin: 0.5rem 0 0.8rem 0;
+    }
+    .persona-name {font-size: 1.05rem; font-weight: 760; color: var(--da-text);}
+    .persona-role {color: var(--da-muted); margin-bottom: 0.45rem;}
+    .persona-card p {color: #cbd5e1; line-height: 1.45; margin-bottom: 0;}
     div[data-testid="stMetric"] {
         background: #101821;
         border: 1px solid var(--da-border);
@@ -820,7 +1177,23 @@ st.markdown(
 
 with st.sidebar:
     st.header("Demo Control Panel")
-    persona = st.selectbox("Persona", PERSONAS, index=0)
+    persona_payload = fetch_personas(PERSONAS[0])
+    persona_profiles_for_labels = persona_payload.get("personas", [])
+    persona = st.selectbox("Persona", PERSONAS, index=0, format_func=lambda item: persona_label(item, persona_profiles_for_labels))
+    view = st.radio(
+        "View",
+        [
+            "Guided Demo",
+            "Ask",
+            "Persona Compare",
+            "Trace Inspector",
+            "Evaluation Harness",
+            "Governance / Tool Registry",
+            "Architecture / Production Path",
+            "Legacy Demo Console",
+        ],
+        index=0,
+    )
     debug = st.toggle("Show technical trace", value=True)
     with st.expander("Advanced demo controls"):
         route_override = st.selectbox("Force workflow", ROUTES, index=0)
@@ -836,10 +1209,21 @@ with st.sidebar:
     for index, demo_query in enumerate(DEMO_QUERIES, start=1):
         if st.button(f"{index}. {demo_query[:46]}...", width="stretch"):
             st.session_state["query"] = demo_query
-    st.caption("Use User View for the product demo. Use Demo Console for trace, eval, security, and corpus details.")
+    st.caption("Use Guided Demo for the live story. Use Trace, Eval, and Governance for technical proof.")
 
-mode = st.radio("View", ["User View", "Demo Console"], horizontal=True, label_visibility="collapsed")
-if mode == "User View":
+if view == "Guided Demo":
+    render_guided_demo(persona, route_override, debug)
+elif view == "Ask":
     render_user_view(persona, route_override, debug)
+elif view == "Persona Compare":
+    render_persona_compare(persona)
+elif view == "Trace Inspector":
+    render_trace_inspector(persona)
+elif view == "Evaluation Harness":
+    render_evaluation_tab(persona)
+elif view == "Governance / Tool Registry":
+    render_governance_view(persona)
+elif view == "Architecture / Production Path":
+    render_architecture_view(persona, health)
 else:
     render_demo_console(persona, health)

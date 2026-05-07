@@ -1,6 +1,6 @@
 # Query Generation Report
 
-Generated 170 broad eval cases from a traceable template bank.
+Generated 173 broad eval cases from a traceable template bank.
 
 ## Counts By Task Type
 
@@ -10,7 +10,7 @@ Generated 170 broad eval cases from a traceable template bank.
 - compare: 12
 - demo_candidate: 12
 - find: 13
-- permission_sensitive: 11
+- permission_sensitive: 14
 - refuse_or_clarify: 11
 - scanned_ocr: 8
 - structured_analysis: 18
@@ -23,8 +23,8 @@ Generated 170 broad eval cases from a traceable template bank.
 - L1: 41
 - L2: 47
 - L3: 26
-- L4: 54
-- L5: 2
+- L4: 56
+- L5: 3
 
 ## Notes
 
