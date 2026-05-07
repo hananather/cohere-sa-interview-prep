@@ -955,7 +955,7 @@ def render_architecture_view(persona: str, health: dict[str, Any]) -> None:
     st.write("SSO/RBAC, private networking, managed secrets, SIEM export, stronger sandbox isolation, eval gates in CI, canaries, and feedback-to-eval regression loops.")
 
 
-st.set_page_config(page_title="Defence Agent", layout="wide")
+st.set_page_config(page_title="Defence Agent", layout="wide", initial_sidebar_state="expanded")
 st.markdown(
     """
     <style>
@@ -991,7 +991,14 @@ st.markdown(
     h1, h2, h3, h4, h5, h6, p, label, span, div[data-testid="stMarkdown"] {
         color: var(--da-text);
     }
-    header[data-testid="stHeader"] {display: none;}
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        color: var(--da-text) !important;
+    }
+    header[data-testid="stHeader"] [data-testid="stToolbar"],
+    header[data-testid="stHeader"] [data-testid="stDecoration"] {
+        display: none !important;
+    }
     .block-container {padding-top: 1rem; padding-bottom: 2rem; max-width: 1220px;}
     .demo-title {font-size: 2.15rem; font-weight: 760; letter-spacing: 0; line-height: 1.12; margin: 0 0 0.25rem 0; color: var(--da-text);}
     .demo-subtitle {color: var(--da-muted); font-size: 1rem; margin-bottom: 1rem;}
