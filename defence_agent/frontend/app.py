@@ -742,9 +742,10 @@ def render_guided_demo(persona: str, route_override: str, debug: bool) -> None:
     step_labels = [step["label"] for step in steps]
     selected_label = st.selectbox("Demo step", step_labels, index=0 if step_labels else None, disabled=not step_labels)
     step = next((item for item in steps if item["label"] == selected_label), steps[0] if steps else {})
-    query = st.text_area("Step query", value=step.get("query", DEMO_QUERIES[0]), height=100, key="guided-query")
+    step_id = step.get("id", "guided")
+    query = st.text_area("Step query", value=step.get("query", DEMO_QUERIES[0]), height=100, key=f"guided-query-{step_id}")
     default_persona = step.get("persona", persona)
-    persona_for_step = st.selectbox("Persona", PERSONAS, index=PERSONAS.index(default_persona) if default_persona in PERSONAS else 0, key="guided-persona")
+    persona_for_step = st.selectbox("Persona", PERSONAS, index=PERSONAS.index(default_persona) if default_persona in PERSONAS else 0, key=f"guided-persona-{step_id}")
     with st.expander("Expected behavior", expanded=True):
         st.write(step.get("expected_behavior", "Run this step to inspect behavior."))
     with st.expander("Speaker notes", expanded=False):
@@ -754,15 +755,19 @@ def render_guided_demo(persona: str, route_override: str, debug: bool) -> None:
         st.session_state["query"] = query
         run_query(query, persona_for_step, route_override, debug)
     compare_target = step.get("compare_persona", "planning_lead")
-    if col_b.button("Run Side-by-Side", width="stretch"):
+    side_by_side_enabled = bool(step.get("compare_persona"))
+    if col_b.button("Run Side-by-Side", width="stretch", disabled=not side_by_side_enabled):
         payload = {"query": query, "left_persona": persona_for_step, "right_persona": compare_target}
         response = api_request("POST", "/v1/persona/compare", persona, json=payload)
         if response.ok:
             st.session_state["persona_compare"] = response.json()
+            st.session_state["persona_compare_step_id"] = step_id
         else:
             st.error(response.text)
+    if not side_by_side_enabled:
+        st.caption("Side-by-side is only enabled for the Persona access-control comparison step, where the same prompt should produce different authorized evidence.")
     if col_c.button("Reset demo state", width="stretch"):
-        for key in ["last_response", "last_trace_id", "trace", "persona_compare"]:
+        for key in ["last_response", "last_trace_id", "trace", "persona_compare", "persona_compare_step_id"]:
             st.session_state.pop(key, None)
         st.toast("Demo state reset")
 
@@ -786,6 +791,9 @@ def render_guided_demo(persona: str, route_override: str, debug: bool) -> None:
             )
 
     compare = st.session_state.get("persona_compare")
+    compare_step_id = st.session_state.get("persona_compare_step_id")
+    if compare and compare_step_id and compare_step_id != step_id:
+        compare = None
     if compare:
         st.markdown("### Side-by-side result")
         render_compare_result(compare, persona)
@@ -849,14 +857,63 @@ def render_compare_result(compare: dict[str, Any], viewer_persona: str) -> None:
     with diff_col:
         st.markdown("### Diff Summary")
         diff = compare.get("diff", {})
-        st.json(diff)
-        st.caption("The difference comes from metadata and ACL filters before model context assembly.")
+        render_diff_summary(diff, compare.get("left", {}), compare.get("right", {}), compare.get("query", ""))
     with right_col:
         render_persona_card(profiles.get(right_id, {"persona_id": right_id}))
         render_response_panel(compare.get("right", {}), right_id, "right")
         right_trace = load_structured_trace(compare.get("right", {}).get("trace_id"), viewer_persona)
         st.markdown("#### Retrieved and excluded sources")
         render_source_table(compare.get("right", {}), right_trace)
+
+
+def render_diff_summary(diff: dict[str, Any], left: dict[str, Any], right: dict[str, Any], query: str) -> None:
+    both = diff.get("documents_available_to_both", [])
+    only_left = diff.get("documents_only_left", [])
+    only_right = diff.get("documents_only_right", [])
+    claims_differ = bool(diff.get("claims_differ"))
+    expected = bool(diff.get("refusal_or_partial_expected"))
+    left_route = left.get("route", "unknown")
+    right_route = right.get("route", "unknown")
+
+    st.markdown(
+        f"""
+        <div class="diff-card">
+          <div class="diff-label">Same user prompt</div>
+          <p>{html.escape(query or "The same query was run for both personas.")}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("**What changed**")
+    if only_right:
+        st.success("Restricted persona received additional authorized evidence.")
+        st.markdown("Only available to Persona B:")
+        for doc_id in only_right:
+            st.markdown(f"- `{doc_id}`")
+    elif only_left:
+        st.markdown("Only available to Persona A:")
+        for doc_id in only_left:
+            st.markdown(f"- `{doc_id}`")
+    else:
+        st.info("No extra source was added for either persona.")
+
+    if both:
+        st.markdown("Available to both:")
+        for doc_id in both:
+            st.markdown(f"- `{doc_id}`")
+
+    st.markdown("**Policy outcome**")
+    st.markdown(f"- Persona A route: `{left_route}`")
+    st.markdown(f"- Persona B route: `{right_route}`")
+    st.markdown(f"- Answer changed: `{'yes' if claims_differ else 'no'}`")
+    st.markdown(f"- Restricted/partial behavior expected: `{'yes' if expected else 'no'}`")
+
+    if expected and only_right and claims_differ:
+        st.success("This is the intended access-control demo: same prompt, different authorized context, different answer.")
+    elif expected and only_right:
+        st.warning("The source sets differ, but the final answer text is similar. Use the restricted-annex handling query for a stronger live demo.")
+    elif not expected:
+        st.caption("This prompt does not need restricted evidence, so identical answers are expected.")
 
 
 def render_trace_inspector(persona: str) -> None:
@@ -1121,6 +1178,21 @@ st.markdown(
         font-size: 0.78rem;
     }
     .source-card p {color: #d7dee8; margin: 0.25rem 0 0 0; line-height: 1.55;}
+    .diff-card {
+        border: 1px solid var(--da-border);
+        border-radius: 8px;
+        background: #101821;
+        padding: 0.75rem 0.85rem;
+        margin: 0.4rem 0 0.8rem 0;
+    }
+    .diff-card p {margin: 0.15rem 0 0 0; color: #d7dee8; line-height: 1.45;}
+    .diff-label {
+        color: #94a3b8;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.25rem;
+    }
     .cited-passage {
         border-left: 4px solid var(--da-cite);
         background: #101821;
