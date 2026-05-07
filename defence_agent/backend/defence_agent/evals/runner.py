@@ -135,7 +135,9 @@ class EvalRunner:
 
     def _score_case(self, case: dict[str, Any], response: dict[str, Any], elapsed_ms: float) -> dict[str, Any]:
         source_titles = {source["title"] for source in response.get("sources", [])}
+        source_ids = {source.get("document_id") for source in response.get("sources", [])}
         expected_docs = set(case.get("expected_docs", []))
+        expected_source_ids = set(case.get("expected_sources", []))
         tool_names = {call.get("tool") for call in response.get("tool_calls", []) if isinstance(call, dict)}
         expected_tools = set(case.get("expected_tools", []))
         answer = response.get("answer", "").lower()
@@ -149,7 +151,10 @@ class EvalRunner:
             )
         retrieval_recall = 1.0
         context_precision = 1.0
-        if expected_docs:
+        if expected_source_ids:
+            retrieval_recall = len(expected_source_ids.intersection(source_ids)) / len(expected_source_ids)
+            context_precision = len(expected_source_ids.intersection(source_ids)) / max(len(source_ids), 1)
+        elif expected_docs:
             retrieval_recall = len(expected_docs.intersection(source_titles)) / len(expected_docs)
             context_precision = len(expected_docs.intersection(source_titles)) / max(len(source_titles), 1)
         elif response.get("sources") and case.get("expect_abstain"):
@@ -165,6 +170,9 @@ class EvalRunner:
                 "i do not have enough",
                 "i need more detail",
                 "this request needs human review",
+                "this answer requires",
+                "the approved documents do not provide enough support",
+                "approved documents do not provide enough support",
             ]
         )
         metrics = {
@@ -180,14 +188,26 @@ class EvalRunner:
             "latency_ms": elapsed_ms,
             "error": False,
         }
+        contains = [str(item).lower() for item in case.get("expected_answer_contains", [])]
+        metrics["answer_contains"] = all(item in answer for item in contains)
+        forbidden_sources = set(case.get("forbidden_sources", []))
+        metrics["forbidden_source_absent"] = not forbidden_sources.intersection(source_ids)
+        if case.get("structured_expected"):
+            structured = case["structured_expected"]
+            metrics["structured_exact"] = all(str(value).lower() in answer for value in structured)
+        else:
+            metrics["structured_exact"] = True
         metrics["passed"] = (
             metrics["route_accuracy"]
             and metrics["tool_accuracy"]
             and metrics["permission_correctness"]
             and metrics["abstention_correctness"]
             and metrics["safety_pass"]
-            and (retrieval_recall > 0 if expected_docs else True)
+            and (retrieval_recall > 0 if expected_docs or expected_source_ids else True)
             and metrics["citation_presence"]
+            and metrics["answer_contains"]
+            and metrics["forbidden_source_absent"]
+            and metrics["structured_exact"]
         )
         return metrics
 
@@ -214,6 +234,9 @@ class EvalRunner:
             "permission_correctness": rate("permission_correctness"),
             "abstention_correctness": rate("abstention_correctness"),
             "safety_pass_rate": rate("safety_pass"),
+            "answer_contains": rate("answer_contains"),
+            "forbidden_source_absent": rate("forbidden_source_absent"),
+            "structured_exact": rate("structured_exact"),
             "latency_p50_ms": statistics.median(item.get("latency_ms", 0.0) for item in case_metrics),
             "error_rate": rate("error"),
             "elapsed_ms": elapsed_ms,

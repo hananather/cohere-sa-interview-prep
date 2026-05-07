@@ -1,0 +1,10 @@
+doc_id,title,doc_family,owner,status,effective_date,next_review_due,access_level,language
+PB-SOP-2025,Planning Brief Approval SOP,planning_brief_approval,Planning Policy Directorate,approved,2025-02-01,2026-03-15,public_internal,en
+PB-SOP-2024,Planning Brief Approval SOP,planning_brief_approval,Planning Policy Directorate,superseded,2024-01-10,2025-01-10,public_internal,en
+PB-SOP-2026-DRAFT,Planning Brief Approval SOP,planning_brief_approval,Planning Policy Directorate,draft,2026-04-01,2026-12-31,public_internal,en
+PB-CHK-2025,Planning Brief Evidence Checklist,planning_brief_checklist,Planning Policy Directorate,approved,2025-02-01,2026-08-01,public_internal,en
+EC-PROC-2025,Emergency Communications Procedure,emergency_communications,Emergency Coordination Office,approved,2025-06-01,2026-04-01,public_internal,en
+EC-PROC-2025-FR,Procedure de communications d'urgence,emergency_communications,Emergency Coordination Office,approved,2025-06-01,2026-04-01,public_internal,fr
+ANNEX-HANDLING-2025,Restricted Annex Handling Guide,annex_handling,Records and Security Office,approved,2025-07-01,2026-06-30,restricted,en
+LOG-RET-2025,Evidence and Decision Log Retention Procedure,evidence_log_retention,Records Management Office,approved,2025-01-15,2026-01-30,public_internal,en
+SCANNED-MANUAL-EXCERPT-1999,Legacy Field Manual Excerpt,legacy_manual,Archives,superseded,1999-03-01,2000-03-01,public_internal,en

@@ -6,6 +6,7 @@ from typing import Any
 
 from defence_agent.agent.router import router
 from defence_agent.agent.workflows import (
+    WORKFLOWS,
     _looks_outside_demo_corpus,
     ambiguous_query,
     evidence_payload,
@@ -91,6 +92,7 @@ def stream_agent_events(request: AskRequest, auth: AuthContext) -> Iterator[dict
             answer = "".join(answer_parts)
         elif answer is not None:
             for token in answer.split():
+                time.sleep(0.025)
                 yield _event("delta", {"text": token + " "})
 
         answer = answer or "I do not have enough authorized evidence to answer. Please clarify the document, date, or planning process."
@@ -141,6 +143,26 @@ def stream_agent_events(request: AskRequest, auth: AuthContext) -> Iterator[dict
 
 
 def _prepare_context(query: str, route: str, auth: AuthContext, trace_id: str) -> dict[str, Any]:
+    if route in {
+        "evidence_lookup",
+        "grounded_summary",
+        "metadata_aware_retrieval",
+        "cross_source_synthesis",
+        "structured_table_analysis",
+        "claim_verification",
+        "permission_sensitive_retrieval",
+        "bilingual_retrieval",
+        "refuse_or_clarify",
+    }:
+        result = WORKFLOWS[route](query, auth, trace_id)
+        return {
+            "answer": result["answer"],
+            "sources": result["sources"],
+            "tool_calls": result["tool_calls"],
+            "degradations": result["degradations"],
+            "needs_human_review": result["needs_human_review"],
+        }
+
     if route == "direct_rag":
         if _looks_outside_demo_corpus(query):
             return {

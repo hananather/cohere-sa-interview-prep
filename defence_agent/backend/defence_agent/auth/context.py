@@ -22,7 +22,7 @@ DEMO_USERS: dict[str, AuthContext] = {
         user_id="planning_analyst",
         role="planning_analyst",
         groups=["central_planning", "readiness_review"],
-        clearance="protected",
+        clearance="public_internal",
         tenant_id="deftech",
     ),
     "planning_lead": AuthContext(
@@ -36,7 +36,7 @@ DEMO_USERS: dict[str, AuthContext] = {
         user_id="auditor",
         role="auditor",
         groups=["audit"],
-        clearance="protected",
+        clearance="public_internal",
         tenant_id="deftech",
     ),
     "admin": AuthContext(

@@ -11,9 +11,18 @@ from defence_agent.config import get_settings
 
 
 ROUTES = {
+    "evidence_lookup",
+    "grounded_summary",
+    "metadata_aware_retrieval",
+    "cross_source_synthesis",
     "direct_rag",
     "version_comparison",
+    "structured_table_analysis",
     "table_analysis",
+    "claim_verification",
+    "permission_sensitive_retrieval",
+    "bilingual_retrieval",
+    "refuse_or_clarify",
     "multi_source_synthesis",
     "ambiguous_query",
     "restricted_access",
@@ -23,7 +32,7 @@ ROUTES = {
 
 
 class RouteDecision(BaseModel):
-    route: str = Field(pattern="^(direct_rag|version_comparison|table_analysis|multi_source_synthesis|ambiguous_query|restricted_access|security_test|human_review)$")
+    route: str = Field(pattern="^(evidence_lookup|grounded_summary|metadata_aware_retrieval|cross_source_synthesis|direct_rag|version_comparison|structured_table_analysis|table_analysis|claim_verification|permission_sensitive_retrieval|bilingual_retrieval|refuse_or_clarify|multi_source_synthesis|ambiguous_query|restricted_access|security_test|human_review)$")
     confidence: float = Field(ge=0, le=1)
     reason: str
     needs_tools: list[str] = Field(default_factory=list)
@@ -48,12 +57,28 @@ class Router:
         if optional:
             return optional
 
-        return self._decision("direct_rag", 0.64, "Default route for answerable doctrine question", ["search_doctrine", "validate_citations"])
+        return self._decision("evidence_lookup", 0.64, "Default route for answerable doctrine question", ["search_documents", "validate_answer_citations"])
 
     def _deterministic(self, query: str, auth: AuthContext) -> RouteDecision | None:
         lowered = query.lower()
-        if re.search(r"\b(compare|changed|change|version|2024|2025)\b", lowered):
+        if _looks_french(lowered):
+            return self._decision("bilingual_retrieval", 0.95, "French language query detected", ["search_documents", "validate_answer_citations"])
+        if re.search(r"\b(overdue|group by|days overdue|how many|count)\b", lowered):
+            return self._decision("structured_table_analysis", 0.97, "Query asks for deterministic table grouping or date math", ["get_table", "run_table_analysis", "validate_answer_citations"])
+        if "current approved" in lowered or "do not use drafts" in lowered or "old versions" in lowered:
+            return self._decision("metadata_aware_retrieval", 0.96, "Query asks for current approved guidance and excludes drafts or old versions", ["search_documents", "validate_answer_citations"])
+        if re.search(r"\b(compare|changed|change|difference|versions?|2024)\b", lowered):
             return self._decision("version_comparison", 0.94, "Version comparison terms matched", ["compare_versions", "validate_citations"])
+        if re.search(r"\b(supported|is this statement|verify|claim)\b", lowered):
+            return self._decision("claim_verification", 0.94, "Claim verification terms matched", ["search_documents", "validate_answer_citations"])
+        if "include in a planning brief" in lowered or "before it goes for review" in lowered or "pb-chk" in lowered or "checklist require" in lowered:
+            return self._decision("cross_source_synthesis", 0.92, "Query requires SOP plus referenced checklist evidence", ["search_documents", "follow_references", "validate_answer_citations"])
+        if "summarize" in lowered or "summary" in lowered:
+            return self._decision("grounded_summary", 0.91, "Summarization terms matched", ["search_documents", "validate_answer_citations"])
+        if "restricted annex handling" in lowered or ("restricted" in lowered and "annex" in lowered) or "external distribution" in lowered:
+            return self._decision("permission_sensitive_retrieval", 0.96, "Restricted-source terms matched", ["search_documents", "validate_answer_citations"])
+        if "not covered by any approved document" in lowered or "private meeting yesterday" in lowered:
+            return self._decision("refuse_or_clarify", 0.91, "Query asks beyond approved evidence", ["request_human_review"])
         if re.search(r"\b(readiness|table|threshold|below|percent|%)\b", lowered):
             return self._decision("table_analysis", 0.94, "Readiness table analysis terms matched", ["search_doctrine", "analyze_table_with_python", "validate_citations"])
         if re.search(r"\b(restricted|annex\s*b)\b", lowered):
@@ -63,9 +88,11 @@ class Router:
         if "approval process" in lowered and "cross-unit" not in lowered and "planning" not in lowered:
             return self._decision("ambiguous_query", 0.86, "Approval process is underspecified", ["request_human_review"])
         if len(lowered.split()) <= 3:
-            return self._decision("ambiguous_query", 0.7, "Query is too short to safely retrieve", ["request_human_review"])
+            return self._decision("refuse_or_clarify", 0.7, "Query is too short to safely retrieve", ["request_human_review"])
         if "conflict" in lowered or "sources" in lowered:
-            return self._decision("multi_source_synthesis", 0.75, "Multi-source synthesis terms matched", ["search_doctrine", "validate_citations"])
+            return self._decision("cross_source_synthesis", 0.75, "Multi-source synthesis terms matched", ["search_documents", "validate_answer_citations"])
+        if "review steps" in lowered or "planning brief" in lowered or "approval" in lowered:
+            return self._decision("evidence_lookup", 0.88, "Default evidence lookup for planning procedure question", ["search_documents", "validate_answer_citations"])
         return None
 
     def _optional_cohere_route(self, query: str) -> RouteDecision | None:
@@ -73,8 +100,9 @@ class Router:
             return None
         try:
             prompt = (
-                "Classify this query into one route: direct_rag, version_comparison, table_analysis, "
-                "multi_source_synthesis, ambiguous_query, restricted_access, security_test, human_review. "
+                "Classify this query into one route: evidence_lookup, grounded_summary, metadata_aware_retrieval, "
+                "cross_source_synthesis, version_comparison, structured_table_analysis, claim_verification, "
+                "permission_sensitive_retrieval, bilingual_retrieval, refuse_or_clarify. "
                 "Return JSON with route, confidence, reason.\nQuery: "
                 + query
             )
@@ -99,9 +127,18 @@ class Router:
 
     def _tools_for_route(self, route: str) -> list[str]:
         return {
+            "evidence_lookup": ["search_documents", "validate_answer_citations"],
+            "grounded_summary": ["search_documents", "validate_answer_citations"],
+            "metadata_aware_retrieval": ["search_documents", "validate_answer_citations"],
+            "cross_source_synthesis": ["search_documents", "follow_references", "validate_answer_citations"],
             "direct_rag": ["search_doctrine", "validate_citations"],
             "version_comparison": ["compare_versions", "validate_citations"],
+            "structured_table_analysis": ["get_table", "run_table_analysis", "validate_answer_citations"],
             "table_analysis": ["search_doctrine", "analyze_table_with_python", "validate_citations"],
+            "claim_verification": ["search_documents", "validate_answer_citations"],
+            "permission_sensitive_retrieval": ["search_documents", "validate_answer_citations"],
+            "bilingual_retrieval": ["search_documents", "validate_answer_citations"],
+            "refuse_or_clarify": ["request_human_review"],
             "multi_source_synthesis": ["search_doctrine", "validate_citations"],
             "ambiguous_query": ["request_human_review"],
             "restricted_access": ["search_doctrine", "validate_citations"],
@@ -111,3 +148,10 @@ class Router:
 
 
 router = Router()
+
+
+def _looks_french(lowered: str) -> bool:
+    return bool(
+        re.search(r"\b(french|francais|francaise|quels|quelles|delais|delai|communications d'urgence)\b", lowered)
+        or any(character in lowered for character in "àâçéèêëîïôûùüÿñæœ")
+    )

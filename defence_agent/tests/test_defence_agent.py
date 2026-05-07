@@ -6,7 +6,7 @@ import json
 os.environ.setdefault("USE_MOCK_COHERE", "true")
 os.environ.setdefault("COHERE_CHAT_MODEL", "command-a-03-2025")
 os.environ.setdefault("COHERE_EMBED_MODEL", "embed-v4.0")
-os.environ.setdefault("COHERE_RERANK_MODEL", "rerank-v3.5")
+os.environ.setdefault("COHERE_RERANK_MODEL", "rerank-v4.0-pro")
 
 from fastapi.testclient import TestClient
 
@@ -15,58 +15,60 @@ from defence_agent.evals.runner import eval_runner
 from defence_agent.sandbox.python_sandbox import validate_code, SandboxValidationError
 
 
-def test_direct_rag_returns_trace_and_citations() -> None:
+def test_evidence_lookup_returns_trace_and_citations() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/v1/agent/query",
             headers={"X-Demo-User": "planning_analyst"},
-            json={"query": "What review steps should planning staff complete before approving a cross-unit planning request?"},
+            json={"query": "What review steps are required before a planning brief is approved?"},
         )
     assert response.status_code == 200
     data = response.json()
     assert data["trace_id"].startswith("tr_")
-    assert data["route"] == "direct_rag"
+    assert data["route"] == "evidence_lookup"
     assert data["citations"]
     assert "[C" in data["answer"]
+    assert {source["document_id"] for source in data["sources"]} == {"PB-SOP-2025"}
 
 
-def test_restricted_query_differs_by_persona() -> None:
+def test_permission_sensitive_query_differs_by_persona() -> None:
     with TestClient(app) as client:
         analyst = client.post(
             "/v1/agent/query",
             headers={"X-Demo-User": "planning_analyst"},
-            json={"query": "What does Restricted Annex B say about exception handling?"},
+            json={"query": "What restricted annex handling steps apply before external distribution?"},
         )
         lead = client.post(
             "/v1/agent/query",
             headers={"X-Demo-User": "planning_lead"},
-            json={"query": "What does Restricted Annex B say about exception handling?"},
+            json={"query": "What restricted annex handling steps apply before external distribution?"},
         )
     assert analyst.status_code == 200
     assert lead.status_code == 200
     analyst_data = analyst.json()
     lead_data = lead.json()
-    assert analyst_data["route"] == "restricted_access"
-    assert "cannot access" in analyst_data["answer"].lower()
+    assert analyst_data["route"] == "permission_sensitive_retrieval"
+    assert "restricted source" in analyst_data["answer"].lower()
     assert not analyst_data["sources"]
-    assert any(source["title"] == "Restricted Annex B" for source in lead_data["sources"])
+    assert any(source["document_id"] == "ANNEX-HANDLING-2025" for source in lead_data["sources"])
     assert "[C" in lead_data["answer"]
 
 
-def test_table_analysis_uses_sandbox_code() -> None:
+def test_structured_table_analysis_uses_sandbox_code() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/v1/agent/query",
             headers={"X-Demo-User": "planning_analyst"},
-            json={"query": "Using the readiness review table, which units fall below the 80% readiness threshold?"},
+            json={"query": "Which planning procedures are overdue for review? Group them by owner and show how many days overdue."},
         )
     assert response.status_code == 200
     data = response.json()
-    assert data["route"] == "table_analysis"
-    assert "Bravo" in data["answer"]
-    assert "Delta" in data["answer"]
-    assert "Echo" in data["answer"]
-    assert any(call["tool"] == "analyze_table_with_python" for call in data["tool_calls"])
+    assert data["route"] == "structured_table_analysis"
+    assert "PB-SOP-2025" in data["answer"]
+    assert "52 days overdue" in data["answer"]
+    assert "LOG-RET-2025" in data["answer"]
+    assert "96 days overdue" in data["answer"]
+    assert any(call["tool"] == "run_table_analysis" for call in data["tool_calls"])
 
 
 def test_sandbox_blocks_dangerous_imports() -> None:
@@ -83,7 +85,7 @@ def test_stream_endpoint_returns_sse_final_event() -> None:
             "POST",
             "/v1/agent/stream",
             headers={"X-Demo-User": "planning_analyst"},
-            json={"query": "What review steps should planning staff complete before approving a cross-unit planning request?"},
+            json={"query": "What review steps are required before a planning brief is approved?"},
         ) as response:
             assert response.status_code == 200
             body = "".join(response.iter_text())
@@ -103,9 +105,9 @@ def test_document_source_endpoints_enforce_acl() -> None:
         lead_sources = client.post(
             "/v1/agent/query",
             headers={"X-Demo-User": "planning_lead"},
-            json={"query": "What does Restricted Annex B say about exception handling?"},
+            json={"query": "What restricted annex handling steps apply before external distribution?"},
         ).json()["sources"]
-        restricted = next(source for source in lead_sources if source["title"] == "Restricted Annex B")
+        restricted = next(source for source in lead_sources if source["document_id"] == "ANNEX-HANDLING-2025")
 
         allowed = client.get(
             f"/v1/documents/{restricted['document_id']}/chunks/{restricted['chunk_id']}",
@@ -125,13 +127,23 @@ def test_eval_dataset_has_24_cases() -> None:
     cases = eval_runner.load_cases()
     assert len(cases) >= 24
     assert {case["slice"] for case in cases} >= {
-        "direct_answerable",
+        "evidence_lookup",
         "ambiguous",
         "unanswerable",
         "version_comparison",
-        "table_analysis",
+        "structured_analysis",
         "permission_sensitive",
-        "prompt_injection",
-        "stale_conflicting_source",
+        "metadata_sensitive",
+        "multi_hop",
+        "bilingual",
+        "claim_verification",
         "human_review",
     }
+
+
+def test_golden_eval_suite_passes_fixture_mode() -> None:
+    summary = eval_runner.run()
+    assert summary.metrics["pass_rate"] == 1.0
+    assert summary.metrics["route_accuracy"] == 1.0
+    assert summary.metrics["permission_correctness"] == 1.0
+    assert summary.metrics["structured_exact"] == 1.0

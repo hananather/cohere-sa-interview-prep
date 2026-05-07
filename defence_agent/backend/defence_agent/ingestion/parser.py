@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
+
+import yaml
 
 from docx import Document as DocxDocument
 from pypdf import PdfReader
@@ -15,6 +18,7 @@ class ParsedBlock:
     table_markdown: str | None = None
     parser_status: str = "ok"
     parser_confidence: float = 0.95
+    section_id: str | None = None
 
 
 def parse_document(path: Path) -> list[ParsedBlock]:
@@ -23,7 +27,48 @@ def parse_document(path: Path) -> list[ParsedBlock]:
         return parse_docx(path)
     if suffix == ".pdf":
         return parse_pdf(path)
+    if suffix in {".md", ".markdown"}:
+        return parse_markdown(path)
     raise ValueError(f"Unsupported document type: {path.suffix}")
+
+
+def parse_markdown_metadata(path: Path) -> dict[str, object]:
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---"):
+        return {}
+    _, raw_frontmatter, _ = text.split("---", 2)
+    return yaml.safe_load(raw_frontmatter) or {}
+
+
+def parse_markdown(path: Path) -> list[ParsedBlock]:
+    text = path.read_text(encoding="utf-8")
+    body = text
+    if text.startswith("---"):
+        _, _, body = text.split("---", 2)
+    blocks: list[ParsedBlock] = []
+    parts = re.split(r"(?m)^##\s+", body)
+    for raw in parts[1:]:
+        lines = raw.strip().splitlines()
+        if not lines:
+            continue
+        section = lines[0].strip()
+        section_text = "\n".join(lines[1:]).strip()
+        page_match = re.search(r"(?im)^Page:\s*(\d+)", section_text)
+        section_match = re.search(r"(?im)^Section ID:\s*([A-Za-z0-9_-]+)", section_text)
+        cleaned = re.sub(r"(?im)^Page:\s*\d+\s*", "", section_text)
+        cleaned = re.sub(r"(?im)^Section ID:\s*[A-Za-z0-9_-]+\s*", "", cleaned).strip()
+        if cleaned:
+            blocks.append(
+                ParsedBlock(
+                    section=section,
+                    page=int(page_match.group(1)) if page_match else 1,
+                    text=cleaned,
+                    parser_status="parsed_markdown",
+                    parser_confidence=0.98,
+                    section_id=section_match.group(1) if section_match else None,
+                )
+            )
+    return blocks
 
 
 def parse_docx(path: Path) -> list[ParsedBlock]:

@@ -21,6 +21,13 @@ class Document(SQLModel, table=True):
     allowed_roles_json: str
     version: str
     effective_date: str
+    doc_family: str = SQLField(default="")
+    status: str = SQLField(default="approved", index=True)
+    owner: str = SQLField(default="")
+    review_due: str = SQLField(default="")
+    language: str = SQLField(default="en", index=True)
+    source_type: str = SQLField(default="")
+    checksum: str = SQLField(default="")
     parser_status: str = "ok"
     parser_confidence: float = 0.95
     created_at: datetime = SQLField(default_factory=utc_now)
@@ -42,6 +49,13 @@ class Chunk(SQLModel, table=True):
     tenant_id: str = SQLField(default="deftech", index=True)
     version: str
     effective_date: str
+    doc_family: str = SQLField(default="", index=True)
+    status: str = SQLField(default="approved", index=True)
+    owner: str = SQLField(default="")
+    review_due: str = SQLField(default="")
+    language: str = SQLField(default="en", index=True)
+    source_type: str = SQLField(default="")
+    row_id: str | None = SQLField(default=None, index=True)
     doc_type: str
     source_uri: str
     embedding_json: str | None = None
@@ -125,6 +139,12 @@ class Citation(BaseModel):
     classification: str | None = None
     version: str | None = None
     effective_date: str | None = None
+    status: str | None = None
+    doc_family: str | None = None
+    owner: str | None = None
+    review_due: str | None = None
+    language: str | None = None
+    row_id: str | None = None
     doc_type: str | None = None
 
 
@@ -140,6 +160,13 @@ class SourceChunk(BaseModel):
     classification: str
     version: str
     effective_date: str
+    status: str = "approved"
+    doc_family: str = ""
+    owner: str = ""
+    review_due: str = ""
+    language: str = "en"
+    source_type: str = ""
+    row_id: str | None = None
     doc_type: str
     source_uri: str
     lexical_score: float = 0.0

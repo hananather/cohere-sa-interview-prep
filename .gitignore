@@ -1,6 +1,14 @@
 .DS_Store
 cohere-compass-sdk/
-defence_agent/data/
+defence_agent/data/*
+!defence_agent/data/evals/
+!defence_agent/data/evals/demo_queries.yaml
+!defence_agent/data/synthetic_corpus/
+defence_agent/data/synthetic_corpus/*
+!defence_agent/data/synthetic_corpus/source_markdown/
+!defence_agent/data/synthetic_corpus/source_markdown/*.md
+!defence_agent/data/synthetic_corpus/tables/
+!defence_agent/data/synthetic_corpus/tables/*.csv
 defence_agent/**/*.db
 defence_agent/**/*.db-*
 defence_agent/**/*.jsonl

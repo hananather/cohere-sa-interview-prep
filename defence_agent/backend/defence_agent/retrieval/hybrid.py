@@ -198,6 +198,33 @@ class HybridRetriever:
         exclude_doc_types = filters.get("exclude_doc_types")
         if exclude_doc_types and chunk.doc_type in set(exclude_doc_types):
             return False
+        doc_id = filters.get("doc_id")
+        if doc_id and chunk.document_id != doc_id:
+            return False
+        doc_ids = filters.get("doc_ids")
+        if doc_ids and chunk.document_id not in set(doc_ids):
+            return False
+        doc_family = filters.get("doc_family")
+        if doc_family and chunk.doc_family != doc_family:
+            return False
+        status = filters.get("status")
+        if status and chunk.status != status:
+            return False
+        statuses = filters.get("statuses")
+        if statuses and chunk.status not in set(statuses):
+            return False
+        exclude_statuses = filters.get("exclude_statuses")
+        if exclude_statuses and chunk.status in set(exclude_statuses):
+            return False
+        language = filters.get("language")
+        if language and chunk.language != language:
+            return False
+        row_id = filters.get("row_id")
+        if row_id and chunk.row_id != row_id:
+            return False
+        access_level = filters.get("access_level")
+        if access_level and chunk.classification != access_level:
+            return False
         title_contains = filters.get("title_contains")
         if title_contains and title_contains.lower() not in chunk.title.lower():
             return False
@@ -219,6 +246,13 @@ class HybridRetriever:
             classification=chunk.classification,
             version=chunk.version,
             effective_date=chunk.effective_date,
+            status=chunk.status,
+            doc_family=chunk.doc_family,
+            owner=chunk.owner,
+            review_due=chunk.review_due,
+            language=chunk.language,
+            source_type=chunk.source_type,
+            row_id=chunk.row_id,
             doc_type=chunk.doc_type,
             source_uri=chunk.source_uri,
             lexical_score=round(candidate.lexical_score, 4),

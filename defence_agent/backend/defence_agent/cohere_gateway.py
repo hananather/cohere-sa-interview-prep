@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import math
 import re
+import time
 from collections.abc import Iterator
 from typing import Any
 
@@ -54,6 +55,7 @@ class CohereGateway:
             answer = self._mock_generate(query, evidence, route)
             words = answer.split()
             for index, part in enumerate(words):
+                time.sleep(0.025)
                 yield part + (" " if index < len(words) - 1 else "")
             return
         if not cohere_breaker.allow():
@@ -155,6 +157,13 @@ class CohereGateway:
                     "snippet": item["text"],
                     "summary": item.get("summary", ""),
                     "chunk_id": item.get("chunk_id", ""),
+                    "doc_id": item.get("doc_id", ""),
+                    "version": item.get("version", ""),
+                    "status": item.get("status", ""),
+                    "effective_date": item.get("effective_date", ""),
+                    "access_level": item.get("access_level", ""),
+                    "language": item.get("language", ""),
+                    "row_id": item.get("row_id", ""),
                 },
             }
             for index, item in enumerate(evidence)
@@ -194,10 +203,53 @@ class CohereGateway:
             return "I do not have enough authorized evidence to answer. Please narrow the request or ask a planning lead to review."
         if route == "version_comparison":
             return (
-                "The 2025 procedure adds an early readiness screen, a risk triage step, and a required evidence packet before approval [C1] [C2]. "
-                "The impact is that cross-unit requests should be stopped earlier when readiness is below threshold, instead of waiting for final approval review [C2] [C3]."
+                "The 2025 process tightens the 2024 guidance in four ways. Section chief review moves from 3 business days to 2 business days [C3] [C1]. "
+                "Evidence review changes from recommended before urgent provisional circulation to mandatory before review, even when urgency compresses sign-offs [C4] [C2]. "
+                "Legal and policy review expands beyond public release to external distribution, restricted annexes, and cross-departmental commitments [C3] [C1]. "
+                "The urgent exception path moves away from duty officer approval and now requires recorded rationale and retrospective director confirmation within 1 business day [C4] [C2]."
             )
-        if route == "table_analysis":
+        if route == "evidence_lookup" and "emergency" in query.lower() and "evidence" in query.lower():
+            return (
+                "Emergency communications evidence must include the source event log, responsible desk, time of receipt, confidence level, distribution list, and approving official [C1]."
+            )
+        if route == "evidence_lookup" and "evidence logs" in query.lower():
+            return (
+                "Evidence logs must record the source title, source version, section or page, reviewer, and decision timestamp. The procedure also requires each briefing decision to include a trace ID [C1]."
+            )
+        if route == "grounded_summary":
+            return (
+                "The emergency communications procedure has three parts: activation and approval gates, timeline obligations, and required evidence. "
+                "The timeline is acknowledgement within 15 minutes, situation update within 45 minutes, executive summary within 90 minutes, and final record within 1 business day [C2]. "
+                "The evidence pack includes the source event log, responsible desk, time of receipt, confidence level, distribution list, and approving official [C3]."
+            )
+        if route == "metadata_aware_retrieval":
+            if "urgent exception" in query.lower():
+                return (
+                    "The current approved urgent exception rule says urgency may compress the order of sign-offs, but it cannot skip evidence review. The rationale must be recorded and retrospective director confirmation is required within 1 business day [C1]."
+                )
+            return (
+                "The current approved planning brief procedure is PB-SOP-2025. It requires intake and purpose classification, evidence pack review, drafting, section chief review within 2 business days, required legal or policy review for external distribution, restricted annexes, or cross-departmental commitments, director approval, and evidence and decision log archival [C1]. "
+                "Draft and superseded versions are excluded from this answer by metadata filter."
+            )
+        if route == "cross_source_synthesis":
+            return (
+                "Before a planning brief goes for review, include the SOP-required evidence pack and the checklist contents. "
+                "The SOP requires evidence pack review before the brief proceeds [C1]. "
+                "The checklist specifies the pack contents: problem statement, policy basis, source list, assumptions, impacted stakeholders, risk rating, options considered, recommendation, citation table, open questions, and decision log stub [C2]."
+            )
+        if route == "claim_verification":
+            return (
+                "The statement is not supported by approved guidance. The current SOP says urgency may compress sign-off order, but it cannot skip evidence review [C1]."
+            )
+        if route == "permission_sensitive_retrieval":
+            return (
+                "For authorized users, restricted annex handling before external distribution requires access confirmation, lead approval, distribution minimization, annex marking validation, and an evidence log entry [C1]."
+            )
+        if route == "bilingual_retrieval":
+            return (
+                "Selon la procedure de communications d'urgence, l'accuse de reception initial est requis dans les 15 minutes, la mise a jour operationnelle dans les 45 minutes, le resume executif dans les 90 minutes, et le dossier final dans un jour ouvrable [C1]."
+            )
+        if route in {"table_analysis", "structured_table_analysis"}:
             return (
                 "The readiness review table should be analyzed with the approved threshold and cited back to the table source [C1]. "
                 "Units below 80% require a mitigation owner before the request can move to approval [C1]."

@@ -4,6 +4,7 @@ import json
 import time
 from typing import Any
 
+import yaml
 from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -56,6 +57,28 @@ def ask(request: AskRequest, auth: AuthContext = Depends(get_auth_context)) -> d
 @app.post("/v1/agent/query")
 def agent_query(request: AskRequest, auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
     return _ask_impl(request, auth, path="/v1/agent/query")
+
+
+@app.get("/demo/queries")
+def demo_queries(auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    path = get_settings().data_dir / "evals" / "demo_queries.yaml"
+    if not path.exists():
+        path = get_settings().generated_corpus_dir.parent / "evals" / "demo_queries.yaml"
+    if not path.exists():
+        path = get_settings().data_dir / "evals" / "demo_queries.yaml"
+    fallback = get_settings().data_dir / "evals" / "demo_queries.yaml"
+    source = path if path.exists() else fallback
+    if source.exists():
+        return yaml.safe_load(source.read_text(encoding="utf-8"))
+    repo_path = get_settings().data_dir.parent / "data" / "evals" / "demo_queries.yaml"
+    if repo_path.exists():
+        return yaml.safe_load(repo_path.read_text(encoding="utf-8"))
+    raise HTTPException(status_code=404, detail="Demo query file not found")
+
+
+@app.post("/demo/run")
+def demo_run(request: AskRequest, auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    return _ask_impl(request, auth, path="/demo/run")
 
 
 def _ask_impl(request: AskRequest, auth: AuthContext, path: str) -> dict[str, Any]:
@@ -258,6 +281,12 @@ def _document_payload(document: Document) -> dict[str, Any]:
         "allowed_roles": json.loads(document.allowed_roles_json),
         "version": document.version,
         "effective_date": document.effective_date,
+        "doc_family": document.doc_family,
+        "status": document.status,
+        "owner": document.owner,
+        "review_due": document.review_due,
+        "language": document.language,
+        "source_type": document.source_type,
         "parser_status": document.parser_status,
         "parser_confidence": document.parser_confidence,
     }
@@ -276,6 +305,13 @@ def _chunk_payload(chunk: Chunk) -> dict[str, Any]:
         "classification": chunk.classification,
         "version": chunk.version,
         "effective_date": chunk.effective_date,
+        "doc_family": chunk.doc_family,
+        "status": chunk.status,
+        "owner": chunk.owner,
+        "review_due": chunk.review_due,
+        "language": chunk.language,
+        "source_type": chunk.source_type,
+        "row_id": chunk.row_id,
         "doc_type": chunk.doc_type,
         "table_markdown": chunk.table_markdown,
         "parser_status": chunk.parser_status,

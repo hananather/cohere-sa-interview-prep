@@ -15,8 +15,17 @@ API_URL = os.getenv("DEFENCE_AGENT_API_URL", "http://localhost:8000").rstrip("/"
 PERSONAS = ["planning_analyst", "planning_lead", "auditor", "admin"]
 ROUTES = [
     "auto",
-    "direct_rag",
+    "evidence_lookup",
+    "grounded_summary",
+    "metadata_aware_retrieval",
+    "cross_source_synthesis",
     "version_comparison",
+    "structured_table_analysis",
+    "claim_verification",
+    "permission_sensitive_retrieval",
+    "bilingual_retrieval",
+    "refuse_or_clarify",
+    "direct_rag",
     "table_analysis",
     "multi_source_synthesis",
     "ambiguous_query",
@@ -25,11 +34,16 @@ ROUTES = [
     "human_review",
 ]
 DEMO_QUERIES = [
-    "What review steps should planning staff complete before approving a cross-unit planning request?",
-    "Compare the 2024 and 2025 review gate procedure. What changed and what is the impact?",
-    "Using the readiness review table, which units fall below the 80% readiness threshold?",
-    "What does Restricted Annex B say about exception handling?",
-    "Summarize the exception handling guidance from the test document.",
+    "What review steps are required before a planning brief is approved?",
+    "Summarize the emergency communications procedure into approval gates, timelines, and required evidence.",
+    "What is the current approved procedure for approving a planning brief? Do not use drafts or old versions.",
+    "What should I include in a planning brief before it goes for review?",
+    "What changed between the 2024 and 2025 planning-brief review process? Cite both versions.",
+    "Which planning procedures are overdue for review? Group them by owner and show how many days overdue.",
+    "Is this statement supported: 'A draft planning brief can be approved without evidence review if it is urgent'?",
+    "What restricted annex handling steps apply before external distribution?",
+    "Quels sont les délais dans la procédure de communications d’urgence?",
+    "What should we do for an interagency planning emergency not covered by any approved document?",
 ]
 CITATION_PATTERN = re.compile(r"\[C(\d+)\]")
 
@@ -126,8 +140,10 @@ def render_source_cards(data: dict[str, Any], persona: str) -> None:
         citation_id = citation["id"]
         source = source or {}
         classification = citation.get("classification") or source.get("classification") or "unknown"
+        status = citation.get("status") or source.get("status") or "unknown"
         version = citation.get("version") or source.get("version") or "unknown"
         effective_date = citation.get("effective_date") or source.get("effective_date") or "unknown"
+        row_id = citation.get("row_id") or source.get("row_id")
         summary = source.get("summary") or source.get("text") or "Source preview unavailable."
         preview = summary[:360] + ("..." if len(summary) > 360 else "")
         st.markdown(
@@ -139,15 +155,17 @@ def render_source_cards(data: dict[str, Any], persona: str) -> None:
               </div>
               <div class="source-meta">
                 <span>{html.escape(classification)}</span>
+                <span>{html.escape(status)}</span>
                 <span>Version {html.escape(str(version))}</span>
                 <span>Effective {html.escape(str(effective_date))}</span>
+                {f"<span>Row {html.escape(str(row_id))}</span>" if row_id else ""}
               </div>
               <p>{html.escape(preview)}</p>
             </div>
             """,
             unsafe_allow_html=True,
         )
-        if st.button("Open source", key=f"open-{citation_id}-{source.get('chunk_id', '')}", width="content"):
+        if st.button("Inspect evidence", key=f"open-{citation_id}-{source.get('chunk_id', '')}", width="content"):
             selected = {"citation": citation, "source": source}
             st.session_state["selected_source"] = selected
         if selected and selected["citation"].get("id") == citation_id:
@@ -184,6 +202,7 @@ def render_source_viewer(citation: dict[str, Any], source: dict[str, Any], perso
           <div class="source-meta">
             <span>{html.escape(document["filename"])}</span>
             <span>{html.escape(document["classification"])}</span>
+            <span>{html.escape(document.get("status", "unknown"))}</span>
             <span>Version {html.escape(str(document["version"]))}</span>
             <span>Effective {html.escape(str(document["effective_date"]))}</span>
           </div>
@@ -218,40 +237,31 @@ def render_source_viewer(citation: dict[str, Any], source: dict[str, Any], perso
         st.caption("Original source file is not available for this persona.")
 
 
-def run_query(query: str, persona: str, route_override: str, debug: bool, use_streaming: bool) -> None:
+def run_query(query: str, persona: str, route_override: str, debug: bool) -> None:
     payload = {"query": query, "route_override": route_override, "debug": debug}
     progress = st.empty()
     streamed_answer = st.empty()
     try:
-        if use_streaming:
-            final_data = None
-            for event_name, event_data in api_stream("/v1/agent/stream", persona, payload):
-                if event_name == "trace":
-                    st.session_state["last_trace_id"] = event_data["trace_id"]
-                elif event_name == "stage":
-                    progress.info(event_data["label"])
-                elif event_name == "route":
-                    progress.info("Retrieving authorized evidence")
-                elif event_name == "delta":
-                    continue
-                elif event_name == "final":
-                    final_data = event_data
-                elif event_name == "error":
-                    progress.error(event_data["error"])
-            if final_data:
-                st.session_state["last_response"] = final_data
-                st.session_state["last_trace_id"] = final_data["trace_id"]
-                st.session_state.pop("selected_source", None)
-        else:
-            progress.info("Running route, retrieval, tools, generation, and safety checks")
-            response = api_request("POST", "/v1/agent/query", persona, json=payload)
-            if response.ok:
-                data = response.json()
-                st.session_state["last_response"] = data
-                st.session_state["last_trace_id"] = data["trace_id"]
-                st.session_state.pop("selected_source", None)
-            else:
-                st.error(response.text)
+        final_data = None
+        partial = ""
+        for event_name, event_data in api_stream("/v1/agent/stream", persona, payload):
+            if event_name == "trace":
+                st.session_state["last_trace_id"] = event_data["trace_id"]
+            elif event_name == "stage":
+                progress.info(event_data["label"])
+            elif event_name == "route":
+                progress.info(f"Workflow selected: {event_data.get('route')}")
+            elif event_name == "delta":
+                partial += event_data.get("text", "")
+                streamed_answer.markdown(f'<div class="answer-copy streaming-answer">{html.escape(partial)}</div>', unsafe_allow_html=True)
+            elif event_name == "final":
+                final_data = event_data
+            elif event_name == "error":
+                progress.error(event_data["error"])
+        if final_data:
+            st.session_state["last_response"] = final_data
+            st.session_state["last_trace_id"] = final_data["trace_id"]
+            st.session_state.pop("selected_source", None)
     except Exception as exc:
         st.error(f"Request failed: {exc}")
     finally:
@@ -259,7 +269,7 @@ def run_query(query: str, persona: str, route_override: str, debug: bool, use_st
         streamed_answer.empty()
 
 
-def render_user_view(persona: str, route_override: str, debug: bool, use_streaming: bool) -> None:
+def render_user_view(persona: str, route_override: str, debug: bool) -> None:
     st.markdown('<div class="view-heading">Ask Defence Agent</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="view-subtitle">Ask approved manuals, procedures, doctrine, and tables. Answers stay grounded in authorized sources.</div>',
@@ -267,7 +277,7 @@ def render_user_view(persona: str, route_override: str, debug: bool, use_streami
     )
     query = st.text_area("Question", value=st.session_state.get("query", DEMO_QUERIES[0]), height=120)
     if st.button("Ask Defence Agent", type="primary", width="content"):
-        run_query(query, persona, route_override, debug, use_streaming)
+        run_query(query, persona, route_override, debug)
 
     data = st.session_state.get("last_response")
     if not data:
@@ -279,12 +289,12 @@ def render_user_view(persona: str, route_override: str, debug: bool, use_streami
         st.warning("Human review is recommended before using this answer.")
     render_source_cards(data, persona)
 
-    st.markdown("### Feedback")
-    feedback_cols = st.columns([1, 1, 3])
-    if feedback_cols[0].button("Answered my question", key="feedback-yes"):
+    feedback_cols = st.columns([0.22, 0.22, 1.8])
+    feedback_cols[0].caption("Feedback")
+    if feedback_cols[1].button("👍", key="feedback-yes", help="Helpful answer"):
         api_request("POST", "/v1/feedback", persona, json={"trace_id": data["trace_id"], "helpful": True})
         st.toast("Feedback logged")
-    if feedback_cols[1].button("Needs work", key="feedback-no"):
+    if feedback_cols[2].button("👎", key="feedback-no", help="Needs review", width="content"):
         api_request("POST", "/v1/feedback", persona, json={"trace_id": data["trace_id"], "helpful": False})
         st.toast("Feedback logged")
 
@@ -513,6 +523,7 @@ st.markdown(
     .view-heading {font-size: 1.45rem; font-weight: 720; line-height: 1.2; margin: 0.25rem 0 0.25rem 0;}
     .view-subtitle {color: var(--da-muted); margin-bottom: 1rem;}
     .answer-copy {font-size: 1.08rem; line-height: 1.75; color: var(--da-text); max-width: 980px;}
+    .streaming-answer {color: #dbe7f5; min-height: 3rem;}
     .citation-chip {
         position: relative;
         display: inline-flex;
@@ -682,25 +693,25 @@ st.markdown(
 with st.sidebar:
     st.header("Demo Control Panel")
     persona = st.selectbox("Persona", PERSONAS, index=0)
-    route_override = st.selectbox("Route override", ROUTES, index=0)
-    debug = st.toggle("Debug trace", value=True)
-    use_streaming = st.toggle("Stream answer", value=True)
+    debug = st.toggle("Show technical trace", value=True)
+    with st.expander("Advanced demo controls"):
+        route_override = st.selectbox("Force workflow", ROUTES, index=0)
     try:
         health = requests.get(f"{API_URL}/healthz", timeout=5).json()
         mode = "Mock Cohere" if health.get("mock_cohere") else "Real Cohere"
-        st.info(f"{mode}\n\nChat: {health.get('chat_model')}")
+        st.caption(f"Runtime: {mode} | Chat: {health.get('chat_model')}")
     except Exception as exc:
         st.error(f"Backend unavailable: {exc}")
         health = {}
 
     st.subheader("Demo Queries")
     for index, demo_query in enumerate(DEMO_QUERIES, start=1):
-        if st.button(f"{index}. {demo_query[:42]}...", width="stretch"):
+        if st.button(f"{index}. {demo_query[:46]}...", width="stretch"):
             st.session_state["query"] = demo_query
     st.caption("Use User View for the product demo. Use Demo Console for trace, eval, security, and corpus details.")
 
 mode = st.radio("View", ["User View", "Demo Console"], horizontal=True, label_visibility="collapsed")
 if mode == "User View":
-    render_user_view(persona, route_override, debug, use_streaming)
+    render_user_view(persona, route_override, debug)
 else:
     render_demo_console(persona, health)

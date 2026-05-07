@@ -60,6 +60,7 @@ class TraceManager:
                 "duration_ms": duration_ms,
             }
         )
+        self._write_run_json(trace_id)
 
     def set_route(self, trace_id: str, route: str) -> None:
         with Session(engine) as session:
@@ -166,6 +167,18 @@ class TraceManager:
         event = {"ts": datetime.now(timezone.utc).isoformat(), **event}
         with self.settings.trace_jsonl_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(event, default=_json_default) + "\n")
+
+    def _write_run_json(self, trace_id: str) -> None:
+        trace = self.get_trace(trace_id)
+        if not trace:
+            return
+        safe_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        runs_dir = self.settings.data_dir / "runs"
+        runs_dir.mkdir(parents=True, exist_ok=True)
+        (runs_dir / f"{safe_ts}_{trace_id}.json").write_text(
+            json.dumps(trace, indent=2, default=_json_default),
+            encoding="utf-8",
+        )
 
 
 trace_manager = TraceManager()

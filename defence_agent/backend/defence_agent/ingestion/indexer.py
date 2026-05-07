@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-import uuid
+import csv
 from collections import Counter
 from pathlib import Path
 
@@ -11,8 +11,8 @@ from sqlmodel import Session, func, select
 
 from defence_agent.cohere_gateway import cohere_gateway
 from defence_agent.db import engine, init_db
-from defence_agent.ingestion.parser import parse_document
-from defence_agent.ingestion.synthetic_docs import SPECS, generate_synthetic_documents, spec_by_filename
+from defence_agent.ingestion.parser import parse_document, parse_markdown_metadata
+from defence_agent.ingestion.synthetic_docs import SPECS, generate_synthetic_documents, source_checksum
 from defence_agent.models import Chunk, Document
 from defence_agent.retrieval.vector_store import vector_store
 
@@ -32,12 +32,15 @@ STOPWORDS = {
     "request",
 }
 
+CANONICAL_DOC_IDS = {spec.doc_id for spec in SPECS}
+
 
 def corpus_has_chunks() -> bool:
     init_db()
     with Session(engine) as session:
         count = session.exec(select(func.count()).select_from(Chunk)).one()
-    return count > 0
+        canonical_count = session.exec(select(func.count()).select_from(Document).where(Document.id.in_(CANONICAL_DOC_IDS))).one()
+    return count > 0 and canonical_count >= len(CANONICAL_DOC_IDS)
 
 
 def reindex_corpus(force_generate: bool = False) -> dict[str, object]:
@@ -47,18 +50,35 @@ def reindex_corpus(force_generate: bool = False) -> dict[str, object]:
     documents: list[Document] = []
 
     for path in paths:
-        spec = spec_by_filename(path.name)
-        document_id = _stable_id(spec.filename)
+        if path.suffix.lower() == ".csv":
+            table_document, table_chunks = _index_table(path)
+            documents.append(table_document)
+            chunks.extend(table_chunks)
+            continue
+
+        metadata = parse_markdown_metadata(path)
+        if not metadata:
+            continue
+        document_id = str(metadata["doc_id"])
+        generated_path = path.parent.parent / str(metadata.get("canonical_source", ""))
+        source_uri = str(generated_path if generated_path.exists() else path)
         documents.append(
             Document(
                 id=document_id,
-                title=spec.title,
-                filename=spec.filename,
-                doc_type=spec.doc_type,
-                classification=spec.classification,
-                allowed_roles_json=json.dumps(list(spec.allowed_roles)),
-                version=spec.version,
-                effective_date=spec.effective_date,
+                title=str(metadata["title"]),
+                filename=Path(source_uri).name,
+                doc_type=str(metadata["doc_family"]),
+                classification=str(metadata["access_level"]),
+                allowed_roles_json=json.dumps(list(metadata["allowed_roles"])),
+                version=str(metadata["version"]),
+                effective_date=str(metadata["effective_date"]),
+                doc_family=str(metadata["doc_family"]),
+                status=str(metadata["status"]),
+                owner=str(metadata["owner"]),
+                review_due=str(metadata["review_due"]),
+                language=str(metadata["language"]),
+                source_type=str(metadata["source_type"]),
+                checksum=source_checksum(path),
             )
         )
         parsed_blocks = parse_document(path)
@@ -73,20 +93,27 @@ def reindex_corpus(force_generate: bool = False) -> dict[str, object]:
                     id=chunk_id,
                     document_id=document_id,
                     chunk_index=index,
-                    title=spec.title,
+                    title=str(metadata["title"]),
                     section=block.section,
                     page=block.page,
                     text=full_text,
                     table_markdown=block.table_markdown,
                     summary=_summary(full_text),
                     keywords_json=json.dumps(_keywords(full_text)),
-                    classification=spec.classification,
-                    allowed_roles_json=json.dumps(list(spec.allowed_roles)),
+                    classification=str(metadata["access_level"]),
+                    allowed_roles_json=json.dumps(list(metadata["allowed_roles"])),
                     tenant_id="deftech",
-                    version=spec.version,
-                    effective_date=spec.effective_date,
-                    doc_type=spec.doc_type,
-                    source_uri=str(path),
+                    version=str(metadata["version"]),
+                    effective_date=str(metadata["effective_date"]),
+                    doc_family=str(metadata["doc_family"]),
+                    status=str(metadata["status"]),
+                    owner=str(metadata["owner"]),
+                    review_due=str(metadata["review_due"]),
+                    language=str(metadata["language"]),
+                    source_type=str(metadata["source_type"]),
+                    row_id=block.section_id,
+                    doc_type=str(metadata["doc_family"]),
+                    source_uri=source_uri,
                     parser_status=block.parser_status,
                     parser_confidence=block.parser_confidence,
                 )
@@ -95,6 +122,11 @@ def reindex_corpus(force_generate: bool = False) -> dict[str, object]:
     embeddings = cohere_gateway.embed_texts([chunk.text for chunk in chunks])
     for chunk, embedding in zip(chunks, embeddings):
         chunk.embedding_json = json.dumps(embedding)
+
+    metadata_issues = _missing_required_metadata(documents, chunks)
+    language_distribution = dict(Counter(document.language for document in documents))
+    status_distribution = dict(Counter(document.status for document in documents))
+    access_level_distribution = dict(Counter(document.classification for document in documents))
 
     with Session(engine) as session:
         session.exec(text("DELETE FROM chunk_fts"))
@@ -130,13 +162,21 @@ def reindex_corpus(force_generate: bool = False) -> dict[str, object]:
         if qdrant_indexed:
             qdrant_indexed = vector_store.upsert_chunks(chunks, embeddings)
 
-    return {
+    report = {
         "documents": len(documents),
         "chunks": len(chunks),
         "qdrant_indexed": qdrant_indexed,
         "generated_files": [str(path) for path in paths],
-        "expected_documents": [spec.filename for spec in SPECS],
+        "expected_documents": [spec.doc_id for spec in SPECS],
+        "missing_required_metadata": metadata_issues,
+        "language_distribution": language_distribution,
+        "status_distribution": status_distribution,
+        "access_level_distribution": access_level_distribution,
     }
+    report_path = Path("./defence_agent/data/processed/ingestion_report.json")
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    return report
 
 
 def document_registry_status() -> dict[str, object]:
@@ -162,6 +202,12 @@ def document_registry_status() -> dict[str, object]:
                 "allowed_roles": json.loads(document.allowed_roles_json),
                 "version": document.version,
                 "effective_date": document.effective_date,
+                "doc_family": document.doc_family,
+                "status": document.status,
+                "owner": document.owner,
+                "review_due": document.review_due,
+                "language": document.language,
+                "source_type": document.source_type,
                 "parser_status": document.parser_status,
                 "parser_confidence": document.parser_confidence,
                 "chunk_count": chunks_by_document.get(document.id, 0),
@@ -172,10 +218,6 @@ def document_registry_status() -> dict[str, object]:
         "classification_distribution": classification_counts,
         "parser_status_distribution": parser_status_counts,
     }
-
-
-def _stable_id(value: str) -> str:
-    return uuid.uuid5(uuid.NAMESPACE_URL, value).hex
 
 
 def _summary(text_value: str) -> str:
@@ -190,3 +232,95 @@ def _keywords(text_value: str) -> list[str]:
         if len(token) > 3 and token not in STOPWORDS
     ]
     return [token for token, _ in Counter(tokens).most_common(8)]
+
+
+def _index_table(path: Path) -> tuple[Document, list[Chunk]]:
+    rows = list(csv.DictReader(path.open("r", encoding="utf-8")))
+    document_id = "doctrine_review_tracker"
+    document = Document(
+        id=document_id,
+        title="Doctrine Review Tracker",
+        filename=path.name,
+        doc_type="table",
+        classification="public_internal",
+        allowed_roles_json=json.dumps(["planning_analyst", "planning_lead", "auditor", "admin"]),
+        version="2026-05-06",
+        effective_date="2026-05-06",
+        doc_family="doctrine_review_tracker",
+        status="approved",
+        owner="Records Management Office",
+        review_due="2026-12-31",
+        language="en",
+        source_type="table",
+        checksum=source_checksum(path),
+        parser_status="table_extracted",
+        parser_confidence=1.0,
+    )
+    table_markdown = _rows_to_markdown(rows)
+    chunks: list[Chunk] = []
+    for index, row in enumerate(rows, start=1):
+        row_id = f"R{index}"
+        text_value = (
+            f"Row {row_id}: {row['doc_id']} is {row['title']} owned by {row['owner']}. "
+            f"Status {row['status']}. Effective date {row['effective_date']}. "
+            f"Next review due {row['next_review_due']}. Access level {row['access_level']}. Language {row['language']}."
+        )
+        chunks.append(
+            Chunk(
+                id=f"{document_id}_{row_id}",
+                document_id=document_id,
+                chunk_index=index - 1,
+                title="Doctrine Review Tracker",
+                section=f"Doctrine Review Tracker Row {row_id}",
+                page=1,
+                text=text_value,
+                table_markdown=table_markdown if index == 1 else None,
+                summary=_summary(text_value),
+                keywords_json=json.dumps(_keywords(text_value)),
+                classification=str(row["access_level"]),
+                allowed_roles_json=json.dumps(["planning_analyst", "planning_lead", "auditor", "admin"] if row["access_level"] != "restricted" else ["planning_lead", "admin"]),
+                tenant_id="deftech",
+                version="2026-05-06",
+                effective_date=str(row["effective_date"]),
+                doc_family=str(row["doc_family"]),
+                status=str(row["status"]),
+                owner=str(row["owner"]),
+                review_due=str(row["next_review_due"]),
+                language=str(row["language"]),
+                source_type="table",
+                row_id=row_id,
+                doc_type="table",
+                source_uri=str(path),
+                parser_status="table_row_extracted",
+                parser_confidence=1.0,
+            )
+        )
+    return document, chunks
+
+
+def _rows_to_markdown(rows: list[dict[str, str]]) -> str:
+    if not rows:
+        return ""
+    headers = list(rows[0].keys())
+    lines = [
+        "| " + " | ".join(headers) + " |",
+        "| " + " | ".join(["---"] * len(headers)) + " |",
+    ]
+    for row in rows:
+        lines.append("| " + " | ".join(str(row.get(header, "")) for header in headers) + " |")
+    return "\n".join(lines)
+
+
+def _missing_required_metadata(documents: list[Document], chunks: list[Chunk]) -> list[str]:
+    missing: list[str] = []
+    for document in documents:
+        for field in ("id", "title", "doc_family", "version", "status", "effective_date", "owner", "review_due", "classification", "language"):
+            if not getattr(document, field, None):
+                missing.append(f"document:{document.id}:{field}")
+    for chunk in chunks:
+        if not chunk.text.strip():
+            missing.append(f"chunk:{chunk.id}:text")
+        for field in ("doc_family", "status", "classification", "language"):
+            if not getattr(chunk, field, None):
+                missing.append(f"chunk:{chunk.id}:{field}")
+    return missing

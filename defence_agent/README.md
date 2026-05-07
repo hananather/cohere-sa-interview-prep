@@ -1,6 +1,6 @@
 # Defence Agent
 
-Production-shaped interview prototype for a fictional DefTech planning assistant.
+Production-shaped interview prototype for a fictional DefTech Doctrine Intelligence Assistant.
 
 ## What It Shows
 
@@ -11,12 +11,14 @@ Production-shaped interview prototype for a fictional DefTech planning assistant
 - SQLite metadata, FTS lexical search, traces, evals, feedback, and sandbox logs.
 - Identity-aware retrieval. Unauthorized chunks never enter model context.
 - Sandboxed Python table analysis.
-- Golden eval suite with 24 cases.
+- Synthetic PDF/DOCX/Markdown corpus plus a doctrine review tracker table.
+- Golden eval suite with 24 cases across lookup, metadata filtering, multi-hop, comparison, structured analysis, permission, bilingual, and refusal behavior.
 
 ## Fast Start
 
 ```bash
 python -m pip install -e ".[dev]"
+USE_MOCK_COHERE=true python -c "from defence_agent.ingestion.indexer import reindex_corpus; print(reindex_corpus(force_generate=True))"
 defence_agent/scripts/run_demo.sh
 ```
 
@@ -43,6 +45,25 @@ defence_agent/scripts/run_demo_real.sh
 - `.env` is ignored by git and should be `chmod 600 .env`.
 
 The backend uses Cohere v2 endpoints through `cohere.ClientV2`.
+
+Default model settings:
+
+- Chat: `command-a-03-2025`
+- Embed: `embed-v4.0`
+- Rerank: `rerank-v4.0-pro`
+
+## Generate And Ingest The Demo Corpus
+
+```bash
+USE_MOCK_COHERE=true python -c "from defence_agent.ingestion.indexer import reindex_corpus; print(reindex_corpus(force_generate=True))"
+```
+
+This creates:
+
+- canonical Markdown with YAML frontmatter under `defence_agent/data/synthetic_corpus/source_markdown/`
+- PDF/DOCX demo artifacts under `defence_agent/data/synthetic_corpus/generated/`
+- `doctrine_review_tracker.csv` under `defence_agent/data/synthetic_corpus/tables/`
+- `defence_agent/data/processed/ingestion_report.json`
 
 ## Docker Compose
 
@@ -85,11 +106,19 @@ make eval
 python defence_agent/scripts/smoke_demo.py
 ```
 
+The fixture-mode acceptance gate is:
+
+- 100% route accuracy on canonical demo queries.
+- 100% permission correctness.
+- 100% citation validation.
+- Exact structured-analysis result for overdue review counts as of `2026-05-06`.
+
 ## Interview Docs
 
-- [Demo script](docs/demo_script.md)
-- [Architecture](docs/architecture.md)
-- [Security](docs/security.md)
-- [Evaluation](docs/evaluation.md)
+- [Demo guide](README_DEMO.md)
+- [Architecture](ARCHITECTURE.md)
+- [Security](SECURITY.md)
+- [Evaluation](EVALS.md)
+- [Demo QA tracker](docs/demo_qa_todo.md)
 - [Observability](docs/observability.md)
 - [ADRs](docs/adr)

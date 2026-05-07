@@ -1,4 +1,4 @@
-.PHONY: install test eval run smoke compose
+.PHONY: install test eval run smoke verify compose
 
 install:
 	python -m pip install -e ".[dev]"
@@ -14,6 +14,9 @@ run:
 
 smoke:
 	python defence_agent/scripts/smoke_demo.py
+
+verify: test eval
+	@echo "Run 'defence_agent/scripts/run_demo.sh' in another terminal, then 'make smoke' for live HTTP checks."
 
 compose:
 	docker compose up --build

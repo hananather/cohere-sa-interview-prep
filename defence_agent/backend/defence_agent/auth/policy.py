@@ -11,17 +11,26 @@ from defence_agent.auth.context import AclFilter, AuthContext
 CLASSIFICATION_ORDER = {
     "public": 0,
     "official": 1,
+    "public_internal": 2,
     "protected": 2,
     "restricted": 3,
+    "secret_placeholder": 4,
 }
 
 
 TOOL_ALLOWLIST: dict[str, set[str]] = {
     "search_doctrine": {"planning_analyst", "planning_lead", "auditor", "admin"},
+    "search_documents": {"planning_analyst", "planning_lead", "auditor", "admin"},
+    "get_document_sections": {"planning_analyst", "planning_lead", "auditor", "admin"},
+    "follow_references": {"planning_analyst", "planning_lead", "admin"},
     "compare_versions": {"planning_analyst", "planning_lead", "admin"},
+    "compare_document_versions": {"planning_analyst", "planning_lead", "admin"},
     "analyze_table_with_python": {"planning_analyst", "planning_lead", "admin"},
+    "get_table": {"planning_analyst", "planning_lead", "auditor", "admin"},
+    "run_table_analysis": {"planning_analyst", "planning_lead", "admin"},
     "get_document_registry_status": {"planning_analyst", "planning_lead", "auditor", "admin"},
     "validate_citations": {"planning_analyst", "planning_lead", "auditor", "admin"},
+    "validate_answer_citations": {"planning_analyst", "planning_lead", "auditor", "admin"},
     "request_human_review": {"planning_analyst", "planning_lead", "auditor", "admin"},
     "log_feedback": {"planning_analyst", "planning_lead", "auditor", "admin"},
 }

@@ -1,0 +1,120 @@
+queries:
+  - query_id: Q1
+    user_query: "What review steps are required before a planning brief is approved?"
+    expected_route: evidence_lookup
+    expected_tools: [search_documents, validate_answer_citations]
+    expected_sources: [PB-SOP-2025]
+    expected_behavior: "Return current approved review steps from the SOP with citations."
+    evaluation_type: evidence_lookup
+    user_context:
+      role: planning_analyst
+      access_level: public_internal
+    notes_for_presenter: "Simple single-stage RAG. This proves the fast path."
+
+  - query_id: Q2
+    user_query: "Summarize the emergency communications procedure into approval gates, timelines, and required evidence."
+    expected_route: grounded_summary
+    expected_tools: [search_documents, validate_answer_citations]
+    expected_sources: [EC-PROC-2025]
+    expected_behavior: "Structured summary with timeline and evidence citations."
+    evaluation_type: grounded_summary
+    user_context:
+      role: planning_analyst
+      access_level: public_internal
+    notes_for_presenter: "Shows grounded long-document compression."
+
+  - query_id: Q3
+    user_query: "What is the current approved procedure for approving a planning brief? Do not use drafts or old versions."
+    expected_route: metadata_aware_retrieval
+    expected_tools: [search_documents, validate_answer_citations]
+    expected_sources: [PB-SOP-2025]
+    expected_behavior: "Use only approved current guidance. Exclude draft 2026 and superseded 2024."
+    evaluation_type: metadata_filter
+    user_context:
+      role: planning_analyst
+      access_level: public_internal
+    notes_for_presenter: "Shows metadata filters, not prompt-only governance."
+
+  - query_id: Q4
+    user_query: "What should I include in a planning brief before it goes for review?"
+    expected_route: cross_source_synthesis
+    expected_tools: [search_documents, follow_references, validate_answer_citations]
+    expected_sources: [PB-SOP-2025, PB-CHK-2025]
+    expected_behavior: "Retrieve the SOP, follow the PB-CHK-2025 reference, cite both."
+    evaluation_type: multi_hop
+    user_context:
+      role: planning_analyst
+      access_level: public_internal
+    notes_for_presenter: "Shows agentic retrieval only where needed."
+
+  - query_id: Q5
+    user_query: "What changed between the 2024 and 2025 planning-brief review process? Cite both versions."
+    expected_route: version_comparison
+    expected_tools: [compare_document_versions, validate_answer_citations]
+    expected_sources: [PB-SOP-2024, PB-SOP-2025]
+    expected_behavior: "Return a cited comparison of timing, evidence review, legal review, and urgent exceptions."
+    evaluation_type: version_comparison
+    user_context:
+      role: planning_analyst
+      access_level: public_internal
+    notes_for_presenter: "Hero agentic comparison path."
+
+  - query_id: Q6
+    user_query: "Which planning procedures are overdue for review? Group them by owner and show how many days overdue."
+    expected_route: structured_table_analysis
+    expected_tools: [get_table, run_table_analysis, validate_answer_citations]
+    expected_sources: [doctrine_review_tracker]
+    expected_behavior: "Use sandboxed Python over authorized rows. Return exact overdue counts as of 2026-05-06."
+    evaluation_type: structured_analysis
+    user_context:
+      role: planning_analyst
+      access_level: public_internal
+    notes_for_presenter: "Shows controlled code execution instead of model arithmetic."
+
+  - query_id: Q7
+    user_query: "Is this statement supported: 'A draft planning brief can be approved without evidence review if it is urgent'?"
+    expected_route: claim_verification
+    expected_tools: [search_documents, validate_answer_citations]
+    expected_sources: [PB-SOP-2025]
+    expected_behavior: "Reject the claim against approved guidance and explain draft/superseded handling."
+    evaluation_type: claim_verification
+    user_context:
+      role: planning_analyst
+      access_level: public_internal
+    notes_for_presenter: "Shows faithfulness and safe verification."
+
+  - query_id: Q8
+    user_query: "What restricted annex handling steps apply before external distribution?"
+    expected_route: permission_sensitive_retrieval
+    expected_tools: [search_documents, validate_answer_citations]
+    expected_sources: []
+    expected_behavior: "Deny restricted content to public_internal users."
+    evaluation_type: permission_sensitive
+    user_context:
+      role: planning_analyst
+      access_level: public_internal
+    notes_for_presenter: "Run again as planning_lead to show security trimming."
+
+  - query_id: Q9
+    user_query: "Quels sont les délais dans la procédure de communications d’urgence?"
+    expected_route: bilingual_retrieval
+    expected_tools: [search_documents, validate_answer_citations]
+    expected_sources: [EC-PROC-2025-FR]
+    expected_behavior: "Answer in French from the French approved source."
+    evaluation_type: bilingual
+    user_context:
+      role: planning_analyst
+      access_level: public_internal
+    notes_for_presenter: "Shows multilingual retrieval and response."
+
+  - query_id: Q10
+    user_query: "What should we do for an interagency planning emergency not covered by any approved document?"
+    expected_route: refuse_or_clarify
+    expected_tools: [request_human_review]
+    expected_sources: []
+    expected_behavior: "Do not invent policy. Escalate or ask for clarification."
+    evaluation_type: refusal
+    user_context:
+      role: planning_analyst
+      access_level: public_internal
+    notes_for_presenter: "Shows safe non-answer behavior."

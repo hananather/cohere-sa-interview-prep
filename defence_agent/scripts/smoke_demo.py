@@ -8,12 +8,13 @@ import requests
 
 
 DEMO_QUERIES = [
-    ("planning_analyst", "What review steps should planning staff complete before approving a cross-unit planning request?"),
-    ("planning_analyst", "Compare the 2024 and 2025 review gate procedure. What changed and what is the impact?"),
-    ("planning_analyst", "Using the readiness review table, which units fall below the 80% readiness threshold?"),
-    ("planning_analyst", "What does Restricted Annex B say about exception handling?"),
-    ("planning_lead", "What does Restricted Annex B say about exception handling?"),
-    ("planning_analyst", "Summarize the exception handling guidance from the test document."),
+    ("planning_analyst", "What review steps are required before a planning brief is approved?"),
+    ("planning_analyst", "What is the current approved procedure for approving a planning brief? Do not use drafts or old versions."),
+    ("planning_analyst", "What changed between the 2024 and 2025 planning-brief review process? Cite both versions."),
+    ("planning_analyst", "Which planning procedures are overdue for review? Group them by owner and show how many days overdue."),
+    ("planning_analyst", "What restricted annex handling steps apply before external distribution?"),
+    ("planning_lead", "What restricted annex handling steps apply before external distribution?"),
+    ("planning_analyst", "Quels sont les délais dans la procédure de communications d’urgence?"),
 ]
 
 
