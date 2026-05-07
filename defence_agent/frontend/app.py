@@ -749,19 +749,19 @@ def render_guided_demo(persona: str, route_override: str, debug: bool) -> None:
         st.write(step.get("expected_behavior", "Run this step to inspect behavior."))
     with st.expander("Speaker notes", expanded=False):
         st.write(step.get("speaker_notes", ""))
-    col_a, col_b, col_c = st.columns([0.22, 0.28, 1])
-    if col_a.button("Run Step", type="primary"):
+    col_a, col_b, col_c = st.columns([1.1, 1.5, 2.2])
+    if col_a.button("Run Step", type="primary", width="stretch"):
         st.session_state["query"] = query
         run_query(query, persona_for_step, route_override, debug)
     compare_target = step.get("compare_persona", "planning_lead")
-    if col_b.button("Run Side-by-Side"):
+    if col_b.button("Run Side-by-Side", width="stretch"):
         payload = {"query": query, "left_persona": persona_for_step, "right_persona": compare_target}
         response = api_request("POST", "/v1/persona/compare", persona, json=payload)
         if response.ok:
             st.session_state["persona_compare"] = response.json()
         else:
             st.error(response.text)
-    if col_c.button("Reset demo state"):
+    if col_c.button("Reset demo state", width="stretch"):
         for key in ["last_response", "last_trace_id", "trace", "persona_compare"]:
             st.session_state.pop(key, None)
         st.toast("Demo state reset")
@@ -1049,6 +1049,12 @@ st.markdown(
         display: none !important;
     }
     .block-container {padding-top: 1rem; padding-bottom: 2rem; max-width: 1220px;}
+    div[data-testid="column"]:has(.control-panel-title) {
+        background: var(--da-panel-2) !important;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 0.35rem;
+        padding: 1.1rem 1.15rem 1.25rem 1.15rem;
+    }
     .demo-title {font-size: 2.15rem; font-weight: 760; letter-spacing: 0; line-height: 1.12; margin: 0 0 0.25rem 0; color: var(--da-text);}
     .demo-subtitle {color: var(--da-muted); font-size: 1rem; margin-bottom: 1rem;}
     .control-panel-title {font-size: 1.35rem; font-weight: 760; line-height: 1.2; margin: 0.35rem 0 1.2rem 0;}
@@ -1056,8 +1062,8 @@ st.markdown(
         margin: 1rem 0 1.4rem 0;
         padding: 0.85rem 1rem;
         border-radius: 0.5rem;
-        background: rgba(30, 64, 111, 0.52);
-        border: 1px solid rgba(96, 165, 250, 0.16);
+        background: #1d2330;
+        border: 1px solid rgba(148, 163, 184, 0.2);
         color: var(--da-text);
     }
     .view-heading {font-size: 1.45rem; font-weight: 720; line-height: 1.2; margin: 0.25rem 0 0.25rem 0;}
