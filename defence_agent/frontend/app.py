@@ -33,6 +33,16 @@ ROUTES = [
     "security_test",
     "human_review",
 ]
+VIEWS = [
+    "Guided Demo",
+    "Ask",
+    "Persona Compare",
+    "Trace Inspector",
+    "Evaluation Harness",
+    "Governance / Tool Registry",
+    "Architecture / Production Path",
+    "Legacy Demo Console",
+]
 DEMO_QUERIES = [
     "What review steps are required before a planning brief is approved?",
     "Summarize the emergency communications procedure into approval gates, timelines, and required evidence.",
@@ -955,6 +965,45 @@ def render_architecture_view(persona: str, health: dict[str, Any]) -> None:
     st.write("SSO/RBAC, private networking, managed secrets, SIEM export, stronger sandbox isolation, eval gates in CI, canaries, and feedback-to-eval regression loops.")
 
 
+def render_control_panel() -> tuple[str, str, bool, str, dict[str, Any]]:
+    st.markdown('<div class="control-panel-title">Demo Control Panel</div>', unsafe_allow_html=True)
+    persona_payload = fetch_personas(PERSONAS[0])
+    persona_profiles_for_labels = persona_payload.get("personas", [])
+    persona = st.selectbox(
+        "Persona",
+        PERSONAS,
+        index=0,
+        key="control_persona",
+        format_func=lambda item: persona_label(item, persona_profiles_for_labels),
+    )
+    view = st.radio("View", VIEWS, index=0, key="control_view")
+    debug = st.toggle("Show technical trace", value=True, key="control_debug")
+    with st.expander("Advanced demo controls"):
+        route_override = st.selectbox("Force workflow", ROUTES, index=0, key="control_route")
+    try:
+        health = requests.get(f"{API_URL}/healthz", timeout=5).json()
+        mode = "Mock Cohere" if health.get("mock_cohere") else "Real Cohere"
+        st.markdown(
+            f"""
+            <div class="runtime-card">
+              <strong>{html.escape(mode)}</strong><br>
+              Chat: {html.escape(str(health.get("chat_model")))}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    except Exception as exc:
+        st.error(f"Backend unavailable: {exc}")
+        health = {}
+
+    st.subheader("Demo Queries")
+    for index, demo_query in enumerate(DEMO_QUERIES, start=1):
+        if st.button(f"{index}. {demo_query[:46]}...", key=f"control_query_{index}", width="stretch"):
+            st.session_state["query"] = demo_query
+    st.caption("Use Guided Demo for the live story. Use Trace, Eval, and Governance for technical proof.")
+    return persona, view, debug, route_override, health
+
+
 st.set_page_config(page_title="Defence Agent", layout="wide", initial_sidebar_state="expanded")
 st.markdown(
     """
@@ -1002,6 +1051,15 @@ st.markdown(
     .block-container {padding-top: 1rem; padding-bottom: 2rem; max-width: 1220px;}
     .demo-title {font-size: 2.15rem; font-weight: 760; letter-spacing: 0; line-height: 1.12; margin: 0 0 0.25rem 0; color: var(--da-text);}
     .demo-subtitle {color: var(--da-muted); font-size: 1rem; margin-bottom: 1rem;}
+    .control-panel-title {font-size: 1.35rem; font-weight: 760; line-height: 1.2; margin: 0.35rem 0 1.2rem 0;}
+    .runtime-card {
+        margin: 1rem 0 1.4rem 0;
+        padding: 0.85rem 1rem;
+        border-radius: 0.5rem;
+        background: rgba(30, 64, 111, 0.52);
+        border: 1px solid rgba(96, 165, 250, 0.16);
+        color: var(--da-text);
+    }
     .view-heading {font-size: 1.45rem; font-weight: 720; line-height: 1.2; margin: 0.25rem 0 0.25rem 0;}
     .view-subtitle {color: var(--da-muted); margin-bottom: 1rem;}
     .answer-copy {font-size: 1.08rem; line-height: 1.75; color: var(--da-text); max-width: 980px;}
@@ -1176,61 +1234,31 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.markdown('<div class="demo-title">Defence Agent</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="demo-subtitle">Secure, evidence-grounded doctrine assistance for fictional DefTech planning staff.</div>',
-    unsafe_allow_html=True,
-)
+control_col, content_col = st.columns([0.31, 0.69], gap="large")
 
-with st.sidebar:
-    st.header("Demo Control Panel")
-    persona_payload = fetch_personas(PERSONAS[0])
-    persona_profiles_for_labels = persona_payload.get("personas", [])
-    persona = st.selectbox("Persona", PERSONAS, index=0, format_func=lambda item: persona_label(item, persona_profiles_for_labels))
-    view = st.radio(
-        "View",
-        [
-            "Guided Demo",
-            "Ask",
-            "Persona Compare",
-            "Trace Inspector",
-            "Evaluation Harness",
-            "Governance / Tool Registry",
-            "Architecture / Production Path",
-            "Legacy Demo Console",
-        ],
-        index=0,
+with control_col:
+    persona, view, debug, route_override, health = render_control_panel()
+
+with content_col:
+    st.markdown('<div class="demo-title">Defence Agent</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="demo-subtitle">Secure, evidence-grounded doctrine assistance for fictional DefTech planning staff.</div>',
+        unsafe_allow_html=True,
     )
-    debug = st.toggle("Show technical trace", value=True)
-    with st.expander("Advanced demo controls"):
-        route_override = st.selectbox("Force workflow", ROUTES, index=0)
-    try:
-        health = requests.get(f"{API_URL}/healthz", timeout=5).json()
-        mode = "Mock Cohere" if health.get("mock_cohere") else "Real Cohere"
-        st.caption(f"Runtime: {mode} | Chat: {health.get('chat_model')}")
-    except Exception as exc:
-        st.error(f"Backend unavailable: {exc}")
-        health = {}
 
-    st.subheader("Demo Queries")
-    for index, demo_query in enumerate(DEMO_QUERIES, start=1):
-        if st.button(f"{index}. {demo_query[:46]}...", width="stretch"):
-            st.session_state["query"] = demo_query
-    st.caption("Use Guided Demo for the live story. Use Trace, Eval, and Governance for technical proof.")
-
-if view == "Guided Demo":
-    render_guided_demo(persona, route_override, debug)
-elif view == "Ask":
-    render_user_view(persona, route_override, debug)
-elif view == "Persona Compare":
-    render_persona_compare(persona)
-elif view == "Trace Inspector":
-    render_trace_inspector(persona)
-elif view == "Evaluation Harness":
-    render_evaluation_tab(persona)
-elif view == "Governance / Tool Registry":
-    render_governance_view(persona)
-elif view == "Architecture / Production Path":
-    render_architecture_view(persona, health)
-else:
-    render_demo_console(persona, health)
+    if view == "Guided Demo":
+        render_guided_demo(persona, route_override, debug)
+    elif view == "Ask":
+        render_user_view(persona, route_override, debug)
+    elif view == "Persona Compare":
+        render_persona_compare(persona)
+    elif view == "Trace Inspector":
+        render_trace_inspector(persona)
+    elif view == "Evaluation Harness":
+        render_evaluation_tab(persona)
+    elif view == "Governance / Tool Registry":
+        render_governance_view(persona)
+    elif view == "Architecture / Production Path":
+        render_architecture_view(persona, health)
+    else:
+        render_demo_console(persona, health)
