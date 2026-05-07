@@ -982,16 +982,6 @@ def render_control_panel() -> tuple[str, str, bool, str, dict[str, Any]]:
         route_override = st.selectbox("Force workflow", ROUTES, index=0, key="control_route")
     try:
         health = requests.get(f"{API_URL}/healthz", timeout=5).json()
-        mode = "Mock Cohere" if health.get("mock_cohere") else "Real Cohere"
-        st.markdown(
-            f"""
-            <div class="runtime-card">
-              <strong>{html.escape(mode)}</strong><br>
-              Chat: {html.escape(str(health.get("chat_model")))}
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
     except Exception as exc:
         st.error(f"Backend unavailable: {exc}")
         health = {}
@@ -1058,14 +1048,6 @@ st.markdown(
     .demo-title {font-size: 2.15rem; font-weight: 760; letter-spacing: 0; line-height: 1.12; margin: 0 0 0.25rem 0; color: var(--da-text);}
     .demo-subtitle {color: var(--da-muted); font-size: 1rem; margin-bottom: 1rem;}
     .control-panel-title {font-size: 1.35rem; font-weight: 760; line-height: 1.2; margin: 0.35rem 0 1.2rem 0;}
-    .runtime-card {
-        margin: 1rem 0 1.4rem 0;
-        padding: 0.85rem 1rem;
-        border-radius: 0.5rem;
-        background: #1d2330;
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        color: var(--da-text);
-    }
     .view-heading {font-size: 1.45rem; font-weight: 720; line-height: 1.2; margin: 0.25rem 0 0.25rem 0;}
     .view-subtitle {color: var(--da-muted); margin-bottom: 1rem;}
     .answer-copy {font-size: 1.08rem; line-height: 1.75; color: var(--da-text); max-width: 980px;}
