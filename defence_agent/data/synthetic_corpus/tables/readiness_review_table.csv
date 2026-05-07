@@ -1,0 +1,5 @@
+unit_id,unit_name,owner,readiness_percent,threshold_percent,review_date,status,linked_doc_id,access_level,language
+U-100,Central Planning Cell,Readiness Secretariat,92,80,2026-04-20,ready,READINESS-DIR-2025,public_internal,en
+U-210,Emergency Communications Desk,Emergency Coordination Office,76,80,2026-04-22,below_threshold,EC-PROC-2025,public_internal,en
+U-305,Interagency Liaison Desk,Interagency Coordination Secretariat,68,80,2026-04-25,below_threshold,IC-CONOPS-2025,public_internal,en
+U-440,Disclosure Review Team,Public Affairs and Disclosure Office,84,80,2026-04-26,ready,PR-GUIDE-2025,public_internal,en

@@ -17,6 +17,15 @@ allowed_roles:
 - auditor
 - admin
 created_at: '2026-05-06T00:00:00Z'
+authoritative_rank: 90
+supersedes: []
+superseded_by: []
+cross_references: []
+applies_to:
+- planning_brief
+- draft_policy
+not_applicable_to:
+- current_approved_guidance
 ---
 
 # Planning Brief Approval SOP

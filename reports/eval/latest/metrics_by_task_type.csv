@@ -3,10 +3,9 @@ adversarial,1,1.0,1.0,1.0
 answer,2,1.0,1.0,1.0
 bilingual,2,1.0,1.0,1.0
 compare,2,1.0,1.0,1.0
-find,6,1.0,1.0,1.0
-permission_sensitive,2,1.0,1.0,1.0
-refuse_or_clarify,1,1.0,1.0,1.0
+demo_candidate,4,1.0,1.0,1.0
+permission_sensitive,3,1.0,1.0,1.0
 structured_analysis,2,1.0,1.0,1.0
-summarize,2,1.0,1.0,1.0
+summarize,3,1.0,1.0,1.0
 synthesize,2,1.0,1.0,1.0
-verify,2,1.0,1.0,1.0
+verify,3,1.0,1.0,1.0

@@ -17,6 +17,19 @@ allowed_roles:
 - auditor
 - admin
 created_at: '2026-05-06T00:00:00Z'
+authoritative_rank: 10
+supersedes:
+- PB-SOP-2024
+superseded_by: []
+cross_references:
+- PB-CHK-2025
+- LOG-RET-2025
+- ANNEX-HANDLING-2025
+applies_to:
+- planning_brief
+- restricted_annex
+- public_release
+not_applicable_to: []
 ---
 
 # Planning Brief Approval SOP

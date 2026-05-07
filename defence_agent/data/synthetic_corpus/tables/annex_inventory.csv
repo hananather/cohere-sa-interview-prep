@@ -1,0 +1,4 @@
+annex_id,annex_title,owner,linked_doc_id,brief_id,classification,external_distribution_allowed,last_reviewed,access_level,language
+ANN-001,Public Emergency Timeline Appendix,Emergency Coordination Office,EC-PROC-2025,BRIEF-EMERG-26,public_internal,yes_after_disclosure_review,2026-04-28,public_internal,en
+ANN-002,Restricted Partner Data Appendix,Interagency Coordination Secretariat,IC-ANNEX-DATA-2025,BRIEF-ANNEX-26,restricted,restricted_review_required,2026-04-29,restricted,en
+ANN-003,Classification Marking Appendix,Records and Security Office,CLASS-ANNEX-B-2025,BRIEF-ANNEX-26,restricted,restricted_review_required,2026-04-29,restricted,en

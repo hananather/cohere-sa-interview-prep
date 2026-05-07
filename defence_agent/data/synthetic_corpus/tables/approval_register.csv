@@ -1,0 +1,4 @@
+approval_id,brief_id,title,owner,required_source,approval_stage,due_date,status,access_level,language
+APR-001,BRIEF-EMERG-26,Emergency Public Release Planning Brief,Joint Planning Office,JPD-2025,director_review,2026-05-08,pending,public_internal,en
+APR-002,BRIEF-EMERG-26,Emergency Public Release Planning Brief,Public Affairs and Disclosure Office,PR-GUIDE-2025,disclosure_lead_review,2026-05-07,pending,public_internal,en
+APR-003,BRIEF-ANNEX-26,Restricted Annex Planning Brief,Records and Security Office,ANNEX-HANDLING-2025,restricted_annex_review,2026-05-07,restricted_pending,restricted,en

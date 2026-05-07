@@ -17,6 +17,15 @@ allowed_roles:
 - auditor
 - admin
 created_at: '2026-05-06T00:00:00Z'
+authoritative_rank: 20
+supersedes: []
+superseded_by: []
+cross_references: []
+applies_to:
+- audit_log
+- traceability
+- decision_record
+not_applicable_to: []
 ---
 
 # Evidence and Decision Log Retention Procedure

@@ -65,6 +65,10 @@ class Router:
             return self._decision("bilingual_retrieval", 0.95, "French language query detected", ["search_documents", "validate_answer_citations"])
         if re.search(r"\b(overdue|group by|days overdue|how many|count)\b", lowered):
             return self._decision("structured_table_analysis", 0.97, "Query asks for deterministic table grouping or date math", ["get_table", "run_table_analysis", "validate_answer_citations"])
+        if re.search(r"\b(pending approvals|approvals pending|approval register|corrective actions?|annex inventory|due on or before)\b", lowered):
+            return self._decision("structured_table_analysis", 0.96, "Query asks for deterministic table lookup or grouping", ["get_table", "run_table_analysis", "validate_answer_citations"])
+        if re.search(r"\b(readiness|threshold|below threshold|below the readiness)\b", lowered) and re.search(r"\b(which|group|show|count|table|units?)\b", lowered):
+            return self._decision("structured_table_analysis", 0.96, "Query asks for deterministic readiness table analysis", ["get_table", "run_table_analysis", "validate_answer_citations"])
         if (
             "current approved" in lowered
             or "do not use drafts" in lowered
@@ -87,16 +91,37 @@ class Router:
             or "pb-chk" in lowered
             or "checklist require" in lowered
             or ("evidence checklist" in lowered and ("support" in lowered or "sop" in lowered))
+            or ("interagency emergency" in lowered and "public release" in lowered)
+            or ("public release" in lowered and "disclosure checks" in lowered)
+            or ("classification" in lowered and ("differ" in lowered or "conflict" in lowered or "errata" in lowered))
         ):
             return self._decision("cross_source_synthesis", 0.92, "Query requires SOP plus referenced checklist evidence", ["search_documents", "follow_references", "validate_answer_citations"])
-        if "restricted annex handling" in lowered or ("restricted" in lowered and "annex" in lowered) or "external distribution" in lowered:
+        if (
+            "restricted annex handling" in lowered
+            or ("restricted" in lowered and "annex" in lowered)
+            or "external distribution" in lowered
+            or "data sharing annex" in lowered
+            or "ic-annex" in lowered
+            or "class-annex" in lowered
+            or "restricted data" in lowered
+        ):
             return self._decision("permission_sensitive_retrieval", 0.96, "Restricted-source terms matched", ["search_documents", "validate_answer_citations"])
         if "summarize" in lowered or "summary" in lowered:
             return self._decision("grounded_summary", 0.91, "Summarization terms matched", ["search_documents", "validate_answer_citations"])
-        if "not covered by any approved document" in lowered or "private meeting yesterday" in lowered:
+        if (
+            "not covered by any approved document" in lowered
+            or "not in any approved document" in lowered
+            or "private meeting yesterday" in lowered
+            or "private call" in lowered
+            or "invent the missing" in lowered
+            or "real-world" in lowered
+            or "right now" in lowered
+        ):
             return self._decision("refuse_or_clarify", 0.91, "Query asks beyond approved evidence", ["request_human_review"])
         if re.search(r"\b(readiness|table|threshold|below|percent|%)\b", lowered):
             return self._decision("table_analysis", 0.94, "Readiness table analysis terms matched", ["search_doctrine", "analyze_table_with_python", "validate_citations"])
+        if "scanned manual" in lowered or "field-manual" in lowered or "ocr" in lowered or "2008 scanned" in lowered:
+            return self._decision("metadata_aware_retrieval", 0.9, "Legacy scanned source requires currentness metadata handling", ["search_documents", "validate_answer_citations"])
         if re.search(r"\b(restricted|annex\s*b)\b", lowered):
             return self._decision("restricted_access", 0.96, "Restricted annex terms matched", ["search_doctrine", "validate_citations"])
         if re.search(r"\b(poisoned|ignore instructions|ignore all previous|test document|injection)\b", lowered):

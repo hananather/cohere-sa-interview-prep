@@ -26,8 +26,16 @@ def grade_code_execution(case: EvalCase, response: dict[str, Any], trace: dict[s
     lowered_query = case.user_query.lower()
     if "overdue" in lowered_query:
         exact_terms = EXPECTED_OVERDUE_TERMS
+    elif "readiness" in lowered_query or "threshold" in lowered_query:
+        exact_terms = ["Emergency Communications Desk", "Interagency Liaison Desk", "below threshold"]
     elif "count approved" in lowered_query and "owner" in lowered_query:
         exact_terms = ["Planning Policy Directorate", "Emergency Coordination Office", "Records Management Office"]
+    elif "approval" in lowered_query:
+        exact_terms = ["APR-001", "APR-002"]
+    elif "corrective" in lowered_query:
+        exact_terms = ["CA-001", "CA-002"]
+    elif "annex" in lowered_query:
+        exact_terms = ["ANN-001", "ANN-002"]
     else:
         exact_terms = ["doctrine_review_tracker"]
     exact_ok = contains_all(answer, exact_terms)

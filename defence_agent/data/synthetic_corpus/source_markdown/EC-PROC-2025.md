@@ -17,6 +17,16 @@ allowed_roles:
 - auditor
 - admin
 created_at: '2026-05-06T00:00:00Z'
+authoritative_rank: 12
+supersedes: []
+superseded_by: []
+cross_references:
+- PR-GUIDE-2025
+- LOG-RET-2025
+applies_to:
+- emergency_communications
+- public_release
+not_applicable_to: []
 ---
 
 # Emergency Communications Procedure

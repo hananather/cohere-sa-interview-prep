@@ -17,6 +17,16 @@ allowed_roles:
 - auditor
 - admin
 created_at: '2026-05-06T00:00:00Z'
+authoritative_rank: 95
+supersedes: []
+superseded_by:
+- PB-SOP-2025
+- SUPERSESSION-BULLETIN-2025
+cross_references: []
+applies_to:
+- legacy_manual
+not_applicable_to:
+- current_approved_guidance
 ---
 
 # Legacy Field Manual Excerpt

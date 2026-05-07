@@ -10,8 +10,8 @@
 - Citation validation pass rate: 100.0%
 - Access-control correctness: 100.0%
 - Structured analysis exact correctness: 100.0%
-- Average latency: 33.0 ms
-- P95 latency: 50.9 ms
+- Average latency: 55.3 ms
+- P95 latency: 145.5 ms
 
 ## Top Failure Categories
 

@@ -17,6 +17,16 @@ allowed_roles:
 - auditor
 - admin
 created_at: '2026-05-06T00:00:00Z'
+authoritative_rank: 15
+supersedes: []
+superseded_by: []
+cross_references:
+- PB-SOP-2025
+- LOG-RET-2025
+applies_to:
+- planning_brief
+- evidence_pack
+not_applicable_to: []
 ---
 
 # Planning Brief Evidence Checklist

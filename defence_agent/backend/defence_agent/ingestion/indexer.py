@@ -34,6 +34,34 @@ STOPWORDS = {
 
 CANONICAL_DOC_IDS = {spec.doc_id for spec in SPECS}
 
+TABLE_DOCUMENT_METADATA: dict[str, dict[str, str]] = {
+    "doctrine_review_tracker": {
+        "title": "Doctrine Review Tracker",
+        "doc_family": "doctrine_review_tracker",
+        "owner": "Records Management Office",
+    },
+    "readiness_review_table": {
+        "title": "Readiness Review Table",
+        "doc_family": "readiness_review",
+        "owner": "Readiness Secretariat",
+    },
+    "approval_register": {
+        "title": "Planning Brief Approval Register",
+        "doc_family": "approval_register",
+        "owner": "Joint Planning Office",
+    },
+    "corrective_action_tracker": {
+        "title": "Corrective Action Tracker",
+        "doc_family": "corrective_action",
+        "owner": "Readiness Secretariat",
+    },
+    "annex_inventory": {
+        "title": "Annex Inventory",
+        "doc_family": "annex_inventory",
+        "owner": "Records and Security Office",
+    },
+}
+
 
 def corpus_has_chunks() -> bool:
     init_db()
@@ -236,19 +264,27 @@ def _keywords(text_value: str) -> list[str]:
 
 def _index_table(path: Path) -> tuple[Document, list[Chunk]]:
     rows = list(csv.DictReader(path.open("r", encoding="utf-8")))
-    document_id = "doctrine_review_tracker"
+    document_id = path.stem
+    table_metadata = TABLE_DOCUMENT_METADATA.get(
+        document_id,
+        {
+            "title": path.stem.replace("_", " ").title(),
+            "doc_family": document_id,
+            "owner": "Records Management Office",
+        },
+    )
     document = Document(
         id=document_id,
-        title="Doctrine Review Tracker",
+        title=table_metadata["title"],
         filename=path.name,
         doc_type="table",
         classification="public_internal",
         allowed_roles_json=json.dumps(["planning_analyst", "planning_lead", "auditor", "admin"]),
         version="2026-05-06",
         effective_date="2026-05-06",
-        doc_family="doctrine_review_tracker",
+        doc_family=table_metadata["doc_family"],
         status="approved",
-        owner="Records Management Office",
+        owner=table_metadata["owner"],
         review_due="2026-12-31",
         language="en",
         source_type="table",
@@ -260,33 +296,44 @@ def _index_table(path: Path) -> tuple[Document, list[Chunk]]:
     chunks: list[Chunk] = []
     for index, row in enumerate(rows, start=1):
         row_id = f"R{index}"
-        text_value = (
-            f"Row {row_id}: {row['doc_id']} is {row['title']} owned by {row['owner']}. "
-            f"Status {row['status']}. Effective date {row['effective_date']}. "
-            f"Next review due {row['next_review_due']}. Access level {row['access_level']}. Language {row['language']}."
-        )
+        if document_id == "doctrine_review_tracker":
+            text_value = (
+                f"Row {row_id}: {row['doc_id']} is {row['title']} owned by {row['owner']}. "
+                f"Status {row['status']}. Effective date {row['effective_date']}. "
+                f"Next review due {row['next_review_due']}. Access level {row['access_level']}. Language {row['language']}."
+            )
+        else:
+            row_pairs = " ".join(f"{key}={value}." for key, value in row.items())
+            text_value = f"Row {row_id} in {table_metadata['title']}: {row_pairs}"
+        row_access_level = str(row.get("access_level", "public_internal"))
+        row_language = str(row.get("language", "en"))
+        row_status = str(row.get("status", "approved"))
+        row_owner = str(row.get("owner", table_metadata["owner"]))
+        row_doc_family = str(row.get("doc_family", table_metadata["doc_family"]))
+        row_effective_date = str(row.get("effective_date", row.get("review_date", row.get("due_date", "2026-05-06"))))
+        row_review_due = str(row.get("next_review_due", row.get("due_date", row.get("review_date", "2026-12-31"))))
         chunks.append(
             Chunk(
                 id=f"{document_id}_{row_id}",
                 document_id=document_id,
                 chunk_index=index - 1,
-                title="Doctrine Review Tracker",
-                section=f"Doctrine Review Tracker Row {row_id}",
+                title=table_metadata["title"],
+                section=f"{table_metadata['title']} Row {row_id}",
                 page=1,
                 text=text_value,
                 table_markdown=table_markdown if index == 1 else None,
                 summary=_summary(text_value),
                 keywords_json=json.dumps(_keywords(text_value)),
-                classification=str(row["access_level"]),
-                allowed_roles_json=json.dumps(["planning_analyst", "planning_lead", "auditor", "admin"] if row["access_level"] != "restricted" else ["planning_lead", "admin"]),
+                classification=row_access_level,
+                allowed_roles_json=json.dumps(_roles_for_access(row_access_level)),
                 tenant_id="deftech",
                 version="2026-05-06",
-                effective_date=str(row["effective_date"]),
-                doc_family=str(row["doc_family"]),
-                status=str(row["status"]),
-                owner=str(row["owner"]),
-                review_due=str(row["next_review_due"]),
-                language=str(row["language"]),
+                effective_date=row_effective_date,
+                doc_family=row_doc_family,
+                status=row_status,
+                owner=row_owner,
+                review_due=row_review_due,
+                language=row_language,
                 source_type="table",
                 row_id=row_id,
                 doc_type="table",
@@ -296,6 +343,12 @@ def _index_table(path: Path) -> tuple[Document, list[Chunk]]:
             )
         )
     return document, chunks
+
+
+def _roles_for_access(access_level: str) -> list[str]:
+    if access_level == "restricted":
+        return ["planning_lead", "admin"]
+    return ["planning_analyst", "planning_lead", "auditor", "admin"]
 
 
 def _rows_to_markdown(rows: list[dict[str, str]]) -> str:

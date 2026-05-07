@@ -90,12 +90,18 @@ def direct_rag(query: str, auth: AuthContext, trace_id: str) -> dict[str, Any]:
 
 
 def evidence_lookup(query: str, auth: AuthContext, trace_id: str) -> dict[str, Any]:
+    lowered = query.lower()
+    filters: dict[str, Any] = {"status": "approved", "language": "en", "exclude_doc_types": ["table"]}
+    if "planning brief" in lowered:
+        filters["doc_family"] = "planning_brief_approval"
+    elif "emergency communication" in lowered:
+        filters["doc_family"] = "emergency_communications"
     sources, search = _search_sources(
         query,
         auth,
         trace_id,
         top_k=4,
-        filters={"status": "approved", "language": "en", "exclude_doc_types": ["table"]},
+        filters=filters,
     )
     if not sources:
         return _safe_abstain([search.model_dump()], "I do not have enough approved evidence to answer this planning question.")
@@ -114,6 +120,24 @@ def grounded_summary(query: str, auth: AuthContext, trace_id: str) -> dict[str, 
     elif "decision log" in lowered or "log retention" in lowered or "retention procedure" in lowered:
         filters = {"doc_family": "evidence_log_retention", "status": "approved", "language": "en"}
         failure = "I could not find an approved evidence and decision log retention procedure to summarize."
+    elif "public release" in lowered or "diffusion publique" in lowered:
+        filters = {"doc_family": "public_release", "status": "approved", "language": "en"}
+        failure = "I could not find an approved public release guide to summarize."
+    elif "jpd" in lowered or "joint planning" in lowered:
+        filters = {"doc_family": "joint_planning_doctrine", "status": "approved", "language": "en"}
+        failure = "I could not find approved joint planning doctrine to summarize."
+    elif "interagency" in lowered or "conops" in lowered:
+        filters = {"doc_family": "interagency_coordination", "status": "approved", "language": "en"}
+        failure = "I could not find approved interagency coordination guidance to summarize."
+    elif "classification" in lowered or "marking" in lowered:
+        filters = {"doc_family": "classification_marking", "status": "approved", "language": "en"}
+        failure = "I could not find approved classification marking guidance to summarize."
+    elif "readiness" in lowered:
+        filters = {"doc_family": "readiness_evidence", "status": "approved", "language": "en"}
+        failure = "I could not find approved readiness evidence guidance to summarize."
+    elif "supersession" in lowered or "stale guidance" in lowered:
+        filters = {"doc_family": "supersession_bulletin", "status": "approved", "language": "en"}
+        failure = "I could not find an approved supersession bulletin to summarize."
     else:
         filters = {"doc_family": "emergency_communications", "status": "approved", "language": "en"}
         failure = "I could not find an approved emergency communications procedure to summarize."
@@ -125,20 +149,92 @@ def grounded_summary(query: str, auth: AuthContext, trace_id: str) -> dict[str, 
 
 
 def metadata_aware_retrieval(query: str, auth: AuthContext, trace_id: str) -> dict[str, Any]:
+    lowered = query.lower()
+    if "field-manual" in lowered or "scanned manual" in lowered or "2008" in lowered:
+        sources, tool_calls, degradations = _search_doc_set(
+            query,
+            auth,
+            trace_id,
+            ["FIELD-MANUAL-2008-SCAN", "SUPERSESSION-BULLETIN-2025", "JPD-2025"],
+        )
+        if not sources:
+            return _safe_abstain(tool_calls, "I could not find legacy and supersession evidence for this question.")
+        answer = _generate(query, sources[:5], "metadata_aware_retrieval", trace_id)
+        return _workflow_result(answer, sources[:5], tool_calls, degradations)
+    if "jpd" in lowered or "joint planning" in lowered:
+        doc_family = "joint_planning_doctrine"
+        failure = "I could not find current approved joint planning doctrine."
+    elif "public release" in lowered or "pr-guide" in lowered:
+        doc_family = "public_release"
+        failure = "I could not find current approved public release guidance."
+    else:
+        doc_family = "planning_brief_approval"
+        failure = "I could not find current approved planning brief approval guidance."
     filters = {
-        "doc_family": "planning_brief_approval",
+        "doc_family": doc_family,
         "status": "approved",
         "language": "en",
         "exclude_statuses": ["draft", "superseded"],
     }
     sources, search = _search_sources(query, auth, trace_id, top_k=4, filters=filters)
     if not sources:
-        return _safe_abstain([search.model_dump()], "I could not find current approved planning brief approval guidance.")
+        return _safe_abstain([search.model_dump()], failure)
     answer = _generate(query, sources, "metadata_aware_retrieval", trace_id)
     return _workflow_result(answer, sources, [search.model_dump()], search.data.get("degradations", []))
 
 
 def cross_source_synthesis(query: str, auth: AuthContext, trace_id: str) -> dict[str, Any]:
+    lowered = query.lower()
+    if "interagency emergency" in lowered or ("public release" in lowered and "disclosure" in lowered):
+        trace_manager.add_span(
+            trace_id,
+            "plan_created",
+            {"steps": ["retrieve emergency procedure", "retrieve joint planning doctrine", "retrieve public release guide", "retrieve marking standard", "retrieve log retention"]},
+        )
+        sources, tool_calls, degradations = _search_doc_set(
+            query,
+            auth,
+            trace_id,
+            ["EC-PROC-2025", "JPD-2025", "PR-GUIDE-2025", "CLASS-MARK-2025", "LOG-RET-2025"],
+            top_k_per_doc=1,
+        )
+        follow = tool_registry.call(
+            "follow_references",
+            {"query": query, "retrieved_chunks": [source.model_dump() for source in sources], "top_k": 3},
+            auth,
+            trace_id,
+        )
+        tool_calls.append(follow.model_dump())
+        if not sources:
+            return _safe_abstain(tool_calls, "I could not assemble the emergency public-release evidence needed for this answer.")
+        answer = _generate(query, sources[:8], "cross_source_synthesis", trace_id)
+        return _workflow_result(answer, sources[:8], tool_calls, degradations)
+
+    if "classification" in lowered and ("differ" in lowered or "conflict" in lowered or "errata" in lowered):
+        trace_manager.add_span(
+            trace_id,
+            "plan_created",
+            {"steps": ["retrieve classification standard", "retrieve errata", "resolve approved-source conflict"]},
+        )
+        sources, tool_calls, degradations = _search_doc_set(
+            query,
+            auth,
+            trace_id,
+            ["CLASS-MARK-2025", "CLASS-ERRATA-2025"],
+            top_k_per_doc=1,
+        )
+        follow = tool_registry.call(
+            "follow_references",
+            {"query": query, "retrieved_chunks": [source.model_dump() for source in sources], "top_k": 2},
+            auth,
+            trace_id,
+        )
+        tool_calls.append(follow.model_dump())
+        if not sources:
+            return _safe_abstain(tool_calls, "I could not retrieve the approved classification sources needed to resolve the conflict.")
+        answer = _generate(query, sources[:4], "cross_source_synthesis", trace_id)
+        return _workflow_result(answer, sources[:4], tool_calls, degradations)
+
     trace_manager.add_span(trace_id, "plan_created", {"steps": ["retrieve approved SOP", "follow PB-CHK-2025 reference", "synthesize with citations"]})
     primary, search = _search_sources(
         "Planning brief approval SOP evidence pack cross-reference PB-CHK-2025",
@@ -175,20 +271,33 @@ def cross_source_synthesis(query: str, auth: AuthContext, trace_id: str) -> dict
 
 
 def version_comparison(query: str, auth: AuthContext, trace_id: str) -> dict[str, Any]:
+    lowered = query.lower()
+    if "jpd" in lowered or "joint planning" in lowered:
+        doc_family = "joint_planning_doctrine"
+        version_a = "2024.2"
+        version_b = "2025.1"
+    elif "public release" in lowered or "pr-guide" in lowered:
+        doc_family = "public_release"
+        version_a = "2023.4"
+        version_b = "2025.1"
+    else:
+        doc_family = "planning_brief_approval"
+        version_a = "2024.3"
+        version_b = "2025.1"
     trace_manager.add_span(
         trace_id,
         "plan_created",
-        {"steps": ["parallel retrieval for 2024 and 2025", "compare procedure changes", "validate citations"]},
+        {"steps": [f"parallel retrieval for {version_a} and {version_b}", "compare procedure changes", "validate citations"]},
     )
     comparison = tool_registry.call(
         "compare_document_versions",
         {
             "query": query,
-            "doc_family": "planning_brief_approval",
-            "version_a": "2024.3",
-            "version_b": "2025.1",
-            "older_version": "2024.3",
-            "newer_version": "2025.1",
+            "doc_family": doc_family,
+            "version_a": version_a,
+            "version_b": version_b,
+            "older_version": version_a,
+            "newer_version": version_b,
         },
         auth,
         trace_id,
@@ -205,9 +314,20 @@ def version_comparison(query: str, auth: AuthContext, trace_id: str) -> dict[str
 
 
 def structured_table_analysis(query: str, auth: AuthContext, trace_id: str) -> dict[str, Any]:
+    lowered = query.lower()
+    if "readiness" in lowered or "threshold" in lowered:
+        table_name = "readiness_review_table"
+    elif "approval" in lowered or "brief-emerg" in lowered:
+        table_name = "approval_register"
+    elif "corrective" in lowered:
+        table_name = "corrective_action_tracker"
+    elif "annex inventory" in lowered or "annexes" in lowered:
+        table_name = "annex_inventory"
+    else:
+        table_name = "doctrine_review_tracker"
     get_table = tool_registry.call(
         "get_table",
-        {"table_name": "doctrine_review_tracker", "filters": {}},
+        {"table_name": table_name, "filters": {}},
         auth,
         trace_id,
     )
@@ -237,10 +357,33 @@ def structured_table_analysis(query: str, auth: AuthContext, trace_id: str) -> d
         }
     output = sandbox["output"]
     row_ids = output.get("row_ids", [])
-    sources = _table_sources_by_row_ids(row_ids, auth)
+    sources = _table_sources_by_row_ids(row_ids, auth, table_name)
     citations = make_citations(sources)
     citation_for_row = {source.row_id: f"C{index + 1}" for index, source in enumerate(sources)}
-    if output.get("analysis_type") == "count_approved_by_owner":
+    if output.get("analysis_type") == "readiness_below_threshold":
+        row_lines = [
+            f"- {row['unit_name']} ({row['unit_id']}) is {row['points_below_threshold']} points below the {row['threshold_percent']} percent threshold and links to {row['linked_doc_id']} [{citation_for_row.get(row['row_id'], 'C?')}]."
+            for row in output.get("rows", [])
+        ]
+        group_lines = [
+            f"- {item['owner']}: {item['units_below_threshold']} unit(s) below threshold, max {item['max_points_below']} points below."
+            for item in output.get("grouped", [])
+        ]
+        answer = "The readiness units below threshold are:\n" + "\n".join(row_lines)
+        answer += "\n\nGrouped by owner:\n" + "\n".join(group_lines)
+    elif output.get("analysis_type") == "table_rows":
+        row_lines = []
+        for row in output.get("rows", []):
+            row_id = row.get("row_id")
+            citation = citation_for_row.get(row_id, "C?")
+            visible = ", ".join(
+                f"{key}: {value}"
+                for key, value in row.items()
+                if key not in {"row_id", "source_table"} and value not in (None, "")
+            )
+            row_lines.append(f"- {visible} [{citation}].")
+        answer = f"Authorized rows from {table_name}:\n" + "\n".join(row_lines)
+    elif output.get("analysis_type") == "count_approved_by_owner":
         row_lines = [
             f"- {item['owner']}: {item['approved_documents']} approved document(s)."
             for item in output.get("grouped", [])
@@ -395,12 +538,18 @@ def permission_sensitive_retrieval(query: str, auth: AuthContext, trace_id: str)
             filters={"doc_id": "PB-SOP-2025", "status": "approved"},
         )
         tool_calls.append(public_search.model_dump())
+    if "interagency data" in lowered or "data sharing" in lowered or "ic-annex" in lowered:
+        restricted_family = "interagency_data_sharing"
+    elif "class-annex" in lowered or "classification" in lowered or "marking" in lowered:
+        restricted_family = "classification_marking"
+    else:
+        restricted_family = "annex_handling"
     annex_sources, search = _search_sources(
         query,
         auth,
         trace_id,
         top_k=4,
-        filters={"doc_family": "annex_handling", "status": "approved"},
+        filters={"doc_family": restricted_family, "status": "approved"},
     )
     tool_calls.append(search.model_dump())
     sources = _dedupe_sources([*public_sources, *annex_sources])
@@ -433,12 +582,14 @@ def permission_sensitive_retrieval(query: str, auth: AuthContext, trace_id: str)
 
 
 def bilingual_retrieval(query: str, auth: AuthContext, trace_id: str) -> dict[str, Any]:
+    lowered = query.lower()
+    doc_family = "public_release" if "diffusion publique" in lowered or "public release" in lowered or "divulgation" in lowered else "emergency_communications"
     sources, search = _search_sources(
         query,
         auth,
         trace_id,
         top_k=4,
-        filters={"doc_family": "emergency_communications", "status": "approved", "language": "fr"},
+        filters={"doc_family": doc_family, "status": "approved", "language": "fr"},
     )
     if not sources:
         return _safe_abstain([search.model_dump()], "Je n'ai pas trouve de source francaise approuvee pour repondre.")
@@ -631,7 +782,7 @@ def _search_sources(
     filters: dict[str, Any],
 ) -> tuple[list[SourceChunk], Any]:
     filters = {**filters}
-    if not any(key in filters for key in ("doc_type", "doc_types")) and filters.get("doc_id") != "doctrine_review_tracker":
+    if not any(key in filters for key in ("doc_type", "doc_types")) and not any(key in filters for key in ("doc_id", "doc_ids")):
         filters.setdefault("exclude_doc_types", ["table"])
     search = tool_registry.call("search_documents", {"query": query, "top_k": top_k, "filters": filters}, auth, trace_id)
     if not search.ok:
@@ -650,6 +801,74 @@ def _dedupe_sources(sources: list[SourceChunk]) -> list[SourceChunk]:
     return deduped
 
 
+def _search_doc_set(
+    query: str,
+    auth: AuthContext,
+    trace_id: str,
+    doc_ids: list[str],
+    top_k_per_doc: int = 2,
+) -> tuple[list[SourceChunk], list[dict[str, Any]], list[str]]:
+    sources: list[SourceChunk] = []
+    tool_calls: list[dict[str, Any]] = []
+    degradations: list[str] = []
+    for doc_id in doc_ids:
+        doc_sources, search = _search_sources(
+            query,
+            auth,
+            trace_id,
+            top_k=top_k_per_doc,
+            filters={"doc_id": doc_id},
+        )
+        tool_calls.append(search.model_dump())
+        if not doc_sources:
+            doc_sources = _direct_doc_sources(doc_id, auth, top_k_per_doc)
+        sources.extend(doc_sources)
+        if getattr(search, "ok", False):
+            degradations.extend(search.data.get("degradations", []))
+        elif getattr(search, "error", None):
+            degradations.append(str(search.error))
+    return _dedupe_sources(sources), tool_calls, degradations
+
+
+def _direct_doc_sources(doc_id: str, auth: AuthContext, limit: int) -> list[SourceChunk]:
+    with Session(engine) as session:
+        chunks = session.exec(
+            select(Chunk)
+            .where(Chunk.document_id == doc_id)
+            .order_by(Chunk.chunk_index)
+        ).all()
+    sources: list[SourceChunk] = []
+    for chunk in chunks[:limit]:
+        if not policy_engine.can_access_chunk(auth, chunk):
+            continue
+        sources.append(
+            SourceChunk(
+                chunk_id=chunk.id,
+                document_id=chunk.document_id,
+                title=chunk.title,
+                filename=chunk.source_uri.split("/")[-1] if chunk.source_uri else None,
+                section=chunk.section,
+                page=chunk.page,
+                text=chunk.text,
+                summary=chunk.summary,
+                classification=chunk.classification,
+                version=chunk.version,
+                effective_date=chunk.effective_date,
+                status=chunk.status,
+                doc_family=chunk.doc_family,
+                owner=chunk.owner,
+                review_due=chunk.review_due,
+                language=chunk.language,
+                source_type=chunk.source_type,
+                row_id=chunk.row_id,
+                doc_type=chunk.doc_type,
+                source_uri=chunk.source_uri,
+                table_markdown=chunk.table_markdown,
+            )
+        )
+    return sources
+
+
 def _safe_abstain(tool_calls: list[dict[str, Any]], answer: str) -> dict[str, Any]:
     return {
         "answer": answer,
@@ -661,13 +880,13 @@ def _safe_abstain(tool_calls: list[dict[str, Any]], answer: str) -> dict[str, An
     }
 
 
-def _table_sources_by_row_ids(row_ids: list[str], auth: AuthContext) -> list[SourceChunk]:
+def _table_sources_by_row_ids(row_ids: list[str], auth: AuthContext, document_id: str = "doctrine_review_tracker") -> list[SourceChunk]:
     if not row_ids:
         return []
     with Session(engine) as session:
         chunks = session.exec(
             select(Chunk)
-            .where(Chunk.document_id == "doctrine_review_tracker")
+            .where(Chunk.document_id == document_id)
             .where(Chunk.row_id.in_(row_ids))
             .order_by(Chunk.chunk_index)
         ).all()
@@ -679,7 +898,7 @@ def _table_sources_by_row_ids(row_ids: list[str], auth: AuthContext) -> list[Sou
                     chunk_id=chunk.id,
                     document_id=chunk.document_id,
                     title=chunk.title,
-                    filename="doctrine_review_tracker.csv",
+                    filename=f"{chunk.document_id}.csv",
                     section=chunk.section,
                     page=chunk.page,
                     text=chunk.text,

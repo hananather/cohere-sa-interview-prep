@@ -15,6 +15,16 @@ allowed_roles:
 - planning_lead
 - admin
 created_at: '2026-05-06T00:00:00Z'
+authoritative_rank: 8
+supersedes: []
+superseded_by: []
+cross_references:
+- CLASS-MARK-2025
+- CLASS-ANNEX-B-2025
+applies_to:
+- restricted_annex
+- external_distribution
+not_applicable_to: []
 ---
 
 # Restricted Annex Handling Guide

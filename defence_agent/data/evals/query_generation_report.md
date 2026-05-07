@@ -1,30 +1,30 @@
 # Query Generation Report
 
-Generated 173 broad eval cases from a traceable template bank.
+Generated 273 broad eval cases from a traceable template bank.
 
 ## Counts By Task Type
 
-- adversarial: 10
-- answer: 17
-- bilingual: 18
-- compare: 12
-- demo_candidate: 12
-- find: 13
-- permission_sensitive: 14
-- refuse_or_clarify: 11
-- scanned_ocr: 8
-- structured_analysis: 18
-- summarize: 12
-- synthesize: 14
-- verify: 14
+- adversarial: 18
+- answer: 25
+- bilingual: 25
+- compare: 20
+- demo_candidate: 18
+- find: 23
+- permission_sensitive: 22
+- refuse_or_clarify: 16
+- scanned_ocr: 13
+- structured_analysis: 28
+- summarize: 19
+- synthesize: 24
+- verify: 22
 
 ## Counts By Complexity
 
-- L1: 41
-- L2: 47
-- L3: 26
-- L4: 56
-- L5: 3
+- L1: 45
+- L2: 70
+- L3: 50
+- L4: 84
+- L5: 24
 
 ## Notes
 

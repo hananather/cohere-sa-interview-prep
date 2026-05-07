@@ -4,7 +4,23 @@ PB-SOP-2024,Planning Brief Approval SOP,planning_brief_approval,Planning Policy 
 PB-SOP-2026-DRAFT,Planning Brief Approval SOP,planning_brief_approval,Planning Policy Directorate,draft,2026-04-01,2026-12-31,public_internal,en
 PB-CHK-2025,Planning Brief Evidence Checklist,planning_brief_checklist,Planning Policy Directorate,approved,2025-02-01,2026-08-01,public_internal,en
 EC-PROC-2025,Emergency Communications Procedure,emergency_communications,Emergency Coordination Office,approved,2025-06-01,2026-04-01,public_internal,en
-EC-PROC-2025-FR,Procedure de communications d'urgence,emergency_communications,Emergency Coordination Office,approved,2025-06-01,2026-04-01,public_internal,fr
+EC-PROC-2025-FR,Procedure de communications d'urgence,emergency_communications,Bureau de coordination des urgences,approved,2025-06-01,2026-04-01,public_internal,fr
 ANNEX-HANDLING-2025,Restricted Annex Handling Guide,annex_handling,Records and Security Office,approved,2025-07-01,2026-06-30,restricted,en
 LOG-RET-2025,Evidence and Decision Log Retention Procedure,evidence_log_retention,Records Management Office,approved,2025-01-15,2026-01-30,public_internal,en
 SCANNED-MANUAL-EXCERPT-1999,Legacy Field Manual Excerpt,legacy_manual,Archives,superseded,1999-03-01,2000-03-01,public_internal,en
+JPD-2025,Joint Planning Doctrine,joint_planning_doctrine,Joint Planning Office,approved,2025-03-01,2026-09-30,public_internal,en
+JPD-2024,Joint Planning Doctrine,joint_planning_doctrine,Joint Planning Office,superseded,2024-02-01,2025-02-01,public_internal,en
+JPD-2026-DRAFT,Joint Planning Doctrine,joint_planning_doctrine,Joint Planning Office,draft,2026-04-15,2026-12-31,public_internal,en
+IC-MOU-2025,Interagency Coordination Memorandum of Understanding,interagency_coordination,Interagency Coordination Secretariat,approved,2025-04-01,2026-10-31,public_internal,en
+IC-CONOPS-2025,Interagency Emergency Planning CONOPS,interagency_coordination,Interagency Coordination Secretariat,approved,2025-04-15,2026-11-30,public_internal,en
+IC-ANNEX-DATA-2025,Interagency Data Sharing Annex,interagency_data_sharing,Interagency Coordination Secretariat,approved,2025-05-01,2026-11-30,restricted,en
+PR-GUIDE-2025,Public Release and Disclosure Guide,public_release,Public Affairs and Disclosure Office,approved,2025-03-20,2026-09-15,public_internal,en
+PR-CHECKLIST-2025,Public Release Checklist,public_release_checklist,Public Affairs and Disclosure Office,approved,2025-03-20,2026-09-15,public_internal,en
+PR-GUIDE-2023,Public Release and Disclosure Guide,public_release,Public Affairs and Disclosure Office,superseded,2023-05-01,2024-05-01,public_internal,en
+PR-GUIDE-2025-FR,Guide de diffusion publique et de divulgation,public_release,Bureau des affaires publiques et de la divulgation,approved,2025-03-20,2026-09-15,public_internal,fr
+CLASS-MARK-2025,Classification and Marking Standard,classification_marking,Records and Security Office,approved,2025-02-15,2026-07-31,public_internal,en
+CLASS-ERRATA-2025,Classification Standard Errata,classification_marking,Records and Security Office,approved,2025-05-10,2026-07-31,public_internal,en
+CLASS-ANNEX-B-2025,Classification Annex B Handling Notes,classification_marking,Records and Security Office,approved,2025-02-15,2026-07-31,restricted,en
+READINESS-DIR-2025,Readiness Evidence Directive,readiness_evidence,Readiness Secretariat,approved,2025-03-05,2026-10-15,public_internal,en
+FIELD-MANUAL-2008-SCAN,Field Planning Manual Scanned Excerpt,legacy_manual,Archives,superseded,2008-06-01,2009-06-01,public_internal,en
+SUPERSESSION-BULLETIN-2025,Doctrine Supersession Bulletin,supersession_bulletin,Doctrine Stewardship Office,approved,2025-08-01,2026-12-31,public_internal,en

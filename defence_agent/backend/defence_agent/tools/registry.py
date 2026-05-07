@@ -13,7 +13,7 @@ from defence_agent.auth.context import AuthContext
 from defence_agent.auth.policy import policy_engine
 from defence_agent.config import get_settings
 from defence_agent.db import engine
-from defence_agent.ingestion.indexer import document_registry_status
+from defence_agent.ingestion.indexer import TABLE_DOCUMENT_METADATA, document_registry_status
 from defence_agent.models import Chunk, Feedback
 from defence_agent.observability.metrics import TOOL_COUNT, UNAUTHORIZED_ATTEMPTS
 from defence_agent.observability.plugins import plugin_manager
@@ -322,28 +322,30 @@ class ToolRegistry:
 
     def _get_table(self, payload: BaseModel, auth: AuthContext, trace_id: str) -> dict[str, Any]:
         data = payload.model_dump()
-        if data["table_name"] != "doctrine_review_tracker":
+        table_name = data["table_name"]
+        if table_name not in TABLE_DOCUMENT_METADATA:
             raise ValueError(f"Unknown table: {data['table_name']}")
         with Session(engine) as session:
             chunks = session.exec(
                 select(Chunk)
-                .where(Chunk.document_id == "doctrine_review_tracker")
+                .where(Chunk.document_id == table_name)
                 .order_by(Chunk.chunk_index)
             ).all()
         rows: list[dict[str, Any]] = []
         for chunk in chunks:
             if not policy_engine.can_access_chunk(auth, chunk):
                 continue
-            row = _tracker_text_to_row(chunk)
+            row = _table_chunk_to_row(chunk)
             if _row_matches(row, data.get("filters") or {}):
                 rows.append(row)
+        table_metadata = TABLE_DOCUMENT_METADATA[table_name]
         return {
-            "dataset_id": "doctrine_review_tracker",
+            "dataset_id": table_name,
             "row_count": len(rows),
             "rows": rows,
             "source": {
-                "document_id": "doctrine_review_tracker",
-                "title": "Doctrine Review Tracker",
+                "document_id": table_name,
+                "title": table_metadata["title"],
                 "access": "authorized_rows_only",
             },
         }
@@ -512,6 +514,27 @@ def _tracker_text_to_row(chunk: Chunk) -> dict[str, Any]:
     return row
 
 
+def _table_chunk_to_row(chunk: Chunk) -> dict[str, Any]:
+    if chunk.document_id == "doctrine_review_tracker":
+        row = _tracker_text_to_row(chunk)
+    else:
+        pairs = re.findall(r"([A-Za-z0-9_]+)=([^.]*)\.", chunk.text)
+        row = {key: _coerce(value.strip()) for key, value in pairs}
+        row.setdefault("row_id", chunk.row_id)
+        row.setdefault("doc_id", chunk.document_id)
+        row.setdefault("title", chunk.title)
+        row.setdefault("owner", chunk.owner)
+        row.setdefault("status", chunk.status)
+        row.setdefault("effective_date", chunk.effective_date)
+        row.setdefault("next_review_due", chunk.review_due)
+        row.setdefault("access_level", chunk.classification)
+        row.setdefault("language", chunk.language)
+        row.setdefault("doc_family", chunk.doc_family)
+    row["row_id"] = chunk.row_id
+    row["source_table"] = chunk.document_id
+    return row
+
+
 def _row_matches(row: dict[str, Any], filters: dict[str, Any]) -> bool:
     for key, expected in filters.items():
         if isinstance(expected, list):
@@ -575,10 +598,47 @@ result = {
 """.strip()
 
 
+DEFAULT_READINESS_ANALYSIS_CODE = """
+df = pd.DataFrame(input_data["rows"])
+df["readiness_percent"] = df["readiness_percent"].astype(float)
+df["threshold_percent"] = df["threshold_percent"].astype(float)
+below = df[df["readiness_percent"] < df["threshold_percent"]].copy()
+below["points_below_threshold"] = (below["threshold_percent"] - below["readiness_percent"]).astype(int)
+grouped = (
+    below.groupby("owner")
+    .agg(units_below_threshold=("unit_id", "count"), max_points_below=("points_below_threshold", "max"))
+    .reset_index()
+    .sort_values(["max_points_below", "owner"], ascending=[False, True])
+)
+result = {
+    "analysis_type": "readiness_below_threshold",
+    "today": input_data["today"],
+    "rows": below[["row_id", "unit_id", "unit_name", "owner", "readiness_percent", "threshold_percent", "points_below_threshold", "linked_doc_id"]].to_dict("records"),
+    "grouped": grouped.to_dict("records"),
+    "row_ids": below["row_id"].tolist(),
+}
+""".strip()
+
+
+DEFAULT_TABLE_ROWS_CODE = """
+df = pd.DataFrame(input_data["rows"])
+result = {
+    "analysis_type": "table_rows",
+    "today": input_data["today"],
+    "rows": df.to_dict("records"),
+    "row_ids": df["row_id"].tolist() if "row_id" in df.columns else [],
+}
+""".strip()
+
+
 def _analysis_code_for_goal(goal: str) -> str:
     lowered = goal.lower()
+    if "readiness" in lowered or "below threshold" in lowered or "threshold" in lowered:
+        return DEFAULT_READINESS_ANALYSIS_CODE
     if "count approved" in lowered and "owner" in lowered:
         return DEFAULT_COUNT_APPROVED_BY_OWNER_CODE
+    if "approval" in lowered or "corrective" in lowered or "annex inventory" in lowered or "annexes" in lowered:
+        return DEFAULT_TABLE_ROWS_CODE
     return DEFAULT_OVERDUE_ANALYSIS_CODE
 
 
