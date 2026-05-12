@@ -1,0 +1,187 @@
+suite: agentic_rag_demo_registry
+description: Presentation-ready backend demo cases for the ADK-first Defence Agent harness.
+notes:
+  - Primary cases are kept small enough for live rehearsal.
+  - query_variants are tracked for coverage and can be run with --include-variants.
+  - Expected facets check retrieval completeness, not only whether one expected document appeared.
+cases:
+  - id: flagship_planning_brief_modernization
+    persona_id: clearance_unclassified
+    query: I am preparing a planning brief. First search Canada's defence policy for AI-enabled modernization. Then search the DND/CAF AI Strategy for AI-enabled modernization. Compare both and cite the strongest source pages.
+    expected_doc_ids:
+      - CA-DEF-POL-2024-EN
+      - CA-AI-STRAT-2024-EN
+    expected_source_types:
+      - official_public_pdf
+    expected_facets:
+      - id: defence_policy_modernization
+        expected_doc_ids:
+          - CA-DEF-POL-2024-EN
+        min_sources: 1
+      - id: ai_strategy_modernization
+        expected_doc_ids:
+          - CA-AI-STRAT-2024-EN
+        min_sources: 1
+    min_search_calls: 1
+    min_citations: 2
+    demo_point: Multi-document planning brief with cited public evidence.
+    query_variants:
+      - Compare Canada's defence policy with the DND/CAF AI Strategy on AI modernization for a planning brief.
+      - For senior planners, summarize how defence policy and the AI Strategy connect AI to modernization.
+      - Which source pages best explain AI-enabled modernization across Canada's defence policy and AI Strategy?
+      - I need a concise planning note comparing AI modernization language in the defence policy and AI Strategy.
+
+  - id: sequential_ai_governance_overlap
+    persona_id: clearance_unclassified
+    query: First find the DND/CAF AI Strategy's main lines of effort. Then search for Canada's defence-policy modernization priorities and compare the overlap for a planning audience.
+    expected_doc_ids:
+      - CA-AI-STRAT-2024-EN
+      - CA-DEF-POL-2024-EN
+    expected_source_types:
+      - official_public_pdf
+    expected_facets:
+      - id: ai_strategy_lines_of_effort
+        expected_doc_ids:
+          - CA-AI-STRAT-2024-EN
+        min_sources: 2
+      - id: defence_policy_priorities
+        expected_doc_ids:
+          - CA-DEF-POL-2024-EN
+        min_sources: 1
+    min_search_calls: 2
+    min_citations: 2
+    demo_point: Sequential retrieval where the second search depends on the planning comparison.
+    query_variants:
+      - Find the AI Strategy lines of effort, then compare them with Canada's defence-policy modernization priorities.
+      - Start with the DND/CAF AI Strategy lines of effort, then connect them to defence-policy priorities for planners.
+      - Identify the AI Strategy lines of effort first, then look up where the defence policy overlaps.
+      - Build a planning comparison by first finding AI Strategy lines of effort and then defence policy modernization priorities.
+
+  - id: multi_query_nato_and_ai_priorities
+    persona_id: clearance_unclassified
+    query: For a planning update, find the current source pages for NATO's core tasks and Canada's AI strategy priorities, then summarize both.
+    expected_doc_ids:
+      - NATO-STRAT-CONCEPT-2022-EN
+      - CA-AI-STRAT-2024-EN
+    expected_source_types:
+      - official_public_pdf
+    expected_facets:
+      - id: nato_core_tasks
+        expected_doc_ids:
+          - NATO-STRAT-CONCEPT-2022-EN
+        allowed_alt_doc_ids:
+          - NATO-STRAT-CONCEPT-2022-FR
+        min_sources: 1
+      - id: ai_strategy_priorities
+        expected_doc_ids:
+          - CA-AI-STRAT-2024-EN
+        min_sources: 1
+    min_search_calls: 2
+    min_citations: 2
+    demo_point: Multi-query retrieval in one planning step.
+    query_variants:
+      - Find source pages for NATO core tasks and Canadian AI Strategy priorities for a planning update.
+      - Summarize NATO's core tasks and Canada's AI Strategy priorities with the strongest cited pages.
+      - For planners, retrieve the current evidence for NATO core tasks and DND/CAF AI priorities.
+      - Gather the source pages for NATO alliance tasks and Canadian defence AI priorities.
+
+  - id: natural_multilingual_nato_core_tasks
+    persona_id: clearance_unclassified
+    query: What core tasks does NATO assign to the Alliance in its Strategic Concept, and why do they matter for a Canadian planning brief?
+    expected_doc_ids:
+      - NATO-STRAT-CONCEPT-2022-EN
+    allowed_alt_doc_ids:
+      - NATO-STRAT-CONCEPT-2022-FR
+    expected_source_types:
+      - official_public_pdf
+    expected_facets:
+      - id: nato_core_tasks_language_agnostic
+        expected_doc_ids:
+          - NATO-STRAT-CONCEPT-2022-EN
+        allowed_alt_doc_ids:
+          - NATO-STRAT-CONCEPT-2022-FR
+        min_sources: 1
+    min_search_calls: 1
+    min_citations: 2
+    demo_point: Language-agnostic retrieval across the bilingual corpus without telling the user to request French.
+    query_variants:
+      - What are NATO's core tasks in the Strategic Concept, and how should Canadian planners interpret them?
+      - Explain NATO's core tasks for a Canadian planning audience using the Strategic Concept.
+      - Which NATO Strategic Concept pages define the Alliance's core tasks?
+      - What does the NATO Strategic Concept say the Alliance must do, and why is that relevant to Canada?
+
+  - id: acl_unclassified_sensor_fusion_release_rule
+    persona_id: clearance_unclassified
+    query: For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?
+    expected_excluded_doc_ids:
+      - SYN-FUSION-S-RELEASE-001
+    expected_refusal: true
+    expected_documents_sent_to_model: 0
+    forbidden_answer_facts:
+      - "0.7342"
+    min_search_calls: 1
+    min_citations: 0
+    demo_point: Unauthorized persona gets a refusal because the matching evidence is denied before generation.
+    query_variants:
+      - What should staff check before sharing a sensor-fusion candidate observation?
+      - Can planning staff share a candidate observation from the sensor-fusion workflow?
+      - What release rule applies before a candidate observation is sent outside the planning cell?
+      - What does the workflow require before staff share new sensor-fusion observations?
+
+  - id: acl_secret_sensor_fusion_release_rule
+    persona_id: clearance_secret
+    query: For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?
+    expected_doc_ids:
+      - SYN-FUSION-S-RELEASE-001
+    expected_source_types:
+      - synthetic_pdf
+    expected_facets:
+      - id: sensor_fusion_release_rule
+        expected_doc_ids:
+          - SYN-FUSION-S-RELEASE-001
+        min_sources: 2
+        expected_pages:
+          - doc_id: SYN-FUSION-S-RELEASE-001
+            pages: [1, 2, 3]
+    expected_answer_facts:
+      - "0.7342"
+    min_search_calls: 1
+    min_citations: 1
+    demo_point: Authorized persona gets the restricted workflow rule with source traceability.
+    query_variants:
+      - What should staff check before sharing a sensor-fusion candidate observation?
+      - Can planning staff share a candidate observation from the sensor-fusion workflow?
+      - What release rule applies before a candidate observation is sent outside the planning cell?
+      - What does the workflow require before staff share new sensor-fusion observations?
+
+  - id: trace_follow_up_source_access
+    persona_id: clearance_secret
+    query: For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?
+    follow_up: Which source page supports that, and what access level was required?
+    expected_doc_ids:
+      - SYN-FUSION-S-RELEASE-001
+    expected_source_types:
+      - synthetic_pdf
+    expected_follow_up_mode: answer_audit_lookup
+    min_search_calls: 1
+    min_citations: 1
+    demo_point: Source/access follow-up is answered from prior audit metadata instead of a fresh unrelated search.
+    query_variants:
+      - query: What source supports the sensor-fusion release rule, and what access level did it require?
+        follow_up: Show the source page and access level for that answer.
+      - query: Which document page backed the observation-sharing rule?
+        follow_up: What source and clearance level supported the previous answer?
+
+  - id: insufficient_evidence_planning_topic
+    persona_id: clearance_unclassified
+    query: What does the corpus say about the approved Arctic submarine basing schedule for 2031?
+    expected_refusal: true
+    expected_documents_sent_to_model: 0
+    min_search_calls: 1
+    min_citations: 0
+    demo_point: The assistant should refuse when authorized evidence does not support the requested planning claim.
+    query_variants:
+      - What is the approved 2031 submarine basing schedule in the planning corpus?
+      - Which source page gives the Arctic submarine basing date for 2031?
+      - Summarize the approved submarine basing timeline for 2031 from the available doctrine.
+      - What official page confirms the 2031 Arctic submarine basing plan?

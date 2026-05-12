@@ -1,4 +1,0 @@
-action_id,unit_id,unit_name,owner,linked_doc_id,issue,severity,due_date,status,access_level,language
-CA-001,U-210,Emergency Communications Desk,Emergency Coordination Office,EC-PROC-2025,Update distribution list evidence before director approval,medium,2026-05-10,open,public_internal,en
-CA-002,U-305,Interagency Liaison Desk,Interagency Coordination Secretariat,IC-CONOPS-2025,Confirm partner contact list and release boundary,high,2026-05-09,open,public_internal,en
-CA-003,U-305,Interagency Liaison Desk,Records and Security Office,IC-ANNEX-DATA-2025,Restricted data sharing review required,high,2026-05-09,restricted_open,restricted,en

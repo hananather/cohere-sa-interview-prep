@@ -1,0 +1,161 @@
+schema_version: 1
+description: Mixed public, DOCX-origin normalized PDF, and synthetic restricted PDF page corpus for bilingual retrieval and ACL demos.
+documents:
+  - doc_id: CA-DEF-POL-2024-EN
+    path: public/our_north_strong_free_2024_en.pdf
+    title: "Our North, Strong and Free: A Renewed Vision for Canada's Defence"
+    title_fr: "Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada"
+    doc_family: canada_defence_policy
+    version: "2024"
+    status: approved
+    effective_date: "2024-04-08"
+    owner: Department of National Defence
+    access_level: unclassified
+    allowed_roles: [all]
+    language: en
+    source_type: official_public_pdf
+    source_organization: Government of Canada
+    canonical_url: https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html
+    source_url: https://www.canada.ca/content/dam/dnd-mdn/documents/corporate/reports-publications/2024/north-strong-free-2024-v2.pdf
+    retrieved_date: "2026-05-10"
+    paired_doc_id: CA-DEF-POL-2024-FR
+  - doc_id: CA-DEF-POL-2024-FR
+    path: public/notre_nord_fort_libre_2024_fr.pdf
+    title: "Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada"
+    title_en: "Our North, Strong and Free: A Renewed Vision for Canada's Defence"
+    doc_family: canada_defence_policy
+    version: "2024"
+    status: approved
+    effective_date: "2024-04-08"
+    owner: Department of National Defence
+    access_level: unclassified
+    allowed_roles: [all]
+    language: fr
+    source_type: official_public_pdf
+    source_organization: Government of Canada
+    canonical_url: https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html
+    source_url: https://www.canada.ca/content/dam/dnd-mdn/documents/corporate/reports-publications/2024/nord-fort-libre-2024-v2.pdf
+    retrieved_date: "2026-05-10"
+    paired_doc_id: CA-DEF-POL-2024-EN
+  - doc_id: CA-AI-STRAT-2024-EN
+    path: public/dnd_caf_ai_strategy_2024_en.pdf
+    title: The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy
+    title_fr: "La stratégie d'intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes"
+    doc_family: dnd_caf_ai_strategy
+    version: "2024"
+    status: approved
+    effective_date: "2024-03-07"
+    owner: Department of National Defence
+    access_level: unclassified
+    allowed_roles: [all]
+    language: en
+    source_type: official_public_pdf
+    source_organization: Government of Canada
+    canonical_url: https://publications.gc.ca/site/eng/9.914595/publication.html
+    source_url: https://www.canada.ca/content/dam/dnd-mdn/documents/reports/ai-ia/dndcaf-ai-strategy.pdf
+    retrieved_date: "2026-05-10"
+    paired_doc_id: CA-AI-STRAT-2024-FR
+  - doc_id: CA-AI-STRAT-2024-FR
+    path: public/dnd_caf_ai_strategy_2024_fr.pdf
+    title: "La stratégie d'intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes"
+    title_en: The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy
+    doc_family: dnd_caf_ai_strategy
+    version: "2024"
+    status: approved
+    effective_date: "2024-03-07"
+    owner: Department of National Defence
+    access_level: unclassified
+    allowed_roles: [all]
+    language: fr
+    source_type: official_public_pdf
+    source_organization: Government of Canada
+    canonical_url: https://publications.gc.ca/site/eng/9.914595/publication.html
+    source_url: https://www.canada.ca/content/dam/dnd-mdn/documents/reports/ai-ia/mdnfac-strategie-ia.pdf
+    retrieved_date: "2026-05-10"
+    paired_doc_id: CA-AI-STRAT-2024-EN
+  - doc_id: NATO-STRAT-CONCEPT-2022-EN
+    path: public/nato_strategic_concept_2022_en.pdf
+    title: NATO 2022 Strategic Concept
+    title_fr: "Concept stratégique 2022 de l'OTAN"
+    doc_family: nato_strategic_concept
+    version: "2022"
+    status: approved
+    effective_date: "2022-06-29"
+    owner: NATO
+    access_level: unclassified
+    allowed_roles: [all]
+    language: en
+    source_type: official_public_pdf
+    source_organization: NATO
+    canonical_url: https://www.nato.int/fr/about-us/official-texts-and-resources/official-texts/2023/03/03/nato-2022-strategic-concept
+    source_url: https://www.nato.int/content/dam/nato/webready/documents/publications-and-reports/strategic-concepts/2022/290622-strategic-concept.pdf
+    retrieved_date: "2026-05-10"
+    paired_doc_id: NATO-STRAT-CONCEPT-2022-FR
+  - doc_id: NATO-STRAT-CONCEPT-2022-FR
+    path: public/nato_strategic_concept_2022_fr.pdf
+    title: "Concept stratégique 2022 de l'OTAN"
+    title_en: NATO 2022 Strategic Concept
+    doc_family: nato_strategic_concept
+    version: "2022"
+    status: approved
+    effective_date: "2022-06-29"
+    owner: NATO
+    access_level: unclassified
+    allowed_roles: [all]
+    language: fr
+    source_type: official_public_pdf
+    source_organization: NATO
+    canonical_url: https://www.nato.int/fr/about-us/official-texts-and-resources/official-texts/2023/03/03/nato-2022-strategic-concept
+    source_url: https://www.nato.int/content/dam/nato/webready/documents/publications-and-reports/strategic-concepts/2022/290622-strategic-concept-fr.pdf
+    retrieved_date: "2026-05-10"
+    paired_doc_id: NATO-STRAT-CONCEPT-2022-EN
+  - doc_id: UK-MOD-ASOEM-2023-EN
+    path: public/uk_mod_asoem_issue_2.pdf
+    title: Aviation Safe Operating Environment Manual
+    doc_family: uk_mod_aviation_safe_operating_environment_manual
+    version: "Issue 2"
+    status: approved
+    effective_date: "2023-12-04"
+    owner: Ministry of Defence and Military Aviation Authority
+    access_level: unclassified
+    allowed_roles: [all]
+    language: en
+    source_type: official_public_docx_origin_pdf
+    source_format: docx
+    normalized_format: pdf
+    normalization_method: official_pdf_pair
+    source_organization: UK Ministry of Defence and Military Aviation Authority
+    canonical_url: https://www.gov.uk/government/publications/aviation-safe-operating-environment-manual-asoem
+    source_url: https://assets.publishing.service.gov.uk/media/656da8b20f12ef070e3e0144/ASOEM_Issue_2.pdf
+    source_pdf_url: https://assets.publishing.service.gov.uk/media/656da8b20f12ef070e3e0144/ASOEM_Issue_2.pdf
+    source_docx_url: https://assets.publishing.service.gov.uk/media/656da8951104cf0013fa740b/ASOEM_Issue_2.docx
+    source_docx_sha256: 0b9c364fe745e9e021aa3cbba66cb59c3a155f634c0c463e29354ad045a3ff06
+    normalized_pdf_sha256: 5e0579ced18751fd4ee526517e5500d72af05fd5a68581f2943bf7c41a063a67
+    retrieved_date: "2026-05-11"
+    provenance_note: "Official MS Word source represented through the publisher's official open-format PDF pair for the normalized page-evidence pipeline."
+  - doc_id: SYN-FUSION-S-RELEASE-001
+    path: synthetic/fusion_model_release_control.pdf
+    title: Fusion Model Release Control Procedure
+    doc_family: synthetic_fusion_model_acl_eval
+    version: "2026"
+    status: approved
+    owner: Synthetic Exercise Control
+    access_level: secret
+    allowed_roles: [all]
+    language: en
+    source_type: synthetic_pdf
+    synthetic: true
+    synthetic_notice: "Fictional demo artifact. Notice kept outside indexed PDF text in synthetic/README.md."
+  - doc_id: SYN-FUSION-TS-ANNEX-002
+    path: synthetic/fusion_model_restricted_routing_annex.pdf
+    title: Fusion Model Restricted Routing Annex
+    doc_family: synthetic_fusion_model_acl_eval
+    version: "2026"
+    status: approved
+    owner: Synthetic Exercise Control
+    access_level: top_secret
+    allowed_roles: [all]
+    language: en
+    source_type: synthetic_pdf
+    synthetic: true
+    synthetic_notice: "Fictional demo artifact. Notice kept outside indexed PDF text in synthetic/README.md."

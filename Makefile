@@ -1,34 +1,42 @@
-.PHONY: install test eval eval-validate eval-advanced eval-compare eval-demo run smoke verify compose
+.PHONY: install test test-offline-full test-live index index-force registry registry-live run run-adk cli smoke-live verify verify-live
 
 install:
 	python -m pip install -e ".[dev]"
 
 test:
-	USE_MOCK_COHERE=true python -m pytest
+	python -m pytest defence_agent/tests/
 
-eval:
-	USE_MOCK_COHERE=true python -c "from defence_agent.evals.runner import eval_runner; print(eval_runner.run().metrics)"
+test-offline-full:
+	python -m pytest defence_agent/tests/ --run-slow-offline --durations=10
 
-eval-validate:
-	PYTHONPATH=defence_agent/backend USE_MOCK_COHERE=true python defence_agent/scripts/run_eval_harness.py validate
+test-live:
+	python -m pytest defence_agent/tests/ --run-live --run-slow-offline -m live --durations=10
 
-eval-advanced:
-	PYTHONPATH=defence_agent/backend USE_MOCK_COHERE=true python defence_agent/scripts/run_eval_harness.py run --suite canonical --mode fixture
+index:
+	python defence_agent/scripts/build_chroma_index.py
 
-eval-compare:
-	PYTHONPATH=defence_agent/backend USE_MOCK_COHERE=true python defence_agent/scripts/run_eval_harness.py compare --suite canonical --limit 24
+index-force:
+	python defence_agent/scripts/build_chroma_index.py --force
 
-eval-demo:
-	PYTHONPATH=defence_agent/backend USE_MOCK_COHERE=true python defence_agent/scripts/run_eval_harness.py select-demo --mode fixture --runs 3
+registry-live:
+	python defence_agent/scripts/run_demo_query_registry.py --no-fail
+
+registry: registry-live
 
 run:
-	defence_agent/scripts/run_demo.sh
+	streamlit run streamlit_app.py --server.port 8501
 
-smoke:
-	python defence_agent/scripts/smoke_demo.py
+run-adk:
+	./defence_agent/scripts/run_adk_agent.sh
 
-verify: test eval eval-validate eval-advanced eval-compare eval-demo
-	@echo "Run 'defence_agent/scripts/run_demo.sh' in another terminal, then 'make smoke' for live HTTP checks."
+cli:
+	python defence_agent/scripts/run_agent_session.py \
+		"What are the DND CAF AI Strategy lines of effort?" \
+		--persona clearance_unclassified
 
-compose:
-	docker compose up --build
+smoke-live:
+	python defence_agent/scripts/smoke_cohere_chroma_live.py
+
+verify: test-offline-full
+
+verify-live: index test-live registry-live

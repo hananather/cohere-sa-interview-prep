@@ -1,0 +1,47 @@
+suite: acl_mixed_corpus
+access_order:
+  - unclassified
+  - secret
+  - top_secret
+cases:
+  - id: unclassified_cannot_answer_fusion_release_threshold
+    persona_id: clearance_unclassified
+    query: For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?
+    expected_visible_access:
+      - unclassified
+    expected_excluded_doc_ids:
+      - SYN-FUSION-S-RELEASE-001
+    expected_refusal: I do not have enough authorized evidence to answer.
+    forbidden_answer_facts:
+      - "0.7342"
+  - id: secret_can_answer_fusion_release_threshold
+    persona_id: clearance_secret
+    query: For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?
+    expected_visible_doc_ids:
+      - SYN-FUSION-S-RELEASE-001
+    expected_visible_access:
+      - unclassified
+      - secret
+    expected_answer_facts:
+      - "0.7342"
+    expected_excluded_access:
+      - top_secret
+  - id: secret_cannot_answer_restricted_routing_codeword
+    persona_id: clearance_secret
+    query: What routing codeword opens the restricted relay path for the Fusion Model?
+    expected_excluded_doc_ids:
+      - SYN-FUSION-TS-ANNEX-002
+    expected_refusal: I do not have enough authorized evidence to answer.
+    forbidden_answer_facts:
+      - LANTERNVAULT917
+  - id: top_secret_can_answer_restricted_routing_codeword
+    persona_id: clearance_top_secret
+    query: What routing codeword opens the restricted relay path for the Fusion Model?
+    expected_visible_doc_ids:
+      - SYN-FUSION-TS-ANNEX-002
+    expected_visible_access:
+      - unclassified
+      - secret
+      - top_secret
+    expected_answer_facts:
+      - LANTERNVAULT917

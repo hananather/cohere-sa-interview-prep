@@ -1,0 +1,47 @@
+suite: bilingual_mixed_corpus
+requires_live_cohere: true
+note: Live Embed v4 and Rerank v4 are required to validate multilingual retrieval.
+cases:
+  - id: en_to_en_ai_strategy
+    persona_id: clearance_unclassified
+    query_language: en
+    source_language: en
+    answer_language: en
+    query: What are the DND CAF AI Strategy lines of effort?
+    expected_doc_ids:
+      - CA-AI-STRAT-2024-EN
+    disallowed_access_levels:
+      - secret
+      - top_secret
+  - id: fr_to_fr_nato_concept
+    persona_id: clearance_unclassified
+    query_language: fr
+    source_language: fr
+    answer_language: fr
+    query: Quelles sont les taches fondamentales de l OTAN dans le concept strategique?
+    expected_doc_ids:
+      - NATO-STRAT-CONCEPT-2022-FR
+    disallowed_access_levels:
+      - secret
+      - top_secret
+  - id: language_agnostic_nato_concept
+    persona_id: clearance_unclassified
+    query_language: en
+    source_language: any
+    answer_language: en
+    query: What core tasks does NATO assign to the Alliance in its Strategic Concept, and why do they matter for a Canadian planning brief?
+    expected_doc_ids:
+      - NATO-STRAT-CONCEPT-2022-EN
+    allowed_alt_doc_ids:
+      - NATO-STRAT-CONCEPT-2022-FR
+    citation_rule: Preserve the retrieved source language in citations.
+  - id: fr_to_en_ai_strategy
+    persona_id: clearance_unclassified
+    query_language: fr
+    source_language: en
+    answer_language: fr
+    query: Utilisez les sources anglaises. Quels sont les axes d effort de la strategie IA du MDN et des FAC?
+    search_language: en
+    expected_doc_ids:
+      - CA-AI-STRAT-2024-EN
+    citation_rule: Preserve the English source excerpt verbatim in citations.

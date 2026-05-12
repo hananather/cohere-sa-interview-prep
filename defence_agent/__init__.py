@@ -1,0 +1,1 @@
+"""Defence Agent ADK package."""

@@ -9,10 +9,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      USE_MOCK_COHERE: "true"
+      COHERE_API_KEY: test-key-for-offline-tests
       COHERE_CHAT_MODEL: command-a-03-2025
       COHERE_EMBED_MODEL: embed-v4.0
-      COHERE_RERANK_MODEL: rerank-v3.5
+      COHERE_RERANK_MODEL: rerank-v4.0-pro
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
