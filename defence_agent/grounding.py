@@ -190,6 +190,7 @@ def _grounding_system_message(
         "Do not emit XML, HTML, <co> tags, footnotes, or custom citation markup. "
         "Return plain text only; the application will render citation markers. "
         "For comparisons, cite each document that supports the comparison. "
+        "When English and French sources both support the answer, cite both source languages where natural. "
         "If the provided documents do not support the answer, say that evidence is insufficient in one short sentence."
     )
     if citation_repair_feedback:

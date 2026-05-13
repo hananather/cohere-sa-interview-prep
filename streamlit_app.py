@@ -69,7 +69,7 @@ DEMO_QUERIES = {
     ),
     "French NATO doctrine answer": DemoQuery(
         "Quelles taches fondamentales l'OTAN attribue-t-elle a l'Alliance dans son Concept strategique, et pourquoi sont-elles importantes pour un brief de planification canadien?",
-        "Answer in French while allowing English and French source pages.",
+        "French answer that highlights English and French NATO source pages.",
         target_answer_language="fr",
         live_only=True,
     ),
@@ -248,8 +248,6 @@ def _render_query_controls() -> UiPersona:
             key="selected_example",
             on_change=_sync_selected_demo_query,
         )
-        if st.button("Load query", width="stretch"):
-            _sync_selected_demo_query()
         _render_demo_query_context(selected_example, persona)
 
         with st.expander("Advanced run controls", expanded=False):
@@ -627,6 +625,7 @@ def _run_turn_sync(
 def _render_answer(view_model: DefenceAgentViewModel) -> None:
     with st.container(border=True):
         _render_answer_text(view_model)
+        _render_multilingual_retrieval(view_model)
         _render_citation_pages(view_model)
         _render_selected_evidence(view_model)
         _render_citation_explainer(view_model)
@@ -639,6 +638,73 @@ def _render_answer_text(view_model: DefenceAgentViewModel) -> None:
         st.session_state["stream_answer_once"] = False
         return
     st.markdown(_answer_html_with_inline_citations(view_model), unsafe_allow_html=True)
+
+
+def _render_multilingual_retrieval(view_model: DefenceAgentViewModel) -> None:
+    payload = _multilingual_retrieval_payload(view_model)
+    if payload is None:
+        return
+    st.markdown(_multilingual_retrieval_html(payload), unsafe_allow_html=True)
+
+
+def _multilingual_retrieval_payload(view_model: DefenceAgentViewModel) -> dict[str, object] | None:
+    sent_sources = [source for source in view_model.sources.values() if source.sent_to_model]
+    if not sent_sources:
+        sent_sources = [source for source in view_model.sources.values() if source.authorized_hit]
+    sent_counts = _language_page_counts(sent_sources)
+    if not {"en", "fr"}.issubset(sent_counts):
+        return None
+
+    cited_source_ids = {
+        source_id
+        for citation in view_model.citations
+        for source_id in citation.source_ids
+    }
+    cited_sources = [source for source_id, source in view_model.sources.items() if source_id in cited_source_ids]
+    cited_counts = _language_page_counts(cited_sources)
+    return {
+        "answer_language": _language_label(view_model.target_answer_language),
+        "sent_counts": sent_counts,
+        "cited_counts": cited_counts,
+    }
+
+
+def _language_page_counts(sources: list[SourceView]) -> dict[str, int]:
+    page_keys_by_language: dict[str, set[str]] = {}
+    for source in sources:
+        language = _normalized_source_language(source.language)
+        if language not in {"en", "fr"}:
+            continue
+        key = f"{source.doc_id}:{source.page}:{source.access_level}:{language}"
+        page_keys_by_language.setdefault(language, set()).add(key)
+    return {language: len(keys) for language, keys in page_keys_by_language.items() if keys}
+
+
+def _multilingual_retrieval_html(payload: dict[str, object]) -> str:
+    sent_counts = payload.get("sent_counts", {})
+    cited_counts = payload.get("cited_counts", {})
+    if not isinstance(sent_counts, dict) or not isinstance(cited_counts, dict):
+        return ""
+    sent = _language_count_phrase(sent_counts)
+    cited = _language_count_phrase(cited_counts) if {"en", "fr"}.issubset(cited_counts) else "recorded in trace"
+    return (
+        '<div class="da-language-strip">'
+        '<span class="da-language-title">Multilingual retrieval</span>'
+        f'<span>Answer: {html.escape(str(payload.get("answer_language", "Query language")))}</span>'
+        f"<span>Sources: {html.escape(sent)}</span>"
+        f"<span>Cited: {html.escape(cited)}</span>"
+        "</div>"
+    )
+
+
+def _language_count_phrase(counts: dict[object, object]) -> str:
+    pieces: list[str] = []
+    for language in ("fr", "en"):
+        count = int(counts.get(language, 0) or 0)
+        if count:
+            noun = "page" if count == 1 else "pages"
+            pieces.append(f"{_source_language_label(language)} {count} {noun}")
+    return " + ".join(pieces) if pieces else "none"
 
 
 def _render_answer_trace_panel(view_model: DefenceAgentViewModel) -> None:
@@ -1117,7 +1183,7 @@ def _render_citation_pages(view_model: DefenceAgentViewModel) -> None:
     for page in view_model.evidence_pages:
         span_count = len(page.citation_ids)
         span_label = "1 cited span" if span_count == 1 else f"{span_count} cited spans"
-        button_label = f"{page.display_index}. {page.label}"
+        button_label = f"{page.display_index}. {_evidence_page_button_label(page)}"
         if span_count:
             button_label += f" · {span_label}"
         _render_anchor_button(
@@ -1149,6 +1215,23 @@ def _render_anchor_button(
         f"<a {' '.join(attributes)}>{html.escape(label)}</a>",
         unsafe_allow_html=True,
     )
+
+
+def _evidence_page_button_label(page: EvidencePageView) -> str:
+    title = page.source.title or page.source.doc_id or "Untitled source"
+    source_page = f"p.{page.source.page}" if page.source.page else "page unknown"
+    language = _source_language_label(page.source.language)
+    return f"{title} · {source_page} · {language}"
+
+
+def _source_language_label(language: str) -> str:
+    normalized = _normalized_source_language(language)
+    labels = {"en": "English", "fr": "French"}
+    return labels.get(normalized, str(language or "language unknown"))
+
+
+def _normalized_source_language(language: str) -> str:
+    return str(language or "").strip().lower()
 
 
 def _render_selected_evidence(view_model: DefenceAgentViewModel) -> None:
@@ -1429,7 +1512,7 @@ def _source_caption(source: SourceView, preview) -> str:
         source.doc_id,
         f"p.{source.page}" if source.page else "",
         source.access_level,
-        source.language,
+        _source_language_label(source.language),
     ]
     organization = preview.source_organization or source.source_organization
     if organization:
@@ -1861,6 +1944,30 @@ def _apply_styles() -> None:
         .da-answer p {
             margin: 0 0 0.85rem 0;
         }
+        .da-language-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin: 0.25rem 0 0.9rem;
+        }
+        .da-language-strip span {
+            display: inline-flex;
+            align-items: center;
+            min-height: 1.75rem;
+            padding: 0.22rem 0.52rem;
+            border: 1px solid #deded9;
+            border-radius: 0.5rem;
+            background: #fffefa;
+            color: #2e2f3a;
+            font-size: 0.78rem;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+        .da-language-strip .da-language-title {
+            border-color: #8bc8ae;
+            background: #edf8f3;
+            color: #185b45;
+        }
         .da-inline-cite {
             position: relative;
             display: inline-flex;
@@ -2287,6 +2394,18 @@ def _apply_styles() -> None:
             color: var(--da-near-black);
             font-size: 0.95rem;
             line-height: 1.58;
+        }
+        .da-language-strip span {
+            border-color: var(--da-border);
+            border-radius: var(--da-radius-sm);
+            background: var(--da-panel);
+            color: var(--da-near-black);
+            box-shadow: var(--da-shadow);
+        }
+        .da-language-strip .da-language-title {
+            border-color: #8bc8ae;
+            background: var(--da-pale-green);
+            color: var(--da-green);
         }
         .da-inline-cite {
             border-color: #8bc8ae;

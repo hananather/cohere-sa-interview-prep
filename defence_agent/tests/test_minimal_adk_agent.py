@@ -322,7 +322,7 @@ def test_source_selection_does_not_inject_low_ranked_docs_for_coverage() -> None
         for page in range(1, 7)
     ] + [{"chunk_id": "DOC2_page_001", "doc_id": "DOC2", "rerank_score": 0.01}]
 
-    selected = _select_sources(ranked, top_k=5, query="Compare DOC1 and DOC2 for a planning brief.")
+    selected = _select_sources(ranked, top_k=5)
 
     assert [source["chunk_id"] for source in selected] == [
         "DOC1_page_001",
@@ -330,6 +330,68 @@ def test_source_selection_does_not_inject_low_ranked_docs_for_coverage() -> None
         "DOC1_page_003",
         "DOC1_page_004",
         "DOC1_page_005",
+    ]
+
+
+def test_source_selection_preserves_close_multilingual_evidence() -> None:
+    from defence_agent.retrieval.chroma_index import _select_sources
+
+    ranked = [
+        {
+            "chunk_id": f"NATO-FR_page_{page:03d}",
+            "doc_id": "NATO-FR",
+            "language": "fr",
+            "rerank_score": 1.0 - page / 100,
+        }
+        for page in range(1, 6)
+    ] + [
+        {
+            "chunk_id": "NATO-EN_page_002",
+            "doc_id": "NATO-EN",
+            "language": "en",
+            "rerank_score": 0.94,
+        }
+    ]
+
+    selected = _select_sources(ranked, top_k=5, language="any")
+
+    assert [source["chunk_id"] for source in selected] == [
+        "NATO-FR_page_001",
+        "NATO-FR_page_002",
+        "NATO-FR_page_003",
+        "NATO-FR_page_004",
+        "NATO-EN_page_002",
+    ]
+
+
+def test_source_selection_does_not_force_weak_multilingual_evidence() -> None:
+    from defence_agent.retrieval.chroma_index import _select_sources
+
+    ranked = [
+        {
+            "chunk_id": f"NATO-FR_page_{page:03d}",
+            "doc_id": "NATO-FR",
+            "language": "fr",
+            "rerank_score": 1.0 - page / 100,
+        }
+        for page in range(1, 6)
+    ] + [
+        {
+            "chunk_id": "NATO-EN_page_002",
+            "doc_id": "NATO-EN",
+            "language": "en",
+            "rerank_score": 0.41,
+        }
+    ]
+
+    selected = _select_sources(ranked, top_k=5, language="any")
+
+    assert [source["chunk_id"] for source in selected] == [
+        "NATO-FR_page_001",
+        "NATO-FR_page_002",
+        "NATO-FR_page_003",
+        "NATO-FR_page_004",
+        "NATO-FR_page_005",
     ]
 
 

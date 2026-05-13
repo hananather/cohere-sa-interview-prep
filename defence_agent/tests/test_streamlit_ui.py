@@ -93,7 +93,7 @@ def test_streamlit_demo_replay_renders_single_column_result_without_backend_call
     assert "Cohere-linked answer span" not in captions
     assert app.sidebar.radio[0].label == "Persona"
     assert app.sidebar.selectbox[0].label == "Demo query"
-    assert app.sidebar.button[0].label == "Load query"
+    assert len(app.sidebar.button) == 0
     assert app.sidebar.radio[1].label == "Run mode"
 
 
@@ -207,6 +207,31 @@ def test_inline_answer_html_uses_numeric_links_and_hover_tooltips() -> None:
     assert "p.4" in rendered
     assert "[1]" in rendered
     assert "[C1" not in rendered
+
+
+def test_multilingual_retrieval_summary_counts_english_and_french_pages() -> None:
+    result = _result_from_transcript("natural_multilingual_nato_core_tasks.json")
+    view_model = build_view_model(result, ui_persona_id="persona_a")
+
+    payload = streamlit_app._multilingual_retrieval_payload(view_model)
+    assert payload is not None
+    assert payload["sent_counts"] == {"en": 3, "fr": 5}
+    assert payload["cited_counts"] == {"en": 3, "fr": 5}
+
+    rendered = streamlit_app._multilingual_retrieval_html(payload)
+    assert "Multilingual retrieval" in rendered
+    assert "French 5 pages" in rendered
+    assert "English 3 pages" in rendered
+
+
+def test_evidence_page_buttons_show_source_language_tags() -> None:
+    result = _result_from_transcript("natural_multilingual_nato_core_tasks.json")
+    view_model = build_view_model(result, ui_persona_id="persona_a")
+
+    labels = [streamlit_app._evidence_page_button_label(page) for page in view_model.evidence_pages]
+
+    assert any("NATO 2022 Strategic Concept" in label and "English" in label for label in labels)
+    assert any("Concept stratégique 2022 de l'OTAN" in label and "French" in label for label in labels)
 
 
 def test_evidence_payloads_are_keyed_by_page_for_multi_page_citation() -> None:
@@ -327,7 +352,7 @@ def test_sidebar_contains_demo_controls_without_moving_answer_workflow() -> None
     assert not app.exception
     assert app.sidebar.radio[0].label == "Persona"
     assert app.sidebar.selectbox[0].label == "Demo query"
-    assert app.sidebar.button[0].label == "Load query"
+    assert len(app.sidebar.button) == 0
     assert app.sidebar.radio[1].label == "Run mode"
     assert app.sidebar.checkbox[0].label == "Stream answer display"
     assert app.sidebar.checkbox[0].value is True

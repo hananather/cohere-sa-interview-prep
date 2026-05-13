@@ -21,6 +21,8 @@ from defence_agent.retrieval.embeddings import embed_page_batches, embed_query, 
 from defence_agent.retrieval.index_metadata import COLLECTION_PREFIX, INDEX_VERSION
 
 
+MULTILINGUAL_RERANK_MARGIN = 0.08
+
 _ANSWERABILITY_STOPWORDS = {
     "about",
     "after",
@@ -149,7 +151,7 @@ def search_index(
     for chunk_id, text, metadata, distance in zip(ids, documents, metadatas, distances):
         candidates.append(_authorized_source(chunk_id, text, metadata, distance, len(candidates) + 1))
 
-    authorized_sources = _select_sources(_rerank(query, candidates), top_k)
+    authorized_sources = _select_sources(_rerank(query, candidates), top_k, language=normalized_language)
     for index, source in enumerate(authorized_sources, start=1):
         source["citation_id"] = f"C{index}"
         source["citation"] = f"[C{index}]"
@@ -644,8 +646,13 @@ def _rerank(query: str, candidates: list[dict[str, Any]]) -> list[dict[str, Any]
     return sorted(ranked, key=lambda item: item["rerank_score"] or 0.0, reverse=True)
 
 
-def _select_sources(ranked: list[dict[str, Any]], top_k: int, *, query: str = "") -> list[dict[str, Any]]:
-    """Return the highest-ranked pages without per-document caps."""
+def _select_sources(
+    ranked: list[dict[str, Any]],
+    top_k: int,
+    *,
+    language: str = "any",
+) -> list[dict[str, Any]]:
+    """Return high-ranked pages, preserving close English/French coverage."""
 
     selected: list[dict[str, Any]] = []
     selected_keys: set[str] = set()
@@ -659,7 +666,78 @@ def _select_sources(ranked: list[dict[str, Any]], top_k: int, *, query: str = ""
         selected.append(source)
         selected_keys.add(key)
 
-    return selected
+    if _normalize_language_filter(language) != "any":
+        return selected
+    return _rebalance_multilingual_sources(selected, ranked, top_k)
+
+
+def _rebalance_multilingual_sources(
+    selected: list[dict[str, Any]],
+    ranked: list[dict[str, Any]],
+    top_k: int,
+) -> list[dict[str, Any]]:
+    if top_k < 2 or len(selected) < 2:
+        return selected
+    available_languages = {language for source in ranked if (language := _source_language(source)) in {"en", "fr"}}
+    if not {"en", "fr"}.issubset(available_languages):
+        return selected
+    selected_languages = {language for source in selected if (language := _source_language(source)) in {"en", "fr"}}
+    missing_languages = [language for language in ("en", "fr") if language not in selected_languages]
+    if not missing_languages:
+        return selected
+
+    selected_by_key = {_source_selection_key(source): source for source in selected}
+    top_score = _source_rank_score(ranked[0]) if ranked else 0.0
+    if top_score <= 0.0:
+        return selected
+    score_floor = top_score - MULTILINGUAL_RERANK_MARGIN if top_score >= 0.5 else top_score * 0.8
+
+    for language in missing_languages:
+        candidate = next(
+            (
+                source
+                for source in ranked
+                if _source_language(source) == language
+                and _source_selection_key(source) not in selected_by_key
+                and _source_rank_score(source) >= score_floor
+            ),
+            None,
+        )
+        if candidate is None:
+            continue
+        replacement_key = _replacement_source_key(selected_by_key.values())
+        if replacement_key is None:
+            continue
+        del selected_by_key[replacement_key]
+        selected_by_key[_source_selection_key(candidate)] = candidate
+
+    return [source for source in ranked if _source_selection_key(source) in selected_by_key][:top_k]
+
+
+def _replacement_source_key(selected: Any) -> str | None:
+    counts: dict[str, int] = {}
+    for source in selected:
+        language = _source_language(source)
+        counts[language] = counts.get(language, 0) + 1
+    replaceable = [source for source in selected if counts.get(_source_language(source), 0) > 1]
+    if not replaceable:
+        return None
+    return _source_selection_key(min(replaceable, key=_source_rank_score))
+
+
+def _source_selection_key(source: dict[str, Any]) -> str:
+    return str(source.get("chunk_id") or source.get("doc_id", ""))
+
+
+def _source_language(source: dict[str, Any]) -> str:
+    return str(source.get("language", "") or "").strip().lower()
+
+
+def _source_rank_score(source: dict[str, Any]) -> float:
+    try:
+        return float(source.get("rerank_score") or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _rerank_document(candidate: dict[str, Any]) -> str:
