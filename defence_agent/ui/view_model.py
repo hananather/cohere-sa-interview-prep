@@ -135,7 +135,13 @@ class ToolCallView:
     call_index: int
     tool_name: str
     query: str = ""
+    arguments: dict[str, Any] = field(default_factory=dict)
     filters: dict[str, Any] = field(default_factory=dict)
+    authorized_source_count: int = 0
+    sources_sent_to_answer_count: int = 0
+    excluded_source_count: int = 0
+    embedding_backend: str = ""
+    rerank_backend: str = ""
     status: str = "observed"
 
     def as_row(self) -> dict[str, Any]:
@@ -143,7 +149,11 @@ class ToolCallView:
             "call": self.call_index,
             "tool_name": self.tool_name,
             "query": self.query,
+            "args": self.arguments,
             "filters": self.filters,
+            "authorized_sources": self.authorized_source_count,
+            "sent_to_model": self.sources_sent_to_answer_count,
+            "excluded_sources": self.excluded_source_count,
             "status": self.status,
         }
 
@@ -167,6 +177,7 @@ class DefenceAgentViewModel:
     citation_mode: str
     citation_validation: dict[str, Any]
     citation_quality: dict[str, Any]
+    target_answer_language: str
     documents_sent_to_model: int
     retrieval_status: str
     citations: tuple[CitationView, ...]
@@ -240,6 +251,7 @@ def build_view_model(
         citation_mode=str(result.citation_mode or generation.get("citation_mode", "")),
         citation_validation=dict(result.citation_validation or generation.get("citation_resolution", {}) or {}),
         citation_quality=dict(generation.get("citation_quality", {}) or {}),
+        target_answer_language=str(generation.get("target_answer_language", "auto") or "auto"),
         documents_sent_to_model=int(result.documents_sent_to_model or generation.get("document_count", 0) or 0),
         retrieval_status=result.retrieval_status,
         citations=tuple(citations),
@@ -276,10 +288,12 @@ def sanitize_answer_audit(audit: dict[str, Any]) -> dict[str, Any]:
         "user_id": audit.get("user_id", ""),
         "persona_id": audit.get("persona_id", ""),
         "tool_calls": list(audit.get("tool_calls", []) or []),
+        "tool_call_records": list(audit.get("tool_call_records", []) or []),
         "tool_responses": list(audit.get("tool_responses", []) or []),
         "retrieval_status": audit.get("retrieval_status", ""),
         "retrieval": {
             "search_count": retrieval.get("search_count", 0),
+            "searches": list(retrieval.get("searches", []) or []),
             "search_queries": list(retrieval.get("search_queries", []) or []),
             "allowed_access": list(retrieval.get("allowed_access", []) or []),
             "filters_applied": list(retrieval.get("filters_applied", []) or []),
@@ -295,6 +309,8 @@ def sanitize_answer_audit(audit: dict[str, Any]) -> dict[str, Any]:
             "citation_resolution": generation.get("citation_resolution", {}),
             "citation_quality": generation.get("citation_quality", {}),
             "document_count": generation.get("document_count", 0),
+            "cohere_document_ids": list(generation.get("cohere_document_ids", []) or []),
+            "target_answer_language": generation.get("target_answer_language", "auto"),
         },
         "citations": [_sanitize_citation(citation) for citation in audit.get("citations", []) or []],
     }
@@ -425,20 +441,33 @@ def _build_evidence_pages(
 def _build_tool_calls(audit: dict[str, Any]) -> list[ToolCallView]:
     retrieval = audit.get("retrieval", {}) if isinstance(audit.get("retrieval"), dict) else {}
     names = [str(name) for name in audit.get("tool_calls", []) or [] if str(name)]
+    records = [item for item in audit.get("tool_call_records", []) or [] if isinstance(item, dict)]
+    searches = [item for item in retrieval.get("searches", []) or [] if isinstance(item, dict)]
     queries = [str(query) for query in retrieval.get("search_queries", []) or [] if str(query)]
     filters = retrieval.get("filters_applied", []) or []
 
     rows: list[ToolCallView] = []
     for index, name in enumerate(names or ["search_documents"] * len(queries), start=1):
-        query = queries[index - 1] if index - 1 < len(queries) else ""
-        raw_filters = filters[index - 1] if index - 1 < len(filters) and isinstance(filters[index - 1], dict) else {}
+        record = records[index - 1] if index - 1 < len(records) else {}
+        raw_args = record.get("args", {}) if isinstance(record.get("args", {}), dict) else {}
+        search = searches[index - 1] if index - 1 < len(searches) else {}
+        query = str(search.get("query") or raw_args.get("query") or (queries[index - 1] if index - 1 < len(queries) else ""))
+        raw_filters = search.get("filters_applied")
+        if not isinstance(raw_filters, dict):
+            raw_filters = filters[index - 1] if index - 1 < len(filters) and isinstance(filters[index - 1], dict) else {}
         rows.append(
             ToolCallView(
                 call_index=index,
-                tool_name=name,
+                tool_name=str(record.get("tool_name") or name),
                 query=query,
+                arguments=dict(raw_args),
                 filters=raw_filters,
-                status="observed",
+                authorized_source_count=int(search.get("authorized_source_count", 0) or 0),
+                sources_sent_to_answer_count=int(search.get("sources_sent_to_answer_count", 0) or 0),
+                excluded_source_count=int(search.get("excluded_source_count", 0) or 0),
+                embedding_backend=str(search.get("embedding_backend", "") or ""),
+                rerank_backend=str(search.get("rerank_backend", "") or ""),
+                status=str(search.get("policy_decision") or "observed"),
             )
         )
     return rows

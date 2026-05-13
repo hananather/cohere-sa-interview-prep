@@ -53,7 +53,7 @@ def test_streamlit_demo_replay_renders_single_column_result_without_backend_call
     assert not app.exception
     backend.assert_not_called()
     rendered_markdown = "\n".join(item.value for item in app.markdown)
-    assert "NATO assigns three core tasks" in rendered_markdown
+    assert "AI will be foundational to Defence modernization" in rendered_markdown
     assert "da-inline-cite" in rendered_markdown
     assert 'href="#selected-evidence-anchor"' in rendered_markdown
     assert 'target="_self"' in rendered_markdown
@@ -76,11 +76,15 @@ def test_streamlit_demo_replay_renders_single_column_result_without_backend_call
     assert "Open publisher page" not in rendered_markdown
     assert "Loaded saved live run" not in rendered_markdown
     assert "Defence Agent completed" not in rendered_markdown
+    trace_text = rendered_markdown + "\n" + "\n".join(item.value for item in app.caption)
+    assert "google_adk" in trace_text
+    assert "tool_calls" in trace_text
+    assert "Citation numbers mark answer spans" in "\n".join(item.value for item in app.caption)
     assert any("Cohere-linked answer span" in item.value for item in app.caption)
     assert any("Repeated citations from the same document page" in item.value for item in app.caption)
     assert app.sidebar.radio[0].label == "Persona"
-    assert app.sidebar.selectbox[0].label == "Example prompt"
-    assert app.sidebar.button[0].label == "Use example"
+    assert app.sidebar.selectbox[0].label == "Demo query"
+    assert app.sidebar.button[0].label == "Load query"
     assert app.sidebar.radio[1].label == "Run mode"
 
 
@@ -102,8 +106,13 @@ def test_streamlit_live_mode_calls_backend() -> None:
     backend.assert_called_once()
 
 
-def test_streamlit_replay_warns_for_edited_prompt_without_backend_call() -> None:
-    with patch("defence_agent.ui.backend_bridge.run_turn_in_subprocess") as backend:
+def test_streamlit_edited_prompt_routes_to_live_backend_without_replay_warning() -> None:
+    result = _result_from_transcript("natural_multilingual_nato_core_tasks.json")
+
+    with (
+        patch("defence_agent.ui.backend_bridge.run_turn_in_subprocess", return_value=result) as backend,
+        patch("streamlit_app._cohere_api_key_available", return_value=True),
+    ):
         app = AppTest.from_file(str(ROOT / "streamlit_app.py"))
         app.run(timeout=20)
         app.text_area[0].set_value("Edited prompt that does not match the saved run.")
@@ -111,10 +120,9 @@ def test_streamlit_replay_warns_for_edited_prompt_without_backend_call() -> None
         app.run(timeout=20)
 
     assert not app.exception
-    backend.assert_not_called()
+    backend.assert_called_once()
     warnings = "\n".join(item.value for item in app.warning)
-    assert "Demo replay uses the saved run" in warnings
-    assert "Live Cohere/ADK" in warnings
+    assert "Demo path" not in warnings
 
 
 def test_streamlit_live_submit_shows_concise_timeout_error() -> None:
@@ -253,14 +261,15 @@ def test_evidence_payloads_are_keyed_by_page_for_multi_page_citation() -> None:
 def test_demo_replay_sets_clear_trace_status_for_saved_runs() -> None:
     persona = streamlit_app.persona_for_ui_id("persona_a")
     result = streamlit_app._load_demo_result(
-        selected_example="Cited lookup",
+        selected_example="Concise cited NATO answer",
         persona=persona,
-        query=streamlit_app.EXAMPLE_PROMPTS["Cited lookup"],
+        query=streamlit_app.EXAMPLE_PROMPTS["Concise cited NATO answer"],
+        target_answer_language="en",
     )
     view_model = build_view_model(result, ui_persona_id="persona_a")
 
-    assert result.retrieval_status == "replay verified"
-    assert view_model.retrieval_status == "replay verified"
+    assert result.retrieval_status == "option ready"
+    assert view_model.retrieval_status == "option ready"
     assert "unknown" not in {str(row["value"]).lower() for row in streamlit_app._request_rows(view_model)}
 
 
@@ -270,60 +279,148 @@ def test_sidebar_contains_demo_controls_without_moving_answer_workflow() -> None
 
     assert not app.exception
     assert app.sidebar.radio[0].label == "Persona"
-    assert app.sidebar.selectbox[0].label == "Example prompt"
-    assert app.sidebar.button[0].label == "Use example"
+    assert app.sidebar.selectbox[0].label == "Demo query"
+    assert app.sidebar.button[0].label == "Load query"
     assert app.sidebar.radio[1].label == "Run mode"
     assert app.sidebar.checkbox[0].label == "Stream answer display"
     assert app.sidebar.checkbox[0].value is True
     sidebar_markdown = "\n".join(item.value for item in app.sidebar.markdown)
     assert "Demo status" not in sidebar_markdown
-    assert "Saved live replay" not in sidebar_markdown
+    assert "Demo trajectory" not in sidebar_markdown
     assert "Cited answer spans" not in sidebar_markdown
     assert "Selected evidence" not in sidebar_markdown
     assert app.main.text_area[0].label == "Question"
     assert app.main.button[0].label == "Run query"
 
 
+def test_demo_query_selection_loads_prompt_text_without_button() -> None:
+    app = AppTest.from_file(str(ROOT / "streamlit_app.py"))
+    app.run(timeout=20)
+    app.sidebar.selectbox[0].set_value("Concise cited NATO answer")
+    app.run(timeout=20)
+
+    assert not app.exception
+    assert app.main.text_area[0].value == streamlit_app.EXAMPLE_PROMPTS["Concise cited NATO answer"]
+
+
 def test_demo_replay_registry_covers_visible_persona_examples() -> None:
     for persona_id in streamlit_app.UI_PERSONAS:
-        for example in streamlit_app.EXAMPLE_PROMPTS:
-            assert (persona_id, example) in streamlit_app.DEMO_REPLAYS
+        for example, query in streamlit_app.DEMO_QUERIES.items():
+            if query.live_only:
+                assert (persona_id, example) not in streamlit_app.DEMO_REPLAYS
+            else:
+                assert (persona_id, example) in streamlit_app.DEMO_REPLAYS
+
+
+def test_planning_option_uses_two_search_trace_candidate() -> None:
+    persona = streamlit_app.persona_for_ui_id("persona_a")
+    replay = streamlit_app.DEMO_REPLAYS[("persona_a", "Planning brief comparison")]
+    result = streamlit_app._load_demo_result(
+        selected_example="Planning brief comparison",
+        persona=persona,
+        query=streamlit_app.EXAMPLE_PROMPTS["Planning brief comparison"],
+        target_answer_language="en",
+    )
+    view_model = build_view_model(result, ui_persona_id="persona_a")
+    queries = [call.query for call in view_model.tool_calls]
+
+    assert replay.transcript_dir == streamlit_app.PLANNING_TRANSCRIPT_DIR
+    assert replay.transcript_name == "flagship_planning_brief_modernization.json"
+    assert result.answer_audit["retrieval"]["search_count"] == 2
+    assert result.tool_calls == ["search_documents", "search_documents"]
+    assert queries == [
+        "Canada's defence policy AI-enabled modernization",
+        "DND/CAF AI Strategy AI-enabled modernization",
+    ]
+    assert len(set(queries)) == 2
+    assert view_model.citations
+
+
+def test_refusal_trace_details_distinguish_access_boundary_from_evidence_gap() -> None:
+    persona = streamlit_app.persona_for_ui_id("persona_a")
+    access_result = streamlit_app._load_demo_result(
+        selected_example="Access boundary",
+        persona=persona,
+        query=streamlit_app.EXAMPLE_PROMPTS["Access boundary"],
+        target_answer_language="en",
+    )
+    access_view = build_view_model(access_result, ui_persona_id="persona_a")
+
+    gap_result = streamlit_app._load_demo_result(
+        selected_example="Evidence gap: Arctic basing 2031",
+        persona=persona,
+        query=streamlit_app.EXAMPLE_PROMPTS["Evidence gap: Arctic basing 2031"],
+        target_answer_language="en",
+    )
+    gap_view = build_view_model(gap_result, ui_persona_id="persona_a")
+
+    assert "denied source group" in streamlit_app._answerability_detail(access_view)
+    gap_detail = streamlit_app._answerability_detail(gap_view)
+    assert "2031" in gap_detail
+    assert "basing" in gap_detail
+    assert gap_view.documents_sent_to_model == 0
 
 
 def test_bilingual_example_prompt_matches_saved_replay_topic() -> None:
-    prompt = streamlit_app.EXAMPLE_PROMPTS["Bilingual query"].lower()
-    replay = streamlit_app.DEMO_REPLAYS[("persona_a", "Bilingual query")]
+    prompt = streamlit_app.EXAMPLE_PROMPTS["French NATO doctrine answer"].lower()
+    query = streamlit_app.DEMO_QUERIES["French NATO doctrine answer"]
 
     assert "otan" in prompt
     assert "taches fondamentales" in prompt
-    assert replay.transcript_name == "natural_multilingual_nato_core_tasks.json"
+    assert query.target_answer_language == "fr"
+    assert query.live_only is True
+    assert ("persona_a", "French NATO doctrine answer") not in streamlit_app.DEMO_REPLAYS
+    assert streamlit_app._target_answer_language(streamlit_app.EXAMPLE_PROMPTS["French NATO doctrine answer"], "French NATO doctrine answer") == "fr"
+    assert streamlit_app._can_use_guided_replay("demo", "French NATO doctrine answer", streamlit_app.EXAMPLE_PROMPTS["French NATO doctrine answer"]) is False
 
 
 def test_persona_b_demo_replays_build_without_generic_value_error() -> None:
     persona = streamlit_app.persona_for_ui_id("persona_b")
-    for example in ("Cited lookup", "Access control"):
+    for example in ("Concise cited NATO answer", "Access boundary"):
         result = streamlit_app._load_demo_result(
             selected_example=example,
             persona=persona,
             query=streamlit_app.EXAMPLE_PROMPTS[example],
+            target_answer_language="en",
         )
         view_model = build_view_model(result, ui_persona_id="persona_b")
         assert view_model.backend_persona_id == "clearance_top_secret"
         assert view_model.citations
-        assert set(view_model.allowed_access) == {"unclassified", "secret", "top_secret"}
+    assert set(view_model.allowed_access) == {"unclassified", "secret", "top_secret"}
+
+
+def test_citation_trace_card_can_show_one_span_linked_to_multiple_pages() -> None:
+    persona = streamlit_app.persona_for_ui_id("persona_a")
+    result = streamlit_app._load_demo_result(
+        selected_example="Concise cited NATO answer",
+        persona=persona,
+        query=streamlit_app.EXAMPLE_PROMPTS["Concise cited NATO answer"],
+        target_answer_language="en",
+    )
+    view_model = build_view_model(result, ui_persona_id="persona_a")
+
+    assert len(view_model.citations[0].source_ids) > 1
+    rendered = streamlit_app._citation_trace_card_html(view_model, view_model.citations[0])
+    assert "Linked source pages" in rendered
+    assert "NATO 2022 Strategic Concept" in rendered
 
 
 def test_missing_demo_replay_uses_clear_user_facing_error() -> None:
     persona = streamlit_app.persona_for_ui_id("persona_a")
     with patch.dict(streamlit_app.DEMO_REPLAYS, {}, clear=True):
         try:
-            streamlit_app._load_demo_result(selected_example="Cited lookup", persona=persona, query="demo")
+            streamlit_app._load_demo_result(
+                selected_example="Concise cited NATO answer",
+                persona=persona,
+                query="demo",
+                target_answer_language="en",
+            )
         except Exception as exc:  # noqa: BLE001 - verifying UI-facing sanitizer.
             message = streamlit_app._friendly_run_error(exc)
         else:
             raise AssertionError("Expected missing replay to fail")
 
-    assert message == "No saved replay exists for this persona and example. Switch to Live Cohere/ADK."
+    assert message == "No guided run exists for this persona and query."
 
 
 def test_demo_replay_acl_validation_checks_citation_sources() -> None:

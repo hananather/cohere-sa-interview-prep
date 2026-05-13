@@ -29,6 +29,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--user-id", help="User id. Defaults to the persona id.")
     parser.add_argument("--session-id", help="Existing session id to continue.")
+    parser.add_argument(
+        "--target-answer-language",
+        default="auto",
+        choices=("auto", "en", "fr"),
+        help="Final answer language. Defaults to the user's query language.",
+    )
     parser.add_argument("--show-audit", action="store_true", help="Print structured answer audit JSON.")
     return parser
 
@@ -41,6 +47,7 @@ async def _main() -> None:
         persona_id=args.persona,
         user_id=args.user_id,
         session_id=args.session_id,
+        target_answer_language=args.target_answer_language,
     )
     _print_result("Turn 1", first, show_audit=args.show_audit)
     if args.follow_up:
@@ -49,6 +56,7 @@ async def _main() -> None:
             persona_id=args.persona,
             user_id=args.user_id,
             session_id=first.session_id,
+            target_answer_language=args.target_answer_language,
         )
         _print_result("Turn 2", second, show_audit=args.show_audit)
     print(f"\nSession DB: {default_session_db_path()}")

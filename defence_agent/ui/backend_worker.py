@@ -18,6 +18,7 @@ async def _run(payload: dict[str, Any]) -> dict[str, Any]:
         persona_id=str(payload["persona_id"]),
         user_id=str(payload["user_id"]),
         session_id=payload.get("session_id") or None,
+        target_answer_language=str(payload.get("target_answer_language") or "auto"),
     )
     return asdict(result)
 

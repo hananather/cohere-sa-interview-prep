@@ -99,7 +99,13 @@ def _expand_cases(cases: list[dict[str, Any]], *, include_variants: bool) -> lis
 async def _run_case(case: dict[str, Any], *, show_audit: bool) -> dict[str, Any]:
     service = create_session_service(persistent=False)
     persona_id = str(case.get("persona_id", "clearance_unclassified"))
-    first = await run_turn(str(case["query"]), persona_id=persona_id, session_service=service)
+    target_answer_language = str(case.get("target_answer_language", "auto"))
+    first = await run_turn(
+        str(case["query"]),
+        persona_id=persona_id,
+        session_service=service,
+        target_answer_language=target_answer_language,
+    )
     final = first
     if case.get("follow_up"):
         final = await run_turn(
@@ -107,6 +113,7 @@ async def _run_case(case: dict[str, Any], *, show_audit: bool) -> dict[str, Any]
             persona_id=persona_id,
             session_id=first.session_id,
             session_service=service,
+            target_answer_language=target_answer_language,
         )
     if show_audit:
         print(f"\n## {case.get('id')} / turn 1 audit")
@@ -120,6 +127,7 @@ async def _run_case(case: dict[str, Any], *, show_audit: bool) -> dict[str, Any]
         "case_id": str(case.get("id", "")),
         "parent_id": str(case.get("parent_id", "")),
         "persona_id": persona_id,
+        "target_answer_language": target_answer_language,
         "passed": not checks,
         "failures": checks,
         "search_count": _search_count(first),

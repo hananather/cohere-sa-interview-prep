@@ -30,6 +30,7 @@ from defence_agent.ui.view_model import (
     DefenceAgentViewModel,
     EvidencePageView,
     SourceView,
+    ToolCallView,
     UiPersona,
     build_view_model,
     citation_chip_label,
@@ -37,17 +38,55 @@ from defence_agent.ui.view_model import (
 )
 
 
-EXAMPLE_PROMPTS = {
-    "Cited lookup": "Write a 150-200 word cited planning answer explaining NATO's core tasks and why they matter for a Canadian planning brief.",
-    "Access control": "For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?",
-    "Multi-step comparison": "First find the DND/CAF AI Strategy's main lines of effort. Then search for Canada's defence-policy modernization priorities and compare the overlap for a planning audience.",
-    "Bilingual query": "Quelles taches fondamentales l'OTAN attribue-t-elle a l'Alliance dans son Concept strategique, et pourquoi sont-elles importantes pour un brief de planification canadien?",
-    "Refusal / unsupported": "What does the corpus say about the approved Arctic submarine basing schedule for 2031?",
+@dataclass(frozen=True)
+class DemoQuery:
+    prompt: str
+    summary: str
+    target_answer_language: str = "auto"
+    live_only: bool = False
+
+
+DEMO_QUERIES = {
+    "Planning brief comparison": DemoQuery(
+        "I am preparing a planning brief. Compare how Canada's defence policy and the DND/CAF AI Strategy describe AI-enabled modernization, and cite the strongest source pages.",
+        "Compare Canadian defence modernization sources with cited support.",
+        target_answer_language="en",
+    ),
+    "Access boundary": DemoQuery(
+        "For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?",
+        "Show that restricted evidence is withheld from the unclassified persona.",
+        target_answer_language="en",
+    ),
+    "Evidence gap: Arctic basing 2031": DemoQuery(
+        "What does the corpus say about the approved Arctic submarine basing schedule for 2031?",
+        "Show that unsupported scheduled claims are refused instead of guessed.",
+        target_answer_language="en",
+    ),
+    "French NATO doctrine answer": DemoQuery(
+        "Quelles taches fondamentales l'OTAN attribue-t-elle a l'Alliance dans son Concept strategique, et pourquoi sont-elles importantes pour un brief de planification canadien?",
+        "Answer in French while allowing English and French source pages.",
+        target_answer_language="fr",
+        live_only=True,
+    ),
+    "Concise cited NATO answer": DemoQuery(
+        "Write a 150-200 word cited planning answer explaining NATO's core tasks and why they matter for a Canadian planning brief.",
+        "Compact cited answer using NATO source pages.",
+        target_answer_language="en",
+    ),
 }
+EXAMPLE_PROMPTS = {label: query.prompt for label, query in DEMO_QUERIES.items()}
+DEFAULT_DEMO_QUERY = "Planning brief comparison"
 RUN_MODES = {
-    "demo": "Demo replay",
-    "live": "Live Cohere/ADK",
+    "demo": "Guided run",
+    "live": "Live run",
 }
+PLANNING_TRANSCRIPT_DIR = (
+    Path(__file__).resolve().parent
+    / "defence_agent"
+    / "data"
+    / "transcripts"
+    / "live_readiness_flagship_retry_20260511_013333"
+)
 DEMO_TRANSCRIPT_DIR = (
     Path(__file__).resolve().parent
     / "defence_agent"
@@ -72,61 +111,51 @@ class DemoReplay:
 
 
 DEMO_REPLAYS = {
-    ("persona_a", "Cited lookup"): DemoReplay(
-        DEMO_TRANSCRIPT_DIR,
-        "natural_multilingual_nato_core_tasks.json",
-        "Cited planning answer using English and French NATO source pages.",
+    ("persona_a", "Planning brief comparison"): DemoReplay(
+        PLANNING_TRANSCRIPT_DIR,
+        "flagship_planning_brief_modernization.json",
+        "Two-step planning question across defence policy and AI strategy.",
     ),
-    ("persona_a", "Access control"): DemoReplay(
+    ("persona_a", "Access boundary"): DemoReplay(
         DEMO_TRANSCRIPT_DIR,
         "acl_unclassified_sensor_fusion_release_rule.json",
-        "Unauthorized persona receives a refusal with restricted evidence excluded.",
+        "Unclassified user is blocked from restricted sensor-fusion guidance.",
     ),
-    ("persona_a", "Multi-step comparison"): DemoReplay(
-        DEMO_TRANSCRIPT_DIR,
-        "flagship_planning_brief_modernization.json",
-        "Multi-document planning comparison with public source evidence.",
-    ),
-    ("persona_a", "Bilingual query"): DemoReplay(
-        DEMO_TRANSCRIPT_DIR,
-        "natural_multilingual_nato_core_tasks.json",
-        "Language-agnostic retrieval across English and French NATO pages.",
-    ),
-    ("persona_a", "Refusal / unsupported"): DemoReplay(
+    ("persona_a", "Evidence gap: Arctic basing 2031"): DemoReplay(
         INSUFFICIENT_EVIDENCE_TRANSCRIPT_DIR,
         "insufficient_evidence_planning_topic.json",
-        "Unsupported query refuses without falling back to speculation.",
+        "Unsupported scheduled claim is refused with an inspectable audit trail.",
     ),
-    ("persona_b", "Cited lookup"): DemoReplay(
+    ("persona_a", "Concise cited NATO answer"): DemoReplay(
         DEMO_TRANSCRIPT_DIR,
         "natural_multilingual_nato_core_tasks.json",
-        "Cleared user cites authorized unclassified doctrine pages.",
+        "Compact cited answer using NATO source pages.",
     ),
-    ("persona_b", "Access control"): DemoReplay(
+    ("persona_b", "Planning brief comparison"): DemoReplay(
+        PLANNING_TRANSCRIPT_DIR,
+        "flagship_planning_brief_modernization.json",
+        "Two-step planning question across defence policy and AI strategy.",
+    ),
+    ("persona_b", "Access boundary"): DemoReplay(
         DEMO_TRANSCRIPT_DIR,
         "acl_secret_sensor_fusion_release_rule.json",
         "Cleared user receives the restricted workflow rule with traceability.",
     ),
-    ("persona_b", "Multi-step comparison"): DemoReplay(
-        DEMO_TRANSCRIPT_DIR,
-        "flagship_planning_brief_modernization.json",
-        "Cleared user cites authorized public planning evidence.",
-    ),
-    ("persona_b", "Bilingual query"): DemoReplay(
-        DEMO_TRANSCRIPT_DIR,
-        "natural_multilingual_nato_core_tasks.json",
-        "Cleared user retrieves authorized English and French source pages.",
-    ),
-    ("persona_b", "Refusal / unsupported"): DemoReplay(
+    ("persona_b", "Evidence gap: Arctic basing 2031"): DemoReplay(
         INSUFFICIENT_EVIDENCE_TRANSCRIPT_DIR,
         "insufficient_evidence_planning_topic.json",
-        "Cleared user still receives refusal when no evidence supports the claim.",
+        "Unsupported scheduled claim is refused with an inspectable audit trail.",
+    ),
+    ("persona_b", "Concise cited NATO answer"): DemoReplay(
+        DEMO_TRANSCRIPT_DIR,
+        "natural_multilingual_nato_core_tasks.json",
+        "Compact cited answer using NATO source pages.",
     ),
 }
 
 
 class DemoReplayUnavailable(RuntimeError):
-    """Raised when a saved replay cannot be used for the selected UI state."""
+    """Raised when an option preview cannot be used for the selected UI state."""
 
 
 def main() -> None:
@@ -150,8 +179,8 @@ def _init_state() -> None:
     defaults = {
         "ui_persona_id": DEFAULT_UI_PERSONA_ID,
         "_active_ui_persona_id": DEFAULT_UI_PERSONA_ID,
-        "query_text": EXAMPLE_PROMPTS["Cited lookup"],
-        "selected_example": "Cited lookup",
+        "query_text": EXAMPLE_PROMPTS[DEFAULT_DEMO_QUERY],
+        "selected_example": DEFAULT_DEMO_QUERY,
         "last_result": None,
         "selected_citation_id": None,
         "selected_page_key": None,
@@ -199,13 +228,18 @@ def _render_query_controls() -> UiPersona:
         st.markdown("**Allowed evidence**")
         st.write(persona.visible_access_label)
 
+        if st.session_state.get("selected_example") not in EXAMPLE_PROMPTS:
+            st.session_state["selected_example"] = DEFAULT_DEMO_QUERY
+            st.session_state["query_text"] = EXAMPLE_PROMPTS[DEFAULT_DEMO_QUERY]
         selected_example = st.selectbox(
-            "Example prompt",
+            "Demo query",
             options=tuple(EXAMPLE_PROMPTS.keys()),
             key="selected_example",
+            on_change=_sync_selected_demo_query,
         )
-        if st.button("Use example", width="stretch"):
-            st.session_state["query_text"] = EXAMPLE_PROMPTS[selected_example]
+        if st.button("Load query", width="stretch"):
+            _sync_selected_demo_query()
+        _render_demo_query_context(selected_example, persona)
 
         with st.expander("Advanced run controls", expanded=False):
             run_mode = st.radio(
@@ -215,11 +249,11 @@ def _render_query_controls() -> UiPersona:
                 key="run_mode",
             )
             if run_mode == "demo":
-                st.caption("Demo replay loads saved live runs immediately. It does not call Cohere.")
+                st.caption("Uses the curated walkthrough output when available.")
             else:
-                st.caption("Live Cohere/ADK makes a fresh backend call and shows the elapsed timer.")
+                st.caption("Runs the backend with Cohere and the agent loop.")
             st.checkbox("Stream answer display", key="stream_answer")
-            st.caption("Streams the answer after the run completes. Backend calls are still replay or live as selected.")
+            st.caption("Streams the answer after the run completes.")
 
         st.markdown("**Runtime**")
         st.caption(f"`run_turn` · `search_documents` · {DEFAULT_TIMEOUT_SECONDS}s timeout")
@@ -254,6 +288,20 @@ def _reset_result_when_persona_changes(persona: UiPersona) -> None:
     st.session_state["run_active"] = False
 
 
+def _sync_selected_demo_query() -> None:
+    selected = st.session_state.get("selected_example", DEFAULT_DEMO_QUERY)
+    prompt = EXAMPLE_PROMPTS.get(selected)
+    if prompt is None:
+        selected = DEFAULT_DEMO_QUERY
+        prompt = EXAMPLE_PROMPTS[selected]
+        st.session_state["selected_example"] = selected
+    st.session_state["query_text"] = prompt
+    st.session_state["last_result"] = None
+    st.session_state["selected_citation_id"] = None
+    st.session_state["selected_page_key"] = None
+    st.session_state["last_run_error"] = ""
+
+
 def _run_query(*, query: str, persona: UiPersona, selected_example: str, run_mode: str) -> None:
     cleaned = query.strip()
     if not cleaned:
@@ -267,20 +315,19 @@ def _run_query(*, query: str, persona: UiPersona, selected_example: str, run_mod
     started = time.monotonic()
     st.session_state["run_active"] = True
     st.session_state["last_run_error"] = ""
+    target_answer_language = _target_answer_language(cleaned, selected_example)
     try:
-        if run_mode == "demo":
-            expected_query = EXAMPLE_PROMPTS[selected_example].strip()
-            if cleaned != expected_query:
-                st.warning(
-                    "Demo replay uses the saved run for the selected example. "
-                    "Switch to Live Cohere/ADK for edited prompts."
-                )
-                return
+        if _can_use_guided_replay(run_mode, selected_example, cleaned):
             status_slot = st.empty()
             with status_slot.status("Running Defence Agent", expanded=True):
                 _write_status_step("Applying persona access policy")
-                _write_status_step("Loading saved live run")
-                result = _load_demo_result(selected_example=selected_example, persona=persona, query=cleaned)
+                _write_status_step("Loading selected option")
+                result = _load_demo_result(
+                    selected_example=selected_example,
+                    persona=persona,
+                    query=cleaned,
+                    target_answer_language=target_answer_language,
+                )
                 _write_status_step("Resolving citations")
                 elapsed = time.monotonic() - started
                 view_model = build_view_model(result, ui_persona_id=persona.ui_id, run_elapsed_seconds=elapsed)
@@ -303,12 +350,13 @@ def _run_query(*, query: str, persona: UiPersona, selected_example: str, run_mod
                     cleaned,
                     persona=persona,
                     session_id=session_id,
+                    target_answer_language=target_answer_language,
                     progress=lambda _message: None,
                 )
                 while not future.done():
                     elapsed = time.monotonic() - started
                     timer_slot.caption(
-                        f"Live Cohere/ADK run · {_format_elapsed(elapsed)} elapsed · "
+                        f"Live run · {_format_elapsed(elapsed)} elapsed · "
                         f"hard stop {DEFAULT_TIMEOUT_SECONDS}s"
                     )
                     time.sleep(0.75)
@@ -331,6 +379,51 @@ def _write_status_step(message: str, *, delay_seconds: float = 0.16) -> None:
     time.sleep(delay_seconds)
 
 
+def _can_use_guided_replay(run_mode: str, selected_example: str, query: str) -> bool:
+    if run_mode != "demo":
+        return False
+    demo_query = DEMO_QUERIES.get(selected_example)
+    if demo_query is None or demo_query.live_only:
+        return False
+    return query.strip() == EXAMPLE_PROMPTS.get(selected_example, "").strip()
+
+
+def _target_answer_language(query: str, selected_example: str) -> str:
+    demo_query = DEMO_QUERIES.get(selected_example)
+    if demo_query is not None and query.strip() == demo_query.prompt.strip():
+        return demo_query.target_answer_language
+    return _detect_query_language(query)
+
+
+def _detect_query_language(query: str) -> str:
+    text = f" {query.lower()} "
+    french_markers = {
+        " quelles ",
+        " quels ",
+        " quelle ",
+        " quel ",
+        " pourquoi ",
+        " sont-elles ",
+        " attribue-t-elle ",
+        " taches ",
+        " tâches ",
+        " l'otan ",
+        " dans son ",
+        " pour un ",
+        " canadien ",
+    }
+    return "fr" if sum(1 for marker in french_markers if marker in text) >= 2 else "en"
+
+
+def _render_demo_query_context(selected_example: str, persona: UiPersona) -> None:
+    query = DEMO_QUERIES.get(selected_example)
+    if query is not None:
+        st.caption(query.summary)
+    replay = DEMO_REPLAYS.get((persona.ui_id, selected_example))
+    if replay is None and query is not None and query.live_only:
+        st.caption("Runs live so the French answer is generated from the current model.")
+
+
 def _store_result(view_model: DefenceAgentViewModel, result: AgentTurnResult, persona: UiPersona) -> None:
     st.session_state["last_result"] = view_model
     st.session_state["session_id_by_persona"][persona.ui_id] = result.session_id
@@ -344,18 +437,24 @@ def _store_result(view_model: DefenceAgentViewModel, result: AgentTurnResult, pe
     st.session_state["last_run_error"] = ""
 
 
-def _load_demo_result(*, selected_example: str, persona: UiPersona, query: str) -> AgentTurnResult:
+def _load_demo_result(
+    *,
+    selected_example: str,
+    persona: UiPersona,
+    query: str,
+    target_answer_language: str,
+) -> AgentTurnResult:
     replay = DEMO_REPLAYS.get((persona.ui_id, selected_example))
     if replay is None:
-        raise DemoReplayUnavailable("No saved replay exists for this persona and example. Switch to Live Cohere/ADK.")
+        raise DemoReplayUnavailable("No guided run exists for this persona and query.")
     path = replay.transcript_dir / replay.transcript_name
     if not path.exists():
-        raise DemoReplayUnavailable("Saved replay file is missing. Switch to Live Cohere/ADK.")
+        raise DemoReplayUnavailable("Guided run data is missing.")
 
     data = json.loads(path.read_text(encoding="utf-8"))
     audit = dict(data.get("final_answer_audit", {}) or {})
     if not str(audit.get("retrieval_status", "") or "").strip():
-        audit["retrieval_status"] = "replay verified"
+        audit["retrieval_status"] = "option ready"
     retrieval = dict(audit.get("retrieval", {}) or {})
     _validate_replay_acl(audit, persona=persona)
     retrieval["allowed_access"] = list(persona.allowed_access)
@@ -364,6 +463,9 @@ def _load_demo_result(*, selected_example: str, persona: UiPersona, query: str) 
     audit["user_id"] = persona.backend_persona_id
     audit["query"] = query
     generation = audit.get("generation", {}) if isinstance(audit.get("generation"), dict) else {}
+    generation = dict(generation)
+    generation["target_answer_language"] = target_answer_language
+    audit["generation"] = generation
     return AgentTurnResult(
         session_id=str(audit.get("session_id", "demo_replay")),
         user_id=persona.backend_persona_id,
@@ -395,7 +497,7 @@ def _validate_replay_acl(audit: dict[str, object], *, persona: UiPersona) -> Non
             access_level = str(source.get("access_level", "") or "")
             if access_level and access_level not in allowed:
                 raise DemoReplayUnavailable(
-                    "Saved replay contains evidence outside the selected persona access policy."
+                    "Selected demo path contains evidence outside the selected persona access policy."
                 )
 
 
@@ -438,6 +540,7 @@ def _run_turn_sync(
     *,
     persona: UiPersona,
     session_id: str | None,
+    target_answer_language: str,
     progress,
 ) -> AgentTurnResult:
     return backend_bridge.run_turn_in_subprocess(
@@ -445,6 +548,7 @@ def _run_turn_sync(
         persona_id=persona.backend_persona_id,
         user_id=persona.backend_persona_id,
         session_id=session_id,
+        target_answer_language=target_answer_language,
         progress=progress,
     )
 
@@ -452,8 +556,10 @@ def _run_turn_sync(
 def _render_answer(view_model: DefenceAgentViewModel) -> None:
     with st.container(border=True):
         _render_answer_text(view_model)
+        _render_answer_trace_panel(view_model)
         _render_citation_controls(view_model)
         _render_source_pages_used(view_model)
+        _render_citation_explainer(view_model)
         _render_selected_evidence(view_model)
 
 
@@ -463,6 +569,202 @@ def _render_answer_text(view_model: DefenceAgentViewModel) -> None:
         st.session_state["stream_answer_once"] = False
         return
     st.markdown(_answer_html_with_inline_citations(view_model), unsafe_allow_html=True)
+
+
+def _render_answer_trace_panel(view_model: DefenceAgentViewModel) -> None:
+    with st.expander("Answer trace", expanded=not view_model.citations):
+        st.caption(
+            "ADK orchestrates the search_documents call. Cohere handles Embed v4, Rerank v4, "
+            "Command A generation, and native citation spans."
+        )
+
+        st.markdown(
+            _trace_meta_html(
+                [
+                    ("persona", view_model.persona_label),
+                    ("allowed", view_model.visible_access_label),
+                    ("language", _language_label(view_model.target_answer_language)),
+                    ("decision", view_model.answerability.lower()),
+                    ("docs", view_model.documents_sent_to_model),
+                ]
+            ),
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            _json_trace_block("Request", _request_trace_payload(view_model), open_block=False),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            _json_trace_block("Agent tool calls", _tool_trace_payload(view_model), open_block=True),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            _json_trace_block("Retrieval", _retrieval_trace_payload(view_model), open_block=False),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            _json_trace_block("Answerability", _answerability_trace_payload(view_model), open_block=True),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            _json_trace_block("Cohere generation", _generation_trace_payload(view_model), open_block=False),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            _json_trace_block("Citation map", _citation_map_payload(view_model), open_block=False),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            _json_trace_block("Sanitized JSON", view_model.sanitized_answer_audit, open_block=False),
+            unsafe_allow_html=True,
+        )
+
+
+def _json_trace_block(label: str, payload: object, *, open_block: bool) -> str:
+    opened = " open" if open_block else ""
+    rendered = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
+    line_count = rendered.count("\n") + 1
+    summary = f"{line_count} lines"
+    return (
+        f'<details class="da-json-trace"{opened}>'
+        f"<summary><span>{html.escape(label)}</span><code>{html.escape(summary)}</code></summary>"
+        f'<pre><code>{html.escape(rendered)}</code></pre>'
+        "</details>"
+    )
+
+
+def _trace_meta_html(items: list[tuple[str, object]]) -> str:
+    chips = "".join(
+        f"<span><em>{html.escape(label)}</em>{html.escape(_render_trace_value(value))}</span>"
+        for label, value in items
+    )
+    return f'<div class="da-trace-meta">{chips}</div>'
+
+
+def _request_trace_payload(view_model: DefenceAgentViewModel) -> dict[str, object]:
+    return {
+        "persona": view_model.persona_label,
+        "allowed_evidence": list(view_model.allowed_access),
+        "target_answer_language": _language_label(view_model.target_answer_language),
+        "query": view_model.query,
+    }
+
+
+def _tool_trace_payload(view_model: DefenceAgentViewModel) -> dict[str, object]:
+    if not view_model.tool_calls:
+        return {
+            "orchestration": "google_adk",
+            "tool_calls": [],
+            "tool_results": [],
+        }
+
+    tool_calls: list[dict[str, object]] = []
+    tool_results: list[dict[str, object]] = []
+    for call in view_model.tool_calls:
+        call_id = f"adk_{call.tool_name}_{call.call_index}"
+        arguments = dict(call.arguments)
+        if call.query and "query" not in arguments:
+            arguments["query"] = call.query
+        tool_calls.append(
+            {
+                "id": call_id,
+                "type": "function",
+                "function": {
+                    "name": call.tool_name,
+                    "arguments": arguments,
+                },
+            }
+        )
+        tool_results.append(
+            {
+                "tool_call_id": call_id,
+                "status": call.status,
+                "filters_applied": call.filters,
+                "summary": {
+                    "authorized_source_count": call.authorized_source_count,
+                    "sources_sent_to_answer_count": call.sources_sent_to_answer_count,
+                    "excluded_source_count": call.excluded_source_count,
+                    "embedding_backend": call.embedding_backend or "recorded_in_index_audit",
+                    "rerank_backend": call.rerank_backend or "recorded_in_index_audit",
+                },
+            }
+        )
+    return {
+        "orchestration": "google_adk",
+        "cohere_shape_reference": "tool_plan/tool_calls/tool_results",
+        "tool_plan": "Run search_documents, apply persona and retrieval filters, then send only authorized pages to generation.",
+        "tool_calls": tool_calls,
+        "tool_results": tool_results,
+    }
+
+
+def _retrieval_trace_payload(view_model: DefenceAgentViewModel) -> dict[str, object]:
+    retrieval = view_model.answer_audit.get("retrieval", {}) if isinstance(view_model.answer_audit, dict) else {}
+    searches = retrieval.get("searches", []) if isinstance(retrieval.get("searches", []), list) else []
+    return {
+        "allowed_access": list(retrieval.get("allowed_access", []) or []),
+        "filters_applied": list(retrieval.get("filters_applied", []) or []),
+        "search_count": retrieval.get("search_count", len(view_model.tool_calls)),
+        "searches": searches,
+        "authorized_source_count": len(retrieval.get("authorized_sources", []) or []),
+        "sources_sent_to_answer_count": len(retrieval.get("sources_sent_to_answer", []) or []),
+        "excluded_source_groups": view_model.excluded_source_summary,
+    }
+
+
+def _answerability_trace_payload(view_model: DefenceAgentViewModel) -> dict[str, object]:
+    return {
+        "decision": view_model.answerability.lower(),
+        "reason": view_model.answerability_reason,
+        "detail": _answerability_detail(view_model),
+        "zero_doc_generation": view_model.documents_sent_to_model == 0,
+    }
+
+
+def _generation_trace_payload(view_model: DefenceAgentViewModel) -> dict[str, object]:
+    generation = view_model.answer_audit.get("generation", {}) if isinstance(view_model.answer_audit, dict) else {}
+    return {
+        "model": generation.get("model", "") or "none",
+        "document_count": generation.get("document_count", view_model.documents_sent_to_model),
+        "cohere_document_ids": list(generation.get("cohere_document_ids", []) or []),
+        "citation_mode": generation.get("citation_mode", view_model.citation_mode) or "none",
+        "target_answer_language": generation.get("target_answer_language", view_model.target_answer_language),
+    }
+
+
+def _citation_map_payload(view_model: DefenceAgentViewModel) -> dict[str, object]:
+    citations: list[dict[str, object]] = []
+    for citation in view_model.citations:
+        sources: list[dict[str, object]] = []
+        for source_id in citation.source_ids:
+            source = view_model.sources.get(source_id)
+            if source is None:
+                sources.append({"source_id": source_id})
+                continue
+            sources.append(
+                {
+                    "source_id": source.source_id,
+                    "doc_id": source.doc_id,
+                    "title": source.title,
+                    "page": source.page,
+                    "language": source.language,
+                    "access_level": source.access_level,
+                }
+            )
+        citations.append(
+            {
+                "citation": citation.marker,
+                "start": citation.answer_start,
+                "end": citation.answer_end,
+                "text": citation.answer_text,
+                "sources": sources,
+            }
+        )
+    return {
+        "citation_object_shape": "start/end/text/sources",
+        "citations": citations,
+    }
 
 
 def _stream_answer_display(view_model: DefenceAgentViewModel) -> None:
@@ -587,6 +889,156 @@ def _find_citation_span_end(text: str, span: str) -> int | None:
     return min(len(text), index + len(clean_span))
 
 
+def _trace_cards_html(items: list[tuple[str, object]]) -> str:
+    cards = "".join(_trace_card_html(label, value) for label, value in items)
+    return f'<div class="da-trace-card-grid">{cards}</div>'
+
+
+def _trace_card_html(label: str, value: object) -> str:
+    rendered = _render_trace_value(value)
+    return (
+        '<div class="da-trace-card">'
+        f"<span>{html.escape(label)}</span>"
+        f"<strong>{html.escape(rendered)}</strong>"
+        "</div>"
+    )
+
+
+def _tool_call_card_html(call: ToolCallView) -> str:
+    args = dict(call.arguments)
+    filters = dict(call.filters)
+    details = [
+        ("Tool", call.tool_name),
+        ("Query", call.query or args.get("query", "")),
+        ("top_k", args.get("top_k", "")),
+        ("status_filter", args.get("status_filter", filters.get("status", ""))),
+        ("language", args.get("language", filters.get("language", ""))),
+        ("authorized sources", call.authorized_source_count),
+        ("sent to model", call.sources_sent_to_answer_count),
+        ("excluded sources", call.excluded_source_count),
+    ]
+    return (
+        '<div class="da-trace-call">'
+        f"<h4>Tool call {call.call_index}</h4>"
+        f"{_trace_cards_html(details)}"
+        "</div>"
+    )
+
+
+def _retrieval_trace_html(view_model: DefenceAgentViewModel) -> str:
+    retrieval = view_model.answer_audit.get("retrieval", {}) if isinstance(view_model.answer_audit, dict) else {}
+    filters = retrieval.get("filters_applied", []) if isinstance(retrieval.get("filters_applied", []), list) else []
+    first_filters = filters[0] if filters and isinstance(filters[0], dict) else {}
+    calls = list(view_model.tool_calls)
+    embedding = next((call.embedding_backend for call in calls if call.embedding_backend), "")
+    rerank = next((call.rerank_backend for call in calls if call.rerank_backend), "")
+    authorized_count = len(retrieval.get("authorized_sources", []) or [])
+    sent_count = len(retrieval.get("sources_sent_to_answer", []) or [])
+    excluded_count = sum(int(row.get("count", 0) or 0) for row in view_model.excluded_source_summary)
+    return _trace_cards_html(
+        [
+            ("Searches", retrieval.get("search_count", len(calls))),
+            ("Access filter", first_filters.get("access_level", view_model.allowed_access)),
+            ("Status filter", first_filters.get("status", "")),
+            ("Language filter", first_filters.get("language", "")),
+            ("Embed backend", embedding or "recorded in index audit"),
+            ("Rerank backend", rerank or "recorded in index audit"),
+            ("Authorized pages", authorized_count),
+            ("Pages sent to Command A", sent_count),
+            ("Denied-source groups", excluded_count),
+        ]
+    )
+
+
+def _answerability_trace_html(view_model: DefenceAgentViewModel) -> str:
+    reason_detail = _answerability_detail(view_model)
+    zero_doc = "yes" if view_model.documents_sent_to_model == 0 else "no"
+    return _trace_cards_html(
+        [
+            ("Decision", view_model.answerability.lower()),
+            ("Reason", view_model.answerability_reason),
+            ("Detail", reason_detail),
+            ("Zero-doc generation", zero_doc),
+        ]
+    )
+
+
+def _generation_trace_html(view_model: DefenceAgentViewModel) -> str:
+    generation = view_model.answer_audit.get("generation", {}) if isinstance(view_model.answer_audit, dict) else {}
+    document_ids = generation.get("cohere_document_ids", []) if isinstance(generation.get("cohere_document_ids", []), list) else []
+    return _trace_cards_html(
+        [
+            ("Model", generation.get("model", view_model.citation_mode) or "none"),
+            ("Documents", view_model.documents_sent_to_model),
+            ("Cohere document IDs", ", ".join(str(item) for item in document_ids[:6]) or "none"),
+            ("Citation mode", view_model.citation_mode or "none"),
+        ]
+    )
+
+
+def _citation_trace_card_html(view_model: DefenceAgentViewModel, citation: CitationView) -> str:
+    source_labels: list[str] = []
+    for source_id in citation.source_ids:
+        source = view_model.sources.get(source_id)
+        if source is None:
+            source_labels.append(source_id)
+            continue
+        title = source.title or source.doc_id or source_id
+        page = f"p.{source.page}" if source.page else "page unknown"
+        language = source.language or "language unknown"
+        source_labels.append(f"{title} {page} {language}")
+    return (
+        '<div class="da-trace-call">'
+        f"<h4>{html.escape(citation.marker)} {html.escape(_compact_label(citation.answer_text, 96))}</h4>"
+        f"{_trace_cards_html([('Linked source pages', '; '.join(source_labels) or 'none')])}"
+        "</div>"
+    )
+
+
+def _render_citation_explainer(view_model: DefenceAgentViewModel) -> None:
+    if not view_model.citations and not view_model.evidence_pages:
+        return
+    st.caption(
+        "Citation numbers mark answer spans returned by Cohere. One span can cite multiple source pages. "
+        "Evidence pages are grouped by document page to reduce repetition. Citation coverage proves traceability "
+        "to source objects, not factual truth by itself."
+    )
+
+
+def _answerability_detail(view_model: DefenceAgentViewModel) -> str:
+    retrieval = view_model.answer_audit.get("retrieval", {}) if isinstance(view_model.answer_audit, dict) else {}
+    records = [item for item in retrieval.get("answerability", []) or [] if isinstance(item, dict)]
+    for record in records:
+        if record.get("reason") == "denied_source_matches_query":
+            denied_count = sum(int(row.get("count", 0) or 0) for row in view_model.excluded_source_summary)
+            return (
+                f"Restricted evidence matched the query but was withheld by persona policy "
+                f"({denied_count} denied source group(s)); restricted text is not shown."
+            )
+        unsupported = record.get("unsupported_specificity", {})
+        if isinstance(unsupported, dict) and unsupported.get("hard_refusal"):
+            missing = list(unsupported.get("missing_year_terms", []) or []) + list(
+                unsupported.get("missing_scheduled_fact_terms", []) or []
+            )
+            return "Missing support for: " + ", ".join(str(item) for item in missing)
+    if view_model.answerability == "ANSWERED":
+        return "Authorized evidence was sent to Command A for a grounded answer."
+    return "No additional answerability detail was recorded."
+
+
+def _language_label(language: str) -> str:
+    labels = {"en": "English", "fr": "French", "auto": "Query language"}
+    return labels.get(str(language or "auto").lower(), str(language or "auto"))
+
+
+def _render_trace_value(value: object) -> str:
+    if isinstance(value, (list, tuple, set)):
+        return ", ".join(str(item) for item in value) or "none"
+    if value in ("", None, [], ()):
+        return "none"
+    return str(value)
+
+
 def _render_citation_controls(view_model: DefenceAgentViewModel) -> None:
     if not view_model.citations:
         st.caption("No citations were returned for this answer.")
@@ -595,11 +1047,11 @@ def _render_citation_controls(view_model: DefenceAgentViewModel) -> None:
     st.markdown("**Citations**")
     st.caption("A citation is a Cohere-linked answer span mapped to authorized source pages.")
     for citation in view_model.citations:
-            _render_anchor_button(
-                label=citation_chip_label(citation, view_model.sources),
-                href=_citation_href(citation.citation_id),
-                css_class="da-citation-link",
-                citation_id=citation.citation_id,
+        _render_anchor_button(
+            label=citation_chip_label(citation, view_model.sources),
+            href=_citation_href(citation.citation_id),
+            css_class="da-citation-link",
+            citation_id=citation.citation_id,
         )
 
 
@@ -1065,23 +1517,12 @@ def _render_trace_tab() -> None:
 
 def _render_trace_story(view_model: DefenceAgentViewModel) -> None:
     st.markdown("**Execution timeline**")
-    st.markdown(
-        """
-        <div class="da-trace-timeline">
-          <div><strong>1. Access policy applied</strong><span>Persona-derived evidence boundary was set before retrieval.</span></div>
-          <div><strong>2. Search executed</strong><span>The agent used read-only document search.</span></div>
-          <div><strong>3. Evidence filtered</strong><span>Only authorized evidence was sent forward.</span></div>
-          <div><strong>4. Answer generated</strong><span>Cohere generated a grounded answer from the selected evidence.</span></div>
-          <div><strong>5. Citations resolved</strong><span>Cohere citation objects were mapped back to source pages.</span></div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown(_trace_timeline_html(view_model), unsafe_allow_html=True)
 
     cols = st.columns(4)
     cols[0].metric("Retrieval status", _compact_label(view_model.retrieval_status or "unknown", 22))
     cols[1].metric("Answerability", view_model.answerability.lower())
-    cols[2].metric("Tool calls", str(len(view_model.tool_calls)))
+    cols[2].metric("Searches", str(len(view_model.tool_calls)))
     cols[3].metric("Citations", str(len(view_model.citations)))
     cols = st.columns(3)
     cols[0].metric("Persona", view_model.persona_label.replace("Persona ", "P"))
@@ -1097,10 +1538,80 @@ def _render_trace_story(view_model: DefenceAgentViewModel) -> None:
         key=f"trace_query_{view_model.session_id}",
         label_visibility="collapsed",
     )
-    st.caption(
-        "Automated checks verify retrieval flow and citation-source resolution. "
-        "They do not replace human source review."
+
+
+def _trace_timeline_html(view_model: DefenceAgentViewModel) -> str:
+    steps: list[tuple[str, str]] = [
+        (
+            "1. Access scope set",
+            f"{view_model.persona_label} can use {view_model.visible_access_label} evidence.",
+        )
+    ]
+
+    next_index = 2
+    if view_model.tool_calls:
+        for call in view_model.tool_calls:
+            query = call.query or "document search"
+            filters = _trace_filter_summary(call.filters)
+            detail = query
+            if filters:
+                detail += f" | {filters}"
+            steps.append((f"{next_index}. Search {call.call_index}", detail))
+            next_index += 1
+    else:
+        steps.append((f"{next_index}. Search", "No document search was required for this turn."))
+        next_index += 1
+
+    excluded_count = len(view_model.excluded_source_summary)
+    evidence_count = len(view_model.evidence_pages)
+    filtered_detail = f"{evidence_count} source pages moved forward"
+    if excluded_count:
+        filtered_detail += f"; {excluded_count} restricted source groups excluded"
+    steps.append((f"{next_index}. Evidence filtered and ranked", filtered_detail))
+    next_index += 1
+
+    steps.append(
+        (
+            f"{next_index}. Answer generated",
+            f"Command A used {view_model.documents_sent_to_model} evidence documents for the grounded response.",
+        )
     )
+    next_index += 1
+
+    steps.append(
+        (
+            f"{next_index}. Citations resolved",
+            f"{len(view_model.citations)} cited answer spans mapped back to {evidence_count} source pages.",
+        )
+    )
+
+    items = "".join(_trace_step_html(title, detail) for title, detail in steps)
+    return f'<div class="da-trace-timeline">{items}</div>'
+
+
+def _trace_step_html(title: str, detail: str) -> str:
+    return (
+        "<div>"
+        f"<strong>{html.escape(title)}</strong>"
+        f"<span>{html.escape(detail)}</span>"
+        "</div>"
+    )
+
+
+def _trace_filter_summary(filters: dict[str, object]) -> str:
+    if not filters:
+        return ""
+    pieces: list[str] = []
+    for key in ("access_level", "language", "status"):
+        value = filters.get(key)
+        if value in ("", None, [], ()):
+            continue
+        if isinstance(value, list):
+            rendered = ", ".join(str(item) for item in value)
+        else:
+            rendered = str(value)
+        pieces.append(f"{key}: {rendered}")
+    return "; ".join(pieces)
 
 
 def _request_rows(view_model: DefenceAgentViewModel) -> list[dict[str, object]]:
@@ -1109,6 +1620,7 @@ def _request_rows(view_model: DefenceAgentViewModel) -> list[dict[str, object]]:
         {"field": "persona", "value": view_model.persona_label},
         {"field": "backend_persona_id", "value": view_model.backend_persona_id},
         {"field": "allowed_access", "value": ", ".join(view_model.allowed_access)},
+        {"field": "target_answer_language", "value": view_model.target_answer_language},
         {"field": "answerability", "value": view_model.answerability.lower()},
         {"field": "retrieval_status", "value": view_model.retrieval_status},
         {"field": "citation_mode", "value": view_model.citation_mode},
@@ -1387,13 +1899,117 @@ def _apply_styles() -> None:
         .da-trace-timeline span {
             display: block;
         }
-        .da-trace-timeline span {
-            margin-top: 0.12rem;
-            color: #6f727c;
-            font-size: 0.88rem;
-            line-height: 1.35;
-        }
-        </style>
+	        .da-trace-timeline span {
+	            margin-top: 0.12rem;
+	            color: #6f727c;
+	            font-size: 0.88rem;
+	            line-height: 1.35;
+	        }
+	        .da-trace-card-grid {
+	            display: grid;
+	            grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+	            gap: 0.5rem;
+	            margin: 0.45rem 0 0.85rem;
+	        }
+	        .da-trace-card,
+	        .da-trace-call {
+	            border: 1px solid #deded9;
+	            border-radius: 0.55rem;
+	            background: #fffefa;
+	        }
+	        .da-trace-card {
+	            min-height: 4rem;
+	            padding: 0.62rem 0.72rem;
+	        }
+	        .da-trace-card span {
+	            display: block;
+	            margin-bottom: 0.2rem;
+	            color: #747782;
+	            font-size: 0.78rem;
+	            font-weight: 650;
+	        }
+	        .da-trace-card strong {
+	            display: block;
+	            color: #2e2f3a;
+	            font-size: 0.9rem;
+	            font-weight: 600;
+	            line-height: 1.32;
+	            overflow-wrap: anywhere;
+	        }
+	        .da-trace-call {
+	            margin: 0.45rem 0 0.75rem;
+	            padding: 0.7rem 0.78rem 0.1rem;
+	        }
+	        .da-trace-call h4 {
+	            margin: 0 0 0.35rem;
+	            font-size: 0.95rem;
+	            line-height: 1.3;
+	        }
+	        .da-trace-meta {
+	            display: flex;
+	            flex-wrap: wrap;
+	            gap: 0.35rem;
+	            margin: 0.45rem 0 0.65rem;
+	        }
+	        .da-trace-meta span {
+	            display: inline-flex;
+	            align-items: center;
+	            gap: 0.35rem;
+	            border: 1px solid #deded9;
+	            border-radius: 999px;
+	            background: #fffefa;
+	            padding: 0.22rem 0.52rem;
+	            color: #2e2f3a;
+	            font-size: 0.78rem;
+	            line-height: 1.2;
+	        }
+	        .da-trace-meta em {
+	            color: #747782;
+	            font-style: normal;
+	            font-weight: 700;
+	        }
+	        .da-json-trace {
+	            margin: 0.55rem 0;
+	            border: 1px solid #deded9;
+	            border-radius: 0.55rem;
+	            background: #fffefa;
+	            overflow: hidden;
+	        }
+	        .da-json-trace summary {
+	            display: flex;
+	            align-items: center;
+	            justify-content: space-between;
+	            gap: 0.75rem;
+	            cursor: pointer;
+	            padding: 0.58rem 0.72rem;
+	            color: #2e2f3a;
+	            font-weight: 700;
+	        }
+	        .da-json-trace summary code {
+	            color: #777b85;
+	            background: #f5f4ef;
+	            border-radius: 999px;
+	            padding: 0.12rem 0.45rem;
+	            font-size: 0.72rem;
+	            font-weight: 600;
+	        }
+	        .da-json-trace pre {
+	            margin: 0;
+	            padding: 0.72rem 0.82rem;
+	            border-top: 1px solid #ebe9e2;
+	            background: #faf9f4;
+	            color: #282a33;
+	            font-size: 0.78rem;
+	            line-height: 1.34;
+	            max-height: 18rem;
+	            overflow: auto;
+	            white-space: pre-wrap;
+	            overflow-wrap: anywhere;
+	        }
+	        .da-json-trace pre code {
+	            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+	        }
+	        </style>
         """,
         unsafe_allow_html=True,
     )

@@ -110,6 +110,27 @@ cases:
       - Which NATO Strategic Concept pages define the Alliance's core tasks?
       - What does the NATO Strategic Concept say the Alliance must do, and why is that relevant to Canada?
 
+  - id: french_nato_doctrine_answer
+    persona_id: clearance_unclassified
+    target_answer_language: fr
+    query: Quelles taches fondamentales l'OTAN attribue-t-elle a l'Alliance dans son Concept strategique, et pourquoi sont-elles importantes pour un brief de planification canadien?
+    expected_doc_ids:
+      - NATO-STRAT-CONCEPT-2022-EN
+    allowed_alt_doc_ids:
+      - NATO-STRAT-CONCEPT-2022-FR
+    expected_source_types:
+      - official_public_pdf
+    expected_facets:
+      - id: french_nato_core_tasks_language_agnostic
+        expected_doc_ids:
+          - NATO-STRAT-CONCEPT-2022-EN
+        allowed_alt_doc_ids:
+          - NATO-STRAT-CONCEPT-2022-FR
+        min_sources: 1
+    min_search_calls: 1
+    min_citations: 2
+    demo_point: French answer with language-agnostic retrieval across English and French NATO source pages.
+
   - id: acl_unclassified_sensor_fusion_release_rule
     persona_id: clearance_unclassified
     query: For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?

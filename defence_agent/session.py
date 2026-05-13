@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 import inspect
+import json
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -129,6 +130,7 @@ async def run_turn(
     user_id: str | None = None,
     session_id: str | None = None,
     session_service: DatabaseSessionService | InMemorySessionService | None = None,
+    target_answer_language: str = "auto",
 ) -> AgentTurnResult:
     """Run one ADK agent turn and return the final answer.
 
@@ -173,6 +175,7 @@ async def run_turn(
     message = types.Content(role="user", parts=[types.Part.from_text(text=_message_text(query, prior_answer))])
     event_count = 0
     tool_calls: list[str] = []
+    tool_call_records: list[dict[str, Any]] = []
     tool_responses: list[str] = []
     retrieval_status = ""
 
@@ -187,6 +190,7 @@ async def run_turn(
     ):
         event_count += 1
         tool_calls.extend(_function_call_names(event))
+        tool_call_records.extend(_function_call_records(event))
         tool_responses.extend(_function_response_names(event))
         if event.is_final_response():
             retrieval_status = _event_text(event)
@@ -212,6 +216,7 @@ async def run_turn(
         sources=turn_sources,
         prior_answer=prior_answer,
         fallback_answer=_fallback_answer(retrieval_status),
+        target_answer_language=target_answer_language,
     )
     answer_audit = _answer_audit(
         query=query,
@@ -219,11 +224,13 @@ async def run_turn(
         user_id=resolved_user_id,
         persona_id=persona_id,
         tool_calls=tool_calls,
+        tool_call_records=tool_call_records,
         tool_responses=tool_responses,
         retrieval_status=retrieval_status,
         retrieval_audits=turn_audits,
         sources_sent_to_answer=turn_sources,
         grounded=grounded,
+        target_answer_language=target_answer_language,
     )
     await _update_session_grounding(
         service,
@@ -445,6 +452,7 @@ def _audit_lookup_audit(
         "user_id": user_id,
         "persona_id": persona_id,
         "tool_calls": ["answer_audit_lookup"],
+        "tool_call_records": [{"tool_name": "answer_audit_lookup", "args": {"source": "last_answer_audit"}}],
         "tool_responses": ["answer_audit_lookup"],
         "retrieval_status": "audit_lookup_complete",
         "audit_lookup": {
@@ -467,8 +475,10 @@ def _audit_lookup_audit(
             "model": grounded.model,
             "citation_mode": grounded.citation_mode,
             "citation_resolution": grounded.citation_validation,
+            "citation_quality": _citation_quality_summary(grounded.citation_validation),
             "document_count": grounded.documents_sent,
             "cohere_document_ids": grounded.document_ids,
+            "target_answer_language": "auto",
         },
         "citations": grounded.citations,
     }
@@ -499,12 +509,56 @@ def _function_call_names(event: Any) -> list[str]:
     return [str(getattr(call, "name", "")) for call in calls if getattr(call, "name", "")]
 
 
+def _function_call_records(event: Any) -> list[dict[str, Any]]:
+    try:
+        calls = event.get_function_calls()
+    except Exception:
+        return []
+    records: list[dict[str, Any]] = []
+    for call in calls:
+        name = str(getattr(call, "name", "") or "")
+        if not name:
+            continue
+        records.append(
+            {
+                "tool_name": name,
+                "args": _safe_tool_args(getattr(call, "args", None)),
+            }
+        )
+    return records
+
+
 def _function_response_names(event: Any) -> list[str]:
     try:
         responses = event.get_function_responses()
     except Exception:
         return []
     return [str(getattr(response, "name", "")) for response in responses if getattr(response, "name", "")]
+
+
+def _safe_tool_args(raw_args: Any) -> dict[str, Any]:
+    if isinstance(raw_args, dict):
+        return {str(key): _json_safe_value(value) for key, value in raw_args.items()}
+    if isinstance(raw_args, str) and raw_args.strip():
+        try:
+            parsed = json.loads(raw_args)
+        except json.JSONDecodeError:
+            return {"raw": raw_args[:500]}
+        if isinstance(parsed, dict):
+            return {str(key): _json_safe_value(value) for key, value in parsed.items()}
+    return {}
+
+
+def _json_safe_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _json_safe_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_json_safe_value(item) for item in value]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
 
 
 async def _maybe_await(value: Any) -> Any:
@@ -603,6 +657,8 @@ def _answer_audit(
     retrieval_audits: list[dict[str, Any]],
     sources_sent_to_answer: list[dict[str, Any]],
     grounded: GroundedAnswer,
+    tool_call_records: list[dict[str, Any]] | None = None,
+    target_answer_language: str = "auto",
 ) -> dict[str, Any]:
     source_summaries = [_source_summary(source) for source in sources_sent_to_answer]
     lookup = _source_lookup(source_summaries, retrieval_audits)
@@ -612,10 +668,12 @@ def _answer_audit(
         "user_id": user_id,
         "persona_id": persona_id,
         "tool_calls": tool_calls,
+        "tool_call_records": list(tool_call_records or []),
         "tool_responses": tool_responses,
         "retrieval_status": retrieval_status,
         "retrieval": {
             "search_count": len(retrieval_audits),
+            "searches": _search_summaries(retrieval_audits),
             "search_queries": _search_queries(retrieval_audits),
             "tool_cache": _tool_cache_summary(retrieval_audits),
             "allowed_access": _unique_values(retrieval_audits, "allowed_access"),
@@ -643,6 +701,7 @@ def _answer_audit(
             "citation_quality": _citation_quality_summary(grounded.citation_validation),
             "document_count": grounded.documents_sent,
             "cohere_document_ids": grounded.document_ids,
+            "target_answer_language": target_answer_language,
         },
         "citations": [_citation_summary(citation, lookup) for citation in grounded.citations],
     }
@@ -791,6 +850,36 @@ def _search_queries(audits: list[dict[str, Any]]) -> list[str]:
     return queries
 
 
+def _search_summaries(audits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    summaries: list[dict[str, Any]] = []
+    for index, audit in enumerate(audits, start=1):
+        if not isinstance(audit, dict):
+            continue
+        answerability = audit.get("answerability", {}) if isinstance(audit.get("answerability"), dict) else {}
+        evidence_quality = (
+            answerability.get("evidence_quality", {}) if isinstance(answerability.get("evidence_quality"), dict) else {}
+        )
+        summaries.append(
+            {
+                "call_index": index,
+                "query": audit.get("query", ""),
+                "filters_applied": dict(audit.get("filters_applied", {}) or {}),
+                "policy_decision": audit.get("policy_decision", ""),
+                "answerable": answerability.get("answerable"),
+                "answerability_reason": answerability.get("reason", ""),
+                "authorized_source_count": len(audit.get("authorized_sources", []) or []),
+                "sources_sent_to_answer_count": len(audit.get("sources_sent_to_answer", []) or []),
+                "excluded_source_count": len(audit.get("excluded_sources", []) or []),
+                "embedding_backend": audit.get("embedding_backend", ""),
+                "rerank_backend": audit.get("rerank_backend", ""),
+                "collection": audit.get("collection", ""),
+                "top_authorized_vector_score": evidence_quality.get("top_authorized_vector_score"),
+                "top_authorized_rerank_score": evidence_quality.get("top_authorized_rerank_score"),
+            }
+        )
+    return summaries
+
+
 def _tool_cache_summary(audits: list[dict[str, Any]]) -> dict[str, Any]:
     events = [audit.get("cache") for audit in audits if isinstance(audit.get("cache"), dict)]
     return {
@@ -846,6 +935,7 @@ def _safe_finalize_answer(
     sources: list[dict[str, Any]],
     prior_answer: str,
     fallback_answer: str,
+    target_answer_language: str,
 ) -> GroundedAnswer:
     try:
         return finalize_answer(
@@ -853,6 +943,7 @@ def _safe_finalize_answer(
             sources=sources,
             prior_answer=prior_answer,
             fallback_answer=fallback_answer,
+            target_answer_language=target_answer_language,
         )
     except Exception as exc:
         return GroundedAnswer(

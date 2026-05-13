@@ -31,6 +31,7 @@ def run_turn_in_subprocess(
     persona_id: str,
     user_id: str,
     session_id: str | None,
+    target_answer_language: str = "auto",
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     progress: Callable[[str], None] | None = None,
 ) -> AgentTurnResult:
@@ -41,6 +42,7 @@ def run_turn_in_subprocess(
         "persona_id": persona_id,
         "user_id": user_id,
         "session_id": session_id,
+        "target_answer_language": target_answer_language,
     }
     if progress:
         progress("Live backend call started. Waiting for a structured worker result.")

@@ -43,6 +43,7 @@ def finalize_answer(
     sources: list[dict[str, Any]],
     prior_answer: str = "",
     fallback_answer: str = "I do not have enough authorized evidence to answer.",
+    target_answer_language: str = "auto",
 ) -> GroundedAnswer:
     """Return a cited final answer from authorized evidence.
 
@@ -65,6 +66,7 @@ def finalize_answer(
         prior_answer=prior_answer,
         sources=clean_sources,
         chat_model=get_settings().cohere_chat_model,
+        target_answer_language=target_answer_language,
     )
 
 
@@ -74,6 +76,7 @@ def _cohere_native_answer(
     prior_answer: str,
     sources: list[dict[str, Any]],
     chat_model: str,
+    target_answer_language: str,
 ) -> GroundedAnswer:
     documents, evidence_by_label = _cohere_documents(sources)
     logger.info(
@@ -89,6 +92,7 @@ def _cohere_native_answer(
         query=query,
         prior_answer=prior_answer,
         documents=documents,
+        target_answer_language=target_answer_language,
     )
     citations = _normalize_citations(raw_citations, evidence_by_label)
     validation = _validate_native_citations(citations, evidence_by_label, answer=raw_answer, query=query)
@@ -100,6 +104,7 @@ def _cohere_native_answer(
             query=query,
             prior_answer=prior_answer,
             documents=documents,
+            target_answer_language=target_answer_language,
             citation_repair_feedback=_citation_repair_feedback(validation),
         )
         retry_citations = _normalize_citations(retry_raw_citations, evidence_by_label)
@@ -145,12 +150,19 @@ def _cohere_chat(
     query: str,
     prior_answer: str,
     documents: list[dict[str, Any]],
+    target_answer_language: str,
     citation_repair_feedback: str = "",
 ) -> tuple[str, list[Any]]:
     response = cohere_gateway.chat(
         model=chat_model,
         messages=[
-            {"role": "system", "content": _grounding_system_message(citation_repair_feedback)},
+            {
+                "role": "system",
+                "content": _grounding_system_message(
+                    citation_repair_feedback,
+                    target_answer_language=target_answer_language,
+                ),
+            },
             {"role": "user", "content": _grounded_user_message(query, prior_answer)},
         ],
         documents=documents,
@@ -160,10 +172,16 @@ def _cohere_chat(
     return _message_text(response), _response_citations(response)
 
 
-def _grounding_system_message(citation_repair_feedback: str = "") -> str:
+def _grounding_system_message(
+    citation_repair_feedback: str = "",
+    *,
+    target_answer_language: str = "auto",
+) -> str:
+    language_instruction = _target_language_instruction(target_answer_language)
     message = (
         "You are the DefTech Doctrine Intelligence Assistant. "
         "Answer only from the provided authorized documents. "
+        f"{language_instruction} "
         "Write a staff-ready answer of about 140 to 220 words unless the evidence is insufficient. "
         "Use one substantial paragraph or two compact paragraphs. "
         "Every factual sentence must be supported by at least one citation. "
@@ -177,6 +195,24 @@ def _grounding_system_message(citation_repair_feedback: str = "") -> str:
     if citation_repair_feedback:
         message += "\n\nCitation repair instruction: " + citation_repair_feedback
     return message
+
+
+def _target_language_instruction(target_answer_language: str) -> str:
+    normalized = str(target_answer_language or "auto").strip().lower()
+    if normalized == "fr":
+        return (
+            "Answer in French. Source documents may be English or French; cite the source pages even when "
+            "you translate their evidence into French."
+        )
+    if normalized == "en":
+        return (
+            "Answer in English. Source documents may be English or French; cite the source pages even when "
+            "you translate their evidence into English."
+        )
+    return (
+        "Answer in the same language as the user's question. Source documents may be English or French; "
+        "cite the source pages even when source language differs from answer language."
+    )
 
 
 def _grounded_user_message(query: str, prior_answer: str) -> str:
