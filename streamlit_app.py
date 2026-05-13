@@ -23,6 +23,12 @@ from defence_agent.ui.eval_results import (
     transcript_run_label,
 )
 from defence_agent.ui.source_preview import resolve_source_preview
+from defence_agent.ui.source_catalog import (
+    CATALOG_FILTERS,
+    filter_source_rows,
+    source_catalog_for_persona,
+    source_catalog_table_rows,
+)
 from defence_agent.ui.view_model import (
     DEFAULT_UI_PERSONA_ID,
     UI_PERSONAS,
@@ -33,7 +39,6 @@ from defence_agent.ui.view_model import (
     ToolCallView,
     UiPersona,
     build_view_model,
-    citation_chip_label,
     persona_for_ui_id,
 )
 
@@ -101,6 +106,10 @@ INSUFFICIENT_EVIDENCE_TRANSCRIPT_DIR = (
     / "transcripts"
     / "insufficient_evidence_strategy_realignment_20260511_131708"
 )
+GUIDED_STEP_DELAY_SECONDS = 1.25
+LIVE_STATUS_POLL_INTERVAL_SECONDS = 0.75
+ANSWER_STREAM_CHUNK_WORDS = 4
+ANSWER_STREAM_DELAY_SECONDS = 0.07
 
 
 @dataclass(frozen=True)
@@ -166,13 +175,15 @@ def main() -> None:
     st.markdown("<h1 class='da-title'>Defence Agent</h1>", unsafe_allow_html=True)
     st.caption("Ask cited questions over approved manuals, procedures, and doctrine.")
 
-    ask_tab, trace_tab, eval_tab = st.tabs(["Ask", "Trace", "Eval"])
+    ask_tab, trace_tab, eval_tab, database_tab = st.tabs(["Ask", "Trace", "Eval", "Database"])
     with ask_tab:
         _render_ask_tab()
     with trace_tab:
         _render_trace_tab()
     with eval_tab:
         _render_eval_tab()
+    with database_tab:
+        _render_database_tab()
 
 
 def _init_state() -> None:
@@ -319,19 +330,16 @@ def _run_query(*, query: str, persona: UiPersona, selected_example: str, run_mod
     try:
         if _can_use_guided_replay(run_mode, selected_example, cleaned):
             status_slot = st.empty()
+            result = _load_demo_result(
+                selected_example=selected_example,
+                persona=persona,
+                query=cleaned,
+                target_answer_language=target_answer_language,
+            )
+            elapsed = time.monotonic() - started
+            view_model = build_view_model(result, ui_persona_id=persona.ui_id, run_elapsed_seconds=elapsed)
             with status_slot.status("Running Defence Agent", expanded=True):
-                _write_status_step("Applying persona access policy")
-                _write_status_step("Loading selected option")
-                result = _load_demo_result(
-                    selected_example=selected_example,
-                    persona=persona,
-                    query=cleaned,
-                    target_answer_language=target_answer_language,
-                )
-                _write_status_step("Resolving citations")
-                elapsed = time.monotonic() - started
-                view_model = build_view_model(result, ui_persona_id=persona.ui_id, run_elapsed_seconds=elapsed)
-                _write_status_step("Building answer audit")
+                _reveal_audit_sequence(view_model, delay_seconds=GUIDED_STEP_DELAY_SECONDS)
                 _store_result(view_model, result, persona)
             status_slot.empty()
             return
@@ -359,13 +367,13 @@ def _run_query(*, query: str, persona: UiPersona, selected_example: str, run_mod
                         f"Live run · {_format_elapsed(elapsed)} elapsed · "
                         f"hard stop {DEFAULT_TIMEOUT_SECONDS}s"
                     )
-                    time.sleep(0.75)
+                    time.sleep(LIVE_STATUS_POLL_INTERVAL_SECONDS)
                 result = future.result()
 
             elapsed = time.monotonic() - started
-            st.write("Resolving citations and building answer audit")
-        view_model = build_view_model(result, ui_persona_id=persona.ui_id, run_elapsed_seconds=elapsed)
-        _store_result(view_model, result, persona)
+            view_model = build_view_model(result, ui_persona_id=persona.ui_id, run_elapsed_seconds=elapsed)
+            _reveal_audit_sequence(view_model, delay_seconds=GUIDED_STEP_DELAY_SECONDS)
+            _store_result(view_model, result, persona)
         status_slot.empty()
         timer_slot.empty()
     except Exception as exc:
@@ -374,9 +382,72 @@ def _run_query(*, query: str, persona: UiPersona, selected_example: str, run_mod
         st.session_state["run_active"] = False
 
 
+def _reveal_audit_sequence(view_model: DefenceAgentViewModel, *, delay_seconds: float) -> None:
+    for step in _audit_status_steps(view_model):
+        _write_status_step(step, delay_seconds=delay_seconds)
+
+
+def _audit_status_steps(view_model: DefenceAgentViewModel) -> list[str]:
+    steps = [
+        f"1. Apply persona access scope: {view_model.persona_label} · {view_model.visible_access_label}.",
+        f"2. Agent prepares tool call: {_tool_plan_summary(view_model)}.",
+    ]
+
+    next_index = 3
+    if view_model.tool_calls:
+        for call in view_model.tool_calls:
+            query = _compact_label(call.query or "document search", 96)
+            steps.append(f"{next_index}. Run actual search_documents call {call.call_index}: {query}.")
+            next_index += 1
+    else:
+        steps.append(f"{next_index}. Run actual search_documents call: no search was required for this turn.")
+        next_index += 1
+
+    excluded_count = sum(int(row.get("count", 0) or 0) for row in view_model.excluded_source_summary)
+    authorized_count = len(view_model.authorized_source_rows)
+    steps.append(
+        f"{next_index}. Apply access filters: {authorized_count} authorized page(s), "
+        f"{excluded_count} withheld group(s)."
+    )
+    next_index += 1
+
+    steps.append(
+        f"{next_index}. Rerank authorized evidence: {view_model.documents_sent_to_model} page(s) prepared "
+        "for grounded generation."
+    )
+    next_index += 1
+
+    generation = view_model.answer_audit.get("generation", {}) if isinstance(view_model.answer_audit, dict) else {}
+    model = str(generation.get("model", "") or "Command A")
+    if view_model.documents_sent_to_model:
+        generation_detail = f"{model} received {view_model.documents_sent_to_model} authorized document(s)."
+    else:
+        generation_detail = "zero-doc refusal path kept unsupported or restricted source text out of generation."
+    steps.append(f"{next_index}. Generate grounded answer with Command A: {generation_detail}")
+    next_index += 1
+
+    steps.append(f"{next_index}. Resolve Cohere citation spans: {len(view_model.citations)} span(s) mapped to source pages.")
+    next_index += 1
+
+    steps.append(
+        f"{next_index}. Build answer audit: {view_model.answerability.lower()} · "
+        f"{view_model.retrieval_status or 'trace ready'}."
+    )
+    return steps
+
+
+def _tool_plan_summary(view_model: DefenceAgentViewModel) -> str:
+    if not view_model.tool_calls:
+        return "review prior audit state"
+    count = len(view_model.tool_calls)
+    noun = "call" if count == 1 else "calls"
+    return f"{count} search_documents {noun} via ADK"
+
+
 def _write_status_step(message: str, *, delay_seconds: float = 0.16) -> None:
     st.write(message)
-    time.sleep(delay_seconds)
+    if delay_seconds > 0:
+        time.sleep(delay_seconds)
 
 
 def _can_use_guided_replay(run_mode: str, selected_example: str, query: str) -> bool:
@@ -556,11 +627,10 @@ def _run_turn_sync(
 def _render_answer(view_model: DefenceAgentViewModel) -> None:
     with st.container(border=True):
         _render_answer_text(view_model)
-        _render_answer_trace_panel(view_model)
-        _render_citation_controls(view_model)
-        _render_source_pages_used(view_model)
-        _render_citation_explainer(view_model)
+        _render_citation_pages(view_model)
         _render_selected_evidence(view_model)
+        _render_citation_explainer(view_model)
+        _render_answer_trace_panel(view_model)
 
 
 def _render_answer_text(view_model: DefenceAgentViewModel) -> None:
@@ -775,11 +845,12 @@ def _stream_answer_display(view_model: DefenceAgentViewModel) -> None:
 
     placeholder = st.empty()
     words = text.split()
-    chunk_size = 10
+    chunk_size = max(1, int(ANSWER_STREAM_CHUNK_WORDS))
     for end in range(chunk_size, len(words) + chunk_size, chunk_size):
         partial = " ".join(words[: min(end, len(words))])
         placeholder.markdown(_plain_answer_html(partial), unsafe_allow_html=True)
-        time.sleep(0.018)
+        if ANSWER_STREAM_DELAY_SECONDS > 0:
+            time.sleep(ANSWER_STREAM_DELAY_SECONDS)
     placeholder.markdown(_answer_html_with_inline_citations(view_model), unsafe_allow_html=True)
 
 
@@ -998,11 +1069,7 @@ def _citation_trace_card_html(view_model: DefenceAgentViewModel, citation: Citat
 def _render_citation_explainer(view_model: DefenceAgentViewModel) -> None:
     if not view_model.citations and not view_model.evidence_pages:
         return
-    st.caption(
-        "Citation numbers mark answer spans returned by Cohere. One span can cite multiple source pages. "
-        "Evidence pages are grouped by document page to reduce repetition. Citation coverage proves traceability "
-        "to source objects, not factual truth by itself."
-    )
+    st.caption("Answer trace below keeps the full citation-span map and audit payload.")
 
 
 def _answerability_detail(view_model: DefenceAgentViewModel) -> str:
@@ -1039,36 +1106,20 @@ def _render_trace_value(value: object) -> str:
     return str(value)
 
 
-def _render_citation_controls(view_model: DefenceAgentViewModel) -> None:
-    if not view_model.citations:
-        st.caption("No citations were returned for this answer.")
+def _render_citation_pages(view_model: DefenceAgentViewModel) -> None:
+    if not view_model.evidence_pages:
+        if not view_model.citations:
+            st.caption("No citations were returned for this answer.")
         return
 
     st.markdown("**Citations**")
-    st.caption("A citation is a Cohere-linked answer span mapped to authorized source pages.")
-    for citation in view_model.citations:
-        _render_anchor_button(
-            label=citation_chip_label(citation, view_model.sources),
-            href=_citation_href(citation.citation_id),
-            css_class="da-citation-link",
-            citation_id=citation.citation_id,
-        )
-
-
-def _render_source_pages_used(view_model: DefenceAgentViewModel) -> None:
-    if not view_model.evidence_pages:
-        return
-
-    label = "Evidence page used" if len(view_model.evidence_pages) == 1 else "Evidence pages used"
-    st.markdown(f"**{label}**")
-    st.caption("Repeated citations from the same document page are grouped here.")
+    st.caption("Source pages linked from inline citation markers. Pages are grouped to reduce repetition.")
     for page in view_model.evidence_pages:
-        marker_list = ", ".join(
-            citation.marker for citation in view_model.citations if citation.citation_id in page.citation_ids
-        )
+        span_count = len(page.citation_ids)
+        span_label = "1 cited span" if span_count == 1 else f"{span_count} cited spans"
         button_label = f"{page.display_index}. {page.label}"
-        if marker_list:
-            button_label += f" · {marker_list}"
+        if span_count:
+            button_label += f" · {span_label}"
         _render_anchor_button(
             label=button_label,
             href="#selected-evidence-anchor",
@@ -1666,6 +1717,46 @@ def _render_eval_metrics(rows: list[dict[str, object]]) -> None:
     cols[4].metric("Cited cases", str(citation_cases))
 
 
+def _render_database_tab() -> None:
+    st.subheader("Database")
+    st.caption("Approved source catalog filtered by persona access.")
+
+    persona_id = str(st.session_state.get("ui_persona_id", DEFAULT_UI_PERSONA_ID))
+    catalog = source_catalog_for_persona(persona_id)
+
+    cols = st.columns(4)
+    cols[0].metric("Visible docs", str(len(catalog.rows)))
+    cols[1].metric("Visible pages", str(catalog.visible_pages))
+    cols[2].metric("Datasets", str(catalog.dataset_count))
+    cols[3].metric("Withheld docs", str(catalog.withheld_count))
+
+    filter_cols = st.columns([0.48, 0.52])
+    with filter_cols[0]:
+        dataset_filter = st.radio(
+            "Catalog filter",
+            CATALOG_FILTERS,
+            horizontal=True,
+            key="source_catalog_filter",
+        )
+    with filter_cols[1]:
+        search_query = st.text_input(
+            "Search catalog",
+            key="source_catalog_search",
+            placeholder="Search title, document ID, owner, or dataset",
+        )
+
+    rows = filter_source_rows(catalog.rows, dataset_filter=dataset_filter, search_query=search_query)
+    if not rows:
+        st.info("No visible source rows match the current catalog filter.")
+        return
+
+    st.dataframe(
+        source_catalog_table_rows(rows),
+        width="stretch",
+        hide_index=True,
+    )
+
+
 def _citation_resolution_rows(view_model: DefenceAgentViewModel) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     allowed_access = set(view_model.allowed_access)
@@ -1690,6 +1781,24 @@ def _apply_styles() -> None:
     st.markdown(
         """
         <style>
+        :root {
+            --da-green: #062c22;
+            --da-near-black: #061324;
+            --da-accent: #00a04d;
+            --da-off-white: #f0eee9;
+            --da-panel: #f8f6ef;
+            --da-pale-green: #f1fdea;
+            --da-aqua: #b8f9f3;
+            --da-coral: #da532c;
+            --da-gray: #a4a4a4;
+            --da-border: #d6d1c8;
+            --da-border-strong: #a9b8ad;
+            --da-radius: 6px;
+            --da-radius-sm: 4px;
+            --da-shadow: 0 1px 0 rgba(6, 19, 36, 0.06);
+            --da-font: CohereText, CohereVariable, "Unica77 Cohere Web", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            --da-mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        }
         html {
             scroll-behavior: smooth;
         }
@@ -2009,6 +2118,312 @@ def _apply_styles() -> None:
 	        .da-json-trace pre code {
 	            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 	        }
+        .stApp,
+        .stApp p,
+        .stApp label,
+        .stApp input,
+        .stApp textarea,
+        .stApp button,
+        .stApp [data-testid="stMarkdownContainer"] {
+            font-family: var(--da-font);
+        }
+        .stApp {
+            background: var(--da-off-white);
+            color: var(--da-near-black);
+        }
+        .block-container {
+            max-width: 1040px;
+            padding-top: 1.35rem;
+            padding-bottom: 2.5rem;
+        }
+        .da-title {
+            margin: 0 0 0.1rem;
+            color: var(--da-near-black);
+            font-size: 1.58rem;
+            font-weight: 720;
+            line-height: 1.12;
+            letter-spacing: 0;
+        }
+        .stApp h2,
+        .stApp h3,
+        .stApp h4 {
+            color: var(--da-near-black);
+            letter-spacing: 0;
+        }
+        .stApp h3 {
+            font-size: 1.02rem;
+            line-height: 1.25;
+        }
+        .stApp [data-testid="stCaptionContainer"] {
+            color: #4f5a55;
+            font-size: 0.78rem;
+            line-height: 1.35;
+        }
+        section[data-testid="stSidebar"] {
+            background: var(--da-green);
+            border-right: 1px solid #0d4033;
+        }
+        section[data-testid="stSidebar"] h2,
+        section[data-testid="stSidebar"] p,
+        section[data-testid="stSidebar"] label,
+        section[data-testid="stSidebar"] span,
+        section[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] {
+            color: var(--da-off-white);
+        }
+        section[data-testid="stSidebar"] h2 {
+            font-size: 1.02rem;
+            font-weight: 720;
+        }
+        section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
+            color: #cbd8d1;
+        }
+        div[data-testid="stTabs"] button {
+            border-radius: var(--da-radius-sm) var(--da-radius-sm) 0 0;
+            color: #33433d;
+            font-size: 0.86rem;
+            font-weight: 680;
+        }
+        div[data-testid="stTabs"] button[aria-selected="true"] {
+            color: var(--da-green);
+            border-bottom-color: var(--da-accent);
+        }
+        div[data-testid="stButton"] button,
+        div[data-testid="stFormSubmitButton"] button,
+        section[data-testid="stSidebar"] div[data-testid="stButton"] button {
+            min-height: 2.15rem;
+            border: 1px solid var(--da-border-strong);
+            border-radius: var(--da-radius-sm);
+            background: var(--da-panel);
+            color: var(--da-near-black);
+            box-shadow: none;
+            font-size: 0.86rem;
+            font-weight: 680;
+        }
+        div[data-testid="stFormSubmitButton"] button[kind="primary"] {
+            border-color: var(--da-green);
+            background: var(--da-green);
+            color: var(--da-off-white);
+        }
+        div[data-testid="stButton"] button:hover,
+        div[data-testid="stFormSubmitButton"] button:hover {
+            border-color: var(--da-accent);
+            color: var(--da-green);
+        }
+        div[data-testid="stFormSubmitButton"] button[kind="primary"]:hover {
+            background: #0a3b2e;
+            color: var(--da-off-white);
+        }
+        div[data-baseweb="input"] > div,
+        div[data-baseweb="textarea"] > div,
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="radio"] [role="radio"] {
+            border-radius: var(--da-radius-sm);
+        }
+        textarea,
+        input {
+            color: var(--da-near-black);
+            font-size: 0.9rem;
+        }
+        div[data-testid="stExpander"] {
+            border: 1px solid var(--da-border);
+            border-radius: var(--da-radius);
+            background: var(--da-panel);
+            box-shadow: var(--da-shadow);
+        }
+        div[data-testid="stMetric"] {
+            min-height: 4.2rem;
+            padding: 0.55rem 0.65rem;
+            border: 1px solid var(--da-border);
+            border-radius: var(--da-radius);
+            background: var(--da-panel);
+            box-shadow: var(--da-shadow);
+        }
+        div[data-testid="stMetricLabel"] {
+            color: #52645d;
+            font-size: 0.72rem;
+            font-weight: 720;
+        }
+        div[data-testid="stMetricValue"] {
+            color: var(--da-near-black);
+            font-size: 1rem;
+            font-weight: 720;
+        }
+        div[data-testid="stDataFrame"],
+        div[data-testid="stTable"] {
+            border: 1px solid var(--da-border);
+            border-radius: var(--da-radius);
+            background: var(--da-panel);
+            box-shadow: var(--da-shadow);
+            overflow: hidden;
+        }
+        div[data-testid="stAlert"] {
+            border-radius: var(--da-radius);
+            border-color: var(--da-border);
+            background: var(--da-panel);
+            color: var(--da-near-black);
+            font-size: 0.88rem;
+        }
+        .da-list-button {
+            margin: 0.34rem 0;
+            padding: 0.55rem 0.64rem;
+            border-color: var(--da-border);
+            border-radius: var(--da-radius-sm);
+            background: var(--da-panel);
+            color: var(--da-near-black) !important;
+            font-size: 0.86rem;
+            font-weight: 620;
+            box-shadow: var(--da-shadow);
+        }
+        .da-list-button:hover,
+        .da-list-button:focus,
+        .da-list-button.da-active-citation,
+        .da-list-button.da-active-page {
+            border-color: var(--da-accent);
+            background: var(--da-pale-green);
+            color: var(--da-green) !important;
+        }
+        .da-answer {
+            padding: 0.15rem 0 0.25rem;
+            color: var(--da-near-black);
+            font-size: 0.95rem;
+            line-height: 1.58;
+        }
+        .da-inline-cite {
+            border-color: #8bc8ae;
+            border-radius: var(--da-radius-sm);
+            background: var(--da-pale-green);
+            color: var(--da-green) !important;
+            font-size: 0.72em;
+            font-weight: 750;
+        }
+        .da-inline-cite:hover,
+        .da-inline-cite:focus,
+        .da-inline-cite.da-active-citation {
+            border-color: var(--da-accent);
+            background: var(--da-aqua);
+            color: var(--da-near-black) !important;
+        }
+        .da-selected-evidence-card,
+        .da-trace-timeline > div,
+        .da-trace-card,
+        .da-trace-call,
+        .da-json-trace,
+        .da-page-text {
+            border-color: var(--da-border);
+            border-radius: var(--da-radius);
+            background: var(--da-panel);
+            box-shadow: var(--da-shadow);
+        }
+        .da-selected-evidence-card {
+            padding: 0.85rem;
+        }
+        .da-selected-evidence-card h3 {
+            color: var(--da-near-black);
+            font-size: 0.98rem;
+        }
+        .da-selected-span {
+            color: var(--da-green);
+            font-weight: 680;
+        }
+        .da-source-caption,
+        .da-source-metadata,
+        .da-source-muted,
+        .da-trace-timeline span,
+        .da-trace-card span {
+            color: #5d6762;
+        }
+        .da-source-action {
+            border-color: var(--da-border);
+            border-radius: var(--da-radius-sm);
+            background: var(--da-off-white);
+            color: var(--da-near-black) !important;
+            font-size: 0.84rem;
+        }
+        .da-source-action:hover,
+        .da-source-action:focus {
+            border-color: var(--da-accent);
+            background: var(--da-pale-green);
+            color: var(--da-green) !important;
+        }
+        .da-page-preview img {
+            border-color: var(--da-border);
+            border-radius: var(--da-radius-sm);
+        }
+        .da-trace-meta span {
+            border-color: var(--da-border);
+            border-radius: var(--da-radius-sm);
+            background: var(--da-off-white);
+            color: var(--da-near-black);
+        }
+        .da-trace-meta em {
+            color: var(--da-green);
+        }
+        .da-json-trace summary {
+            color: var(--da-near-black);
+            font-size: 0.86rem;
+        }
+        .da-json-trace summary code {
+            border-radius: var(--da-radius-sm);
+            background: var(--da-off-white);
+            color: #52645d;
+            font-family: var(--da-mono);
+        }
+        .da-json-trace pre {
+            border-top-color: var(--da-border);
+            background: #fbfaf5;
+            color: var(--da-near-black);
+            font-family: var(--da-mono);
+        }
+        section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
+            color: #dce5df;
+        }
+        section[data-testid="stSidebar"] div[data-testid="stButton"] button {
+            background: var(--da-off-white);
+            color: var(--da-near-black);
+            opacity: 1;
+        }
+        section[data-testid="stSidebar"] div[data-testid="stButton"] button p,
+        section[data-testid="stSidebar"] div[data-testid="stButton"] button span {
+            color: var(--da-near-black) !important;
+        }
+        section[data-testid="stSidebar"] div[data-testid="stButton"] button:disabled {
+            border-color: rgba(240, 238, 233, 0.56);
+            background: rgba(240, 238, 233, 0.16);
+            color: #e2e7e3;
+        }
+        section[data-testid="stSidebar"] div[data-testid="stButton"] button:disabled p,
+        section[data-testid="stSidebar"] div[data-testid="stButton"] button:disabled span {
+            color: #e2e7e3 !important;
+        }
+        section[data-testid="stSidebar"] div[data-testid="stExpander"] {
+            border-color: rgba(240, 238, 233, 0.42);
+            background: rgba(240, 238, 233, 0.1);
+            box-shadow: none;
+        }
+        section[data-testid="stSidebar"] div[data-testid="stExpander"] summary,
+        section[data-testid="stSidebar"] div[data-testid="stExpander"] summary p,
+        section[data-testid="stSidebar"] div[data-testid="stExpander"] summary span {
+            color: var(--da-off-white) !important;
+            opacity: 1;
+        }
+        section[data-testid="stSidebar"] code {
+            background: rgba(184, 249, 243, 0.45);
+            color: var(--da-green);
+        }
+        @media (max-width: 720px) {
+            .block-container {
+                padding: 0.85rem 0.78rem 2rem;
+            }
+            .da-title {
+                font-size: 1.35rem;
+            }
+            .da-source-actions {
+                grid-template-columns: 1fr;
+            }
+            .da-trace-card-grid {
+                grid-template-columns: 1fr;
+            }
+        }
 	        </style>
         """,
         unsafe_allow_html=True,

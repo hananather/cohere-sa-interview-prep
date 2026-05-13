@@ -20,6 +20,14 @@ TRANSCRIPTS = ROOT / "defence_agent" / "data" / "transcripts" / "live_readiness_
 pytestmark = pytest.mark.streamlit
 
 
+@pytest.fixture(autouse=True)
+def _disable_ui_pacing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(streamlit_app, "GUIDED_STEP_DELAY_SECONDS", 0)
+    monkeypatch.setattr(streamlit_app, "LIVE_STATUS_POLL_INTERVAL_SECONDS", 0)
+    monkeypatch.setattr(streamlit_app, "ANSWER_STREAM_DELAY_SECONDS", 0)
+    monkeypatch.setattr(streamlit_app, "ANSWER_STREAM_CHUNK_WORDS", 200)
+
+
 def _result_from_transcript(name: str) -> AgentTurnResult:
     data = json.loads((TRANSCRIPTS / name).read_text(encoding="utf-8"))
     audit = data["final_answer_audit"]
@@ -67,7 +75,7 @@ def test_streamlit_demo_replay_renders_single_column_result_without_backend_call
     assert "Sources used" not in rendered_markdown
     assert "Citations" in rendered_markdown
     assert "Cited answer spans" not in rendered_markdown
-    assert "Evidence pages used" in rendered_markdown
+    assert "Evidence pages used" not in rendered_markdown
     assert "Source pages used" not in rendered_markdown
     assert "Selected evidence" in rendered_markdown
     assert "Claims cited" not in rendered_markdown
@@ -79,13 +87,52 @@ def test_streamlit_demo_replay_renders_single_column_result_without_backend_call
     trace_text = rendered_markdown + "\n" + "\n".join(item.value for item in app.caption)
     assert "google_adk" in trace_text
     assert "tool_calls" in trace_text
-    assert "Citation numbers mark answer spans" in "\n".join(item.value for item in app.caption)
-    assert any("Cohere-linked answer span" in item.value for item in app.caption)
-    assert any("Repeated citations from the same document page" in item.value for item in app.caption)
+    captions = "\n".join(item.value for item in app.caption)
+    assert "Source pages linked from inline citation markers" in captions
+    assert "Answer trace below keeps the full citation-span map" in captions
+    assert "Cohere-linked answer span" not in captions
     assert app.sidebar.radio[0].label == "Persona"
     assert app.sidebar.selectbox[0].label == "Demo query"
     assert app.sidebar.button[0].label == "Load query"
     assert app.sidebar.radio[1].label == "Run mode"
+
+
+def test_streamlit_renders_four_tabs() -> None:
+    app = AppTest.from_file(str(ROOT / "streamlit_app.py"))
+    app.run(timeout=20)
+
+    assert not app.exception
+    assert [tab.label for tab in app.tabs] == ["Ask", "Trace", "Eval", "Database"]
+
+
+def test_database_tab_renders_without_backend_call() -> None:
+    with patch("defence_agent.ui.backend_bridge.run_turn_in_subprocess") as backend:
+        app = AppTest.from_file(str(ROOT / "streamlit_app.py"))
+        app.run(timeout=20)
+
+    assert not app.exception
+    backend.assert_not_called()
+    rendered = "\n".join(item.value for item in list(app.subheader) + list(app.caption))
+    assert "Database" in rendered
+    assert "Approved source catalog filtered by persona access." in rendered
+    assert any(metric.label == "Visible docs" and metric.value == "7" for metric in app.metric)
+    assert any(metric.label == "Visible pages" and metric.value == "201" for metric in app.metric)
+    assert any(metric.label == "Withheld docs" and metric.value == "2" for metric in app.metric)
+
+
+def test_database_tab_does_not_expose_restricted_document_names_for_persona_a() -> None:
+    app = AppTest.from_file(str(ROOT / "streamlit_app.py"))
+    app.run(timeout=20)
+
+    assert not app.exception
+    rendered = "\n".join(
+        [item.value for item in list(app.markdown) + list(app.caption)]
+        + [str(frame.value) for frame in app.dataframe]
+    )
+    assert "Fusion Model Release Control Procedure" not in rendered
+    assert "Fusion Model Restricted Routing Annex" not in rendered
+    assert "SYN-FUSION-S-RELEASE-001" not in rendered
+    assert "SYN-FUSION-TS-ANNEX-002" not in rendered
 
 
 def test_streamlit_live_mode_calls_backend() -> None:
