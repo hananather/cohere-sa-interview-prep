@@ -996,10 +996,16 @@ def _answer_html_with_inline_citations(view_model: DefenceAgentViewModel) -> str
             continue
         href = _citation_href(citation.citation_id)
         tooltip = html.escape(_citation_tooltip(view_model, citation), quote=True)
+        page_key = _single_page_key_for_citation(view_model, citation)
+        page_key_attr = (
+            f'data-citation-page-key="{html.escape(page_key, quote=True)}" '
+            if page_key
+            else ""
+        )
         markers_by_end.setdefault(end, []).append(
             f'<a class="da-inline-cite" href="{href}" target="_self" '
             f'data-citation-id="{html.escape(citation.citation_id, quote=True)}" '
-            f'data-citation-marker="{html.escape(citation.marker, quote=True)}" data-tooltip="{tooltip}" '
+            f'{page_key_attr}data-citation-marker="{html.escape(citation.marker, quote=True)}" data-tooltip="{tooltip}" '
             f'aria-label="Show evidence for citation {citation.display_index}">'
             f"{html.escape(citation.marker)}</a>"
         )
@@ -1019,6 +1025,19 @@ def _answer_html_with_inline_citations(view_model: DefenceAgentViewModel) -> str
 
 def _citation_href(citation_id: str) -> str:
     return "#selected-evidence-anchor"
+
+
+def _single_page_key_for_citation(
+    view_model: DefenceAgentViewModel,
+    citation: CitationView,
+) -> str:
+    page_keys = [
+        page.page_key
+        for page in view_model.evidence_pages
+        if citation.citation_id in page.citation_ids
+    ]
+    unique_page_keys = list(dict.fromkeys(page_keys))
+    return unique_page_keys[0] if len(unique_page_keys) == 1 else ""
 
 
 def _inline_answer_base_text(view_model: DefenceAgentViewModel) -> str:
@@ -1352,6 +1371,7 @@ def _render_selected_evidence(view_model: DefenceAgentViewModel) -> None:
 def _evidence_page_payloads(view_model: DefenceAgentViewModel) -> dict[str, dict[str, object]]:
     payloads: dict[str, dict[str, object]] = {}
     previews: dict[str, object] = {}
+    citations_by_id = {citation.citation_id: citation for citation in view_model.citations}
     for page in view_model.evidence_pages:
         source = page.source
         preview = previews.get(source.source_id)
@@ -1359,11 +1379,17 @@ def _evidence_page_payloads(view_model: DefenceAgentViewModel) -> dict[str, dict
             preview = resolve_source_preview(source, backend_persona_id=view_model.backend_persona_id)
             previews[source.source_id] = preview
         citation = _citation_for_evidence_page(view_model, page)
+        html_by_citation_id = {
+            citation_id: _selected_evidence_card_html(citations_by_id[citation_id], source, preview)
+            for citation_id in page.citation_ids
+            if citation_id in citations_by_id
+        }
         payloads[page.page_key] = {
             "page_key": page.page_key,
             "citation_ids": list(page.citation_ids),
             "primary_citation_id": citation.citation_id if citation else "",
             "html": _selected_evidence_card_html(citation, source, preview),
+            "html_by_citation_id": html_by_citation_id,
         }
     return payloads
 
@@ -1510,14 +1536,18 @@ def _citation_interaction_script(
             const evidence = parentWin.__defenceAgentEvidencePages || {{}};
             const record = evidence[pageKey];
             if (!record) return;
-            const panel = parentDoc.querySelector("[data-da-selected-evidence-panel]");
-            if (panel) {{
-                panel.innerHTML = record.html;
-            }}
             const citationIds = record.citation_ids || [];
             const activeCitationId = citationIds.includes(preferredCitationId)
                 ? preferredCitationId
                 : (record.primary_citation_id || citationIds[0] || "");
+            const htmlByCitationId = record.html_by_citation_id || {{}};
+            const selectedHtml = activeCitationId && htmlByCitationId[activeCitationId]
+                ? htmlByCitationId[activeCitationId]
+                : record.html;
+            const panel = parentDoc.querySelector("[data-da-selected-evidence-panel]");
+            if (panel) {{
+                panel.innerHTML = selectedHtml;
+            }}
             parentDoc.querySelectorAll("[data-page-key]").forEach((node) => {{
                 const active = node.dataset.pageKey === pageKey;
                 node.classList.toggle("da-active-page", active);
@@ -1546,6 +1576,14 @@ def _citation_interaction_script(
             }}
         }};
         parentWin.__defenceAgentSelectCitation = (citationId) => {{
+            const activePage = parentDoc.querySelector("[data-page-key].da-active-page");
+            if (activePage) {{
+                const activeRecord = (parentWin.__defenceAgentEvidencePages || {{}})[activePage.dataset.pageKey];
+                if (activeRecord && (activeRecord.citation_ids || []).includes(citationId)) {{
+                    parentWin.__defenceAgentSelectPage(activeRecord.page_key, citationId);
+                    return;
+                }}
+            }}
             const record = parentWin.__defenceAgentEvidenceRecordForCitation(citationId);
             if (!record) return;
             parentWin.__defenceAgentSelectPage(record.page_key, citationId);

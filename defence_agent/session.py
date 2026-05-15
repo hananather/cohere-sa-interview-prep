@@ -21,7 +21,6 @@ from google.adk.runners import Runner
 from google.adk.sessions import DatabaseSessionService, InMemorySessionService
 from google.genai import types
 
-from .agent import root_agent
 from .auth.context import DEFAULT_PERSONA_ID, DEMO_USERS
 from .config import get_settings
 from .grounding import GroundedAnswer, finalize_answer
@@ -171,6 +170,8 @@ async def run_turn(
             persona_id=persona_id,
             prior_audit=prior_answer_audit,
         )
+
+    from .agent import root_agent
 
     runner = Runner(app_name=APP_NAME, agent=root_agent, session_service=service)
     message = types.Content(role="user", parts=[types.Part.from_text(text=_message_text(query, prior_answer))])
