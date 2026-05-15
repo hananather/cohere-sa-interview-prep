@@ -133,6 +133,29 @@ documents:
     normalized_pdf_sha256: 5e0579ced18751fd4ee526517e5500d72af05fd5a68581f2943bf7c41a063a67
     retrieved_date: "2026-05-11"
     provenance_note: "Official MS Word source represented through the publisher's official open-format PDF pair for the normalized page-evidence pipeline."
+  - doc_id: US-ARMY-FM30-16-1972-SCAN
+    path: public/fm30_16_technical_intelligence_1972_scanned_excerpt.pdf
+    title: "FM 30-16 Technical Intelligence, 1972 - Scanned Excerpt"
+    doc_family: us_army_technical_intelligence_manual
+    version: "1972"
+    status: approved
+    effective_date: "1972-08-31"
+    owner: Headquarters, Department of the Army
+    access_level: unclassified
+    allowed_roles: [all]
+    language: en
+    source_type: official_public_scanned_manual_excerpt
+    source_format: scanned_pdf
+    normalized_format: pdf
+    normalization_method: digitized_scan_with_ocr_text_layer
+    source_organization: U.S. Department of Defense Military Intelligence / DigitalCommons@University of Nebraska - Lincoln
+    canonical_url: https://digitalcommons.unl.edu/dodmilintel/101
+    source_url: "https://digitalcommons.unl.edu/cgi/viewcontent.cgi?article=1101&context=dodmilintel"
+    source_pdf_url: "https://digitalcommons.unl.edu/cgi/viewcontent.cgi?article=1101&context=dodmilintel"
+    original_pdf_sha256: de6b6f54ad1624be9017cb29e5275596ccbbc370d28db7d398709aa8d67573eb
+    excerpt_pdf_sha256: 35cdc05b390220e3092a04970eb8b5b76546f315b417125be780abd0a562b1ab
+    retrieved_date: "2026-05-13"
+    provenance_note: "Digitized physical manual copy; first 10 PDF pages are vendored as a minimal scanned-manual excerpt. The scan carries page images plus an OCR text layer, so it exercises the existing rendered-page Embed v4 pipeline without adding a separate OCR subsystem."
   - doc_id: SYN-FUSION-S-RELEASE-001
     path: synthetic/fusion_model_release_control.pdf
     title: Fusion Model Release Control Procedure

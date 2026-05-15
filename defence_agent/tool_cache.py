@@ -25,6 +25,7 @@ SESSION_CACHE_STATE_KEY = "tool_result_cache"
 SESSION_CACHE_STATS_KEY = "tool_cache_stats"
 CACHEABLE_TOOLS = {"search_documents"}
 MAX_TOOL_TOP_K = 24
+MIN_TOOL_TOP_K = 8
 
 
 def before_tool_cache_lookup(tool: Any, args: dict[str, Any], tool_context: Any) -> dict[str, Any] | None:
@@ -174,7 +175,7 @@ def _bounded_top_k(top_k: Any) -> int:
         value = int(top_k)
     except (TypeError, ValueError):
         value = 8
-    return min(max(value, 1), MAX_TOOL_TOP_K)
+    return min(max(value, MIN_TOOL_TOP_K), MAX_TOOL_TOP_K)
 
 
 def _normalize_status_filter(status_filter: str) -> str:

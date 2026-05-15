@@ -18,6 +18,10 @@ from defence_agent.session import AgentTurnResult
 
 
 DEFAULT_TIMEOUT_SECONDS = int(os.getenv("DEFENCE_AGENT_UI_TIMEOUT_SECONDS", "120"))
+DEFAULT_UI_COHERE_TIMEOUT_SECONDS = os.getenv("DEFENCE_AGENT_UI_COHERE_TIMEOUT_SECONDS", "45")
+DEFAULT_UI_COHERE_MAX_RETRIES = os.getenv("DEFENCE_AGENT_UI_COHERE_MAX_RETRIES", "1")
+DEFAULT_UI_COHERE_RETRY_MAX_WAIT_SECONDS = os.getenv("DEFENCE_AGENT_UI_COHERE_RETRY_MAX_WAIT_SECONDS", "5")
+DEFAULT_UI_ADK_TIMEOUT_SECONDS = os.getenv("DEFENCE_AGENT_UI_ADK_TIMEOUT_SECONDS", "45")
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -54,6 +58,7 @@ def run_turn_in_subprocess(
             input=json.dumps(payload),
             capture_output=True,
             text=True,
+            env=_worker_env(),
             timeout=timeout_seconds,
             check=False,
         )
@@ -86,6 +91,18 @@ def run_turn_in_subprocess(
     return agent_turn_result_from_dict(result)
 
 
+def _worker_env() -> dict[str, str]:
+    env = os.environ.copy()
+    env["COHERE_TIMEOUT_SECONDS"] = env.get("COHERE_TIMEOUT_SECONDS", DEFAULT_UI_COHERE_TIMEOUT_SECONDS)
+    env["COHERE_MAX_RETRIES"] = env.get("COHERE_MAX_RETRIES", DEFAULT_UI_COHERE_MAX_RETRIES)
+    env["COHERE_RETRY_MAX_WAIT_SECONDS"] = env.get(
+        "COHERE_RETRY_MAX_WAIT_SECONDS",
+        DEFAULT_UI_COHERE_RETRY_MAX_WAIT_SECONDS,
+    )
+    env["DEFTECH_ADK_TIMEOUT_SECONDS"] = env.get("DEFTECH_ADK_TIMEOUT_SECONDS", DEFAULT_UI_ADK_TIMEOUT_SECONDS)
+    return env
+
+
 def agent_turn_result_from_dict(data: dict[str, Any]) -> AgentTurnResult:
     """Rehydrate the worker JSON payload into the existing result dataclass."""
 
@@ -103,6 +120,7 @@ def agent_turn_result_from_dict(data: dict[str, Any]) -> AgentTurnResult:
         citation_validation=dict(data.get("citation_validation", {}) or {}),
         grounded_model=str(data.get("grounded_model", "")),
         documents_sent_to_model=int(data.get("documents_sent_to_model", 0) or 0),
+        thinking_blocks=list(data.get("thinking_blocks", []) or []),
         retrieval_status=str(data.get("retrieval_status", "")),
         answer_audit=dict(data.get("answer_audit", {}) or {}),
     )

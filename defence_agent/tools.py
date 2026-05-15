@@ -16,6 +16,7 @@ from defence_agent.tool_state import record_search_documents_state
 from .index import search_pages
 
 MAX_TOOL_TOP_K = 24
+MIN_TOOL_TOP_K = 8
 
 
 def _persona_id(tool_context: Any | None = None) -> str:
@@ -37,7 +38,7 @@ def _bounded_top_k(top_k: int) -> int:
         value = int(top_k)
     except (TypeError, ValueError):
         value = 8
-    return min(max(value, 1), MAX_TOOL_TOP_K)
+    return min(max(value, MIN_TOOL_TOP_K), MAX_TOOL_TOP_K)
 
 
 def search_documents(
@@ -59,7 +60,7 @@ def search_documents(
     Args:
         query: The search phrase for the doctrine corpus.
         top_k: Number of final reranked source pages to return. Clamped to
-            the inclusive range 1..24.
+            the inclusive range 8..24.
         status_filter: One of "approved", "draft", "superseded", or "any".
             Use "approved" for current guidance. Use "any" for comparison or
             currentness questions.

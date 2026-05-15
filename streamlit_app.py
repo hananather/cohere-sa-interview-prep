@@ -35,6 +35,7 @@ from defence_agent.ui.view_model import (
     CitationView,
     DefenceAgentViewModel,
     EvidencePageView,
+    RuntimeStepView,
     SourceView,
     ToolCallView,
     UiPersona,
@@ -53,8 +54,13 @@ class DemoQuery:
 
 DEMO_QUERIES = {
     "Planning brief comparison": DemoQuery(
-        "I am preparing a planning brief. Compare how Canada's defence policy and the DND/CAF AI Strategy describe AI-enabled modernization, and cite the strongest source pages.",
+        "Compare how Canada's defence policy and the DND/CAF AI Strategy describe AI-enabled modernization for a planning brief, and cite the strongest source pages.",
         "Compare Canadian defence modernization sources with cited support.",
+        target_answer_language="en",
+    ),
+    "Scanned manual retrieval": DemoQuery(
+        "What is technical intelligence, what foreign materiel does it cover, and which objectives matter most for strategic and tactical planners?",
+        "Retrieve a digitized physical defence manual excerpt as cited evidence.",
         target_answer_language="en",
     ),
     "Access boundary": DemoQuery(
@@ -64,14 +70,13 @@ DEMO_QUERIES = {
     ),
     "Evidence gap: Arctic basing 2031": DemoQuery(
         "What does the corpus say about the approved Arctic submarine basing schedule for 2031?",
-        "Show that unsupported scheduled claims are refused instead of guessed.",
+        "Show that Command A abstains when authorized pages do not support the claim.",
         target_answer_language="en",
     ),
     "French NATO doctrine answer": DemoQuery(
         "Quelles taches fondamentales l'OTAN attribue-t-elle a l'Alliance dans son Concept strategique, et pourquoi sont-elles importantes pour un brief de planification canadien?",
         "French answer that highlights English and French NATO source pages.",
         target_answer_language="fr",
-        live_only=True,
     ),
     "Concise cited NATO answer": DemoQuery(
         "Write a 150-200 word cited planning answer explaining NATO's core tasks and why they matter for a Canadian planning brief.",
@@ -106,6 +111,13 @@ INSUFFICIENT_EVIDENCE_TRANSCRIPT_DIR = (
     / "transcripts"
     / "insufficient_evidence_strategy_realignment_20260511_131708"
 )
+EVAL_FULL_TRANSCRIPT_DIR = (
+    Path(__file__).resolve().parent
+    / "defence_agent"
+    / "data"
+    / "transcripts"
+    / "eval_full_registry_20260514_020915"
+)
 GUIDED_STEP_DELAY_SECONDS = 1.25
 LIVE_STATUS_POLL_INTERVAL_SECONDS = 0.75
 ANSWER_STREAM_CHUNK_WORDS = 4
@@ -130,10 +142,20 @@ DEMO_REPLAYS = {
         "acl_unclassified_sensor_fusion_release_rule.json",
         "Unclassified user is blocked from restricted sensor-fusion guidance.",
     ),
+    ("persona_a", "Scanned manual retrieval"): DemoReplay(
+        EVAL_FULL_TRANSCRIPT_DIR,
+        "scanned_manual_technical_intelligence.json",
+        "Digitized physical manual excerpt with cited scanned-source pages.",
+    ),
     ("persona_a", "Evidence gap: Arctic basing 2031"): DemoReplay(
         INSUFFICIENT_EVIDENCE_TRANSCRIPT_DIR,
         "insufficient_evidence_planning_topic.json",
-        "Unsupported scheduled claim is refused with an inspectable audit trail.",
+        "Authorized pages are reviewed, then the unsupported scheduled claim is refused.",
+    ),
+    ("persona_a", "French NATO doctrine answer"): DemoReplay(
+        EVAL_FULL_TRANSCRIPT_DIR,
+        "french_nato_doctrine_answer.json",
+        "French cited answer over bilingual NATO Strategic Concept pages.",
     ),
     ("persona_a", "Concise cited NATO answer"): DemoReplay(
         DEMO_TRANSCRIPT_DIR,
@@ -150,10 +172,20 @@ DEMO_REPLAYS = {
         "acl_secret_sensor_fusion_release_rule.json",
         "Cleared user receives the restricted workflow rule with traceability.",
     ),
+    ("persona_b", "Scanned manual retrieval"): DemoReplay(
+        EVAL_FULL_TRANSCRIPT_DIR,
+        "scanned_manual_technical_intelligence.json",
+        "Digitized physical manual excerpt with cited scanned-source pages.",
+    ),
     ("persona_b", "Evidence gap: Arctic basing 2031"): DemoReplay(
         INSUFFICIENT_EVIDENCE_TRANSCRIPT_DIR,
         "insufficient_evidence_planning_topic.json",
-        "Unsupported scheduled claim is refused with an inspectable audit trail.",
+        "Authorized pages are reviewed, then the unsupported scheduled claim is refused.",
+    ),
+    ("persona_b", "French NATO doctrine answer"): DemoReplay(
+        EVAL_FULL_TRANSCRIPT_DIR,
+        "french_nato_doctrine_answer.json",
+        "French cited answer over bilingual NATO Strategic Concept pages.",
     ),
     ("persona_b", "Concise cited NATO answer"): DemoReplay(
         DEMO_TRANSCRIPT_DIR,
@@ -209,16 +241,16 @@ def _init_state() -> None:
 
 
 def _render_ask_tab() -> None:
-    persona = _render_query_controls()
+    _render_query_controls()
 
     if st.session_state.get("last_run_error"):
         st.error(st.session_state["last_run_error"])
 
     view_model = st.session_state.get("last_result")
     if view_model is None:
-        st.info("Run a query to see a cited answer and the evidence used.")
         return
 
+    _render_runtime_flow_panel(view_model)
     _render_answer(view_model)
 
 
@@ -257,19 +289,22 @@ def _render_query_controls() -> UiPersona:
                 format_func=lambda key: RUN_MODES[key],
                 key="run_mode",
             )
-            if run_mode == "demo":
+            effective_run_mode = _effective_run_mode(selected_example, run_mode)
+            selected_query = DEMO_QUERIES.get(selected_example)
+            if selected_query is not None and selected_query.live_only:
+                st.caption("This selected query runs live because no guided replay is bundled.")
+            elif effective_run_mode == "demo":
                 st.caption("Uses the curated walkthrough output when available.")
             else:
                 st.caption("Runs the backend with Cohere and the agent loop.")
             st.checkbox("Stream answer display", key="stream_answer")
             st.caption("Streams the answer after the run completes.")
 
-        st.markdown("**Runtime**")
-        st.caption(f"`run_turn` · `search_documents` · {DEFAULT_TIMEOUT_SECONDS}s timeout")
+        _render_tool_card()
 
     st.caption(
         f"Persona: {persona.label} · Allowed evidence: {persona.visible_access_label} · "
-        f"Run mode: {RUN_MODES[run_mode]}"
+        f"Run mode: {RUN_MODES[effective_run_mode]}"
     )
 
     with st.form("ask_form", clear_on_submit=False):
@@ -282,8 +317,33 @@ def _render_query_controls() -> UiPersona:
         submitted = st.form_submit_button("Run query", type="primary")
 
     if submitted:
-        _run_query(query=query, persona=persona, selected_example=selected_example, run_mode=run_mode)
+        _run_query(query=query, persona=persona, selected_example=selected_example, run_mode=effective_run_mode)
     return persona
+
+
+def _render_tool_card() -> None:
+    st.markdown("**Model-facing tool**")
+    st.markdown(
+        f"""
+        <div class="da-tool-card">
+            <div class="da-tool-header">
+                <span>Only tool</span>
+                <code>search_documents</code>
+            </div>
+            <div class="da-tool-purpose">Persona-scoped evidence retrieval over approved doctrine pages.</div>
+            <div class="da-tool-flow">
+                <span>Access filter</span>
+                <span>Embed v4</span>
+                <span>Vector search</span>
+                <span>Rerank v4</span>
+                <span>Citation IDs</span>
+            </div>
+            <code class="da-tool-signature">query, top_k, status_filter, language</code>
+            <div class="da-tool-timeout">Live hard stop: {DEFAULT_TIMEOUT_SECONDS}s</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _reset_result_when_persona_changes(persona: UiPersona) -> None:
@@ -324,6 +384,7 @@ def _run_query(*, query: str, persona: UiPersona, selected_example: str, run_mod
     started = time.monotonic()
     st.session_state["run_active"] = True
     st.session_state["last_run_error"] = ""
+    run_mode = _effective_run_mode(selected_example, run_mode)
     target_answer_language = _target_answer_language(cleaned, selected_example)
     try:
         if _can_use_guided_replay(run_mode, selected_example, cleaned):
@@ -381,65 +442,52 @@ def _run_query(*, query: str, persona: UiPersona, selected_example: str, run_mod
 
 
 def _reveal_audit_sequence(view_model: DefenceAgentViewModel, *, delay_seconds: float) -> None:
-    for step in _audit_status_steps(view_model):
-        _write_status_step(step, delay_seconds=delay_seconds)
+    for step in view_model.runtime_steps:
+        message = f"{step.index}. {step.title}: {step.detail}"
+        _write_status_step(message, delay_seconds=delay_seconds)
+
+
+def _render_runtime_flow_panel(view_model: DefenceAgentViewModel) -> None:
+    with st.expander("Runtime flow", expanded=False):
+        st.markdown(_runtime_flow_html(view_model), unsafe_allow_html=True)
+
+
+def _runtime_flow_html(view_model: DefenceAgentViewModel) -> str:
+    rows = "".join(_runtime_flow_row_html(step) for step in view_model.runtime_steps)
+    return f'<div class="da-runtime-flow">{rows}</div>'
+
+
+def _runtime_flow_row_html(step: RuntimeStepView) -> str:
+    status = step.status
+    code = f'<code class="da-runtime-code">{html.escape(step.code)}</code>' if step.code else ""
+    detail = f'<div class="da-runtime-step-text">{html.escape(step.detail)}</div>' if step.detail else ""
+    markers = "".join(
+        f'<span class="da-runtime-chip"><span class="da-runtime-model-dot da-runtime-model-dot--{css_class}"></span>'
+        f"{html.escape(label)}</span>"
+        for label, css_class in step.markers
+    )
+    metrics = "".join(
+        f'<span class="da-runtime-metric"><strong>{html.escape(label)}</strong> {html.escape(value)}</span>'
+        for label, value in step.metrics
+    )
+    return (
+        f'<div class="da-runtime-step da-runtime-step--{status}">'
+        f'<span class="da-runtime-status-dot da-runtime-status-dot--{status}" aria-hidden="true"></span>'
+        '<div class="da-runtime-step-body">'
+        f'<div class="da-runtime-step-title">{step.index}. {html.escape(step.title)}</div>'
+        f"{code}"
+        f"{detail}"
+        '<div class="da-runtime-step-meta">'
+        f"{markers}"
+        f"{metrics}"
+        "</div>"
+        "</div>"
+        "</div>"
+    )
 
 
 def _audit_status_steps(view_model: DefenceAgentViewModel) -> list[str]:
-    steps = [
-        f"1. Apply persona access scope: {view_model.persona_label} · {view_model.visible_access_label}.",
-        f"2. Agent prepares tool call: {_tool_plan_summary(view_model)}.",
-    ]
-
-    next_index = 3
-    if view_model.tool_calls:
-        for call in view_model.tool_calls:
-            query = _compact_label(call.query or "document search", 96)
-            steps.append(f"{next_index}. Run actual search_documents call {call.call_index}: {query}.")
-            next_index += 1
-    else:
-        steps.append(f"{next_index}. Run actual search_documents call: no search was required for this turn.")
-        next_index += 1
-
-    excluded_count = sum(int(row.get("count", 0) or 0) for row in view_model.excluded_source_summary)
-    authorized_count = len(view_model.authorized_source_rows)
-    steps.append(
-        f"{next_index}. Apply access filters: {authorized_count} authorized page(s), "
-        f"{excluded_count} withheld group(s)."
-    )
-    next_index += 1
-
-    steps.append(
-        f"{next_index}. Rerank authorized evidence: {view_model.documents_sent_to_model} page(s) prepared "
-        "for grounded generation."
-    )
-    next_index += 1
-
-    generation = view_model.answer_audit.get("generation", {}) if isinstance(view_model.answer_audit, dict) else {}
-    model = str(generation.get("model", "") or "Command A")
-    if view_model.documents_sent_to_model:
-        generation_detail = f"{model} received {view_model.documents_sent_to_model} authorized document(s)."
-    else:
-        generation_detail = "zero-doc refusal path kept unsupported or restricted source text out of generation."
-    steps.append(f"{next_index}. Generate grounded answer with Command A: {generation_detail}")
-    next_index += 1
-
-    steps.append(f"{next_index}. Resolve Cohere citation spans: {len(view_model.citations)} span(s) mapped to source pages.")
-    next_index += 1
-
-    steps.append(
-        f"{next_index}. Build answer audit: {view_model.answerability.lower()} · "
-        f"{view_model.retrieval_status or 'trace ready'}."
-    )
-    return steps
-
-
-def _tool_plan_summary(view_model: DefenceAgentViewModel) -> str:
-    if not view_model.tool_calls:
-        return "review prior audit state"
-    count = len(view_model.tool_calls)
-    noun = "call" if count == 1 else "calls"
-    return f"{count} search_documents {noun} via ADK"
+    return [f"{step.index}. {step.title}: {step.detail}" for step in view_model.runtime_steps]
 
 
 def _write_status_step(message: str, *, delay_seconds: float = 0.16) -> None:
@@ -455,6 +503,13 @@ def _can_use_guided_replay(run_mode: str, selected_example: str, query: str) -> 
     if demo_query is None or demo_query.live_only:
         return False
     return query.strip() == EXAMPLE_PROMPTS.get(selected_example, "").strip()
+
+
+def _effective_run_mode(selected_example: str, requested_run_mode: str) -> str:
+    demo_query = DEMO_QUERIES.get(selected_example)
+    if demo_query is not None and demo_query.live_only:
+        return "live"
+    return requested_run_mode if requested_run_mode in RUN_MODES else "demo"
 
 
 def _target_answer_language(query: str, selected_example: str) -> str:
@@ -490,7 +545,7 @@ def _render_demo_query_context(selected_example: str, persona: UiPersona) -> Non
         st.caption(query.summary)
     replay = DEMO_REPLAYS.get((persona.ui_id, selected_example))
     if replay is None and query is not None and query.live_only:
-        st.caption("Runs live so the French answer is generated from the current model.")
+        st.caption("Runs live against the current model and index.")
 
 
 def _store_result(view_model: DefenceAgentViewModel, result: AgentTurnResult, persona: UiPersona) -> None:
@@ -523,7 +578,7 @@ def _load_demo_result(
     data = json.loads(path.read_text(encoding="utf-8"))
     audit = dict(data.get("final_answer_audit", {}) or {})
     if not str(audit.get("retrieval_status", "") or "").strip():
-        audit["retrieval_status"] = "option ready"
+        audit["retrieval_status"] = "retrieval_complete"
     retrieval = dict(audit.get("retrieval", {}) or {})
     _validate_replay_acl(audit, persona=persona)
     retrieval["allowed_access"] = list(persona.allowed_access)
@@ -686,13 +741,13 @@ def _multilingual_retrieval_html(payload: dict[str, object]) -> str:
     if not isinstance(sent_counts, dict) or not isinstance(cited_counts, dict):
         return ""
     sent = _language_count_phrase(sent_counts)
-    cited = _language_count_phrase(cited_counts) if {"en", "fr"}.issubset(cited_counts) else "recorded in trace"
+    cited = _language_count_phrase(cited_counts) or "none"
     return (
         '<div class="da-language-strip">'
-        '<span class="da-language-title">Multilingual retrieval</span>'
-        f'<span>Answer: {html.escape(str(payload.get("answer_language", "Query language")))}</span>'
-        f"<span>Sources: {html.escape(sent)}</span>"
-        f"<span>Cited: {html.escape(cited)}</span>"
+        '<span class="da-language-title">Language mix</span>'
+        f'<span>Answer language: {html.escape(str(payload.get("answer_language", "Query language")))}</span>'
+        f"<span>Candidate pages: {html.escape(sent)}</span>"
+        f"<span>Cited pages: {html.escape(cited)}</span>"
         "</div>"
     )
 
@@ -740,7 +795,7 @@ def _render_answer_trace_panel(view_model: DefenceAgentViewModel) -> None:
             unsafe_allow_html=True,
         )
         st.markdown(
-            _json_trace_block("Answerability", _answerability_trace_payload(view_model), open_block=True),
+            _json_trace_block("Evidence check", _answerability_trace_payload(view_model), open_block=True),
             unsafe_allow_html=True,
         )
         st.markdown(
@@ -821,6 +876,9 @@ def _tool_trace_payload(view_model: DefenceAgentViewModel) -> dict[str, object]:
                     "authorized_source_count": call.authorized_source_count,
                     "sources_sent_to_answer_count": call.sources_sent_to_answer_count,
                     "excluded_source_count": call.excluded_source_count,
+                    "per_page_vector_match": call.vector_score,
+                    "vector_match_formula": "1 / (1 + distance)",
+                    "per_page_rerank_relevance": call.rerank_score,
                     "embedding_backend": call.embedding_backend or "recorded_in_index_audit",
                     "rerank_backend": call.rerank_backend or "recorded_in_index_audit",
                 },
@@ -852,7 +910,7 @@ def _retrieval_trace_payload(view_model: DefenceAgentViewModel) -> dict[str, obj
 def _answerability_trace_payload(view_model: DefenceAgentViewModel) -> dict[str, object]:
     return {
         "decision": view_model.answerability.lower(),
-        "reason": view_model.answerability_reason,
+        "reason": _answerability_reason_label(view_model.answerability_reason),
         "detail": _answerability_detail(view_model),
         "zero_doc_generation": view_model.documents_sent_to_model == 0,
     }
@@ -1093,11 +1151,23 @@ def _answerability_trace_html(view_model: DefenceAgentViewModel) -> str:
     return _trace_cards_html(
         [
             ("Decision", view_model.answerability.lower()),
-            ("Reason", view_model.answerability_reason),
+            ("Reason", _answerability_reason_label(view_model.answerability_reason)),
             ("Detail", reason_detail),
             ("Zero-doc generation", zero_doc),
         ]
     )
+
+
+def _answerability_reason_label(reason: str) -> str:
+    labels = {
+        "authorized_evidence_sent": "authorized evidence sent",
+        "authorized_sources_available": "authorized evidence available",
+        "insufficient_authorized_evidence": "evidence not sufficient",
+        "denied_source_matches_query": "access denied before generation",
+        "no_authorized_sources": "no authorized sources",
+    }
+    normalized = str(reason or "").strip()
+    return labels.get(normalized, normalized.replace("_", " ") or "not recorded")
 
 
 def _generation_trace_html(view_model: DefenceAgentViewModel) -> str:
@@ -1149,7 +1219,7 @@ def _answerability_detail(view_model: DefenceAgentViewModel) -> str:
                 f"({denied_count} denied source group(s)); restricted text is not shown."
             )
         unsupported = record.get("unsupported_specificity", {})
-        if isinstance(unsupported, dict) and unsupported.get("hard_refusal"):
+        if isinstance(unsupported, dict) and (unsupported.get("evidence_gap") or unsupported.get("hard_refusal")):
             missing = list(unsupported.get("missing_year_terms", []) or []) + list(
                 unsupported.get("missing_scheduled_fact_terms", []) or []
             )
@@ -1179,42 +1249,62 @@ def _render_citation_pages(view_model: DefenceAgentViewModel) -> None:
         return
 
     st.markdown("**Citations**")
-    st.caption("Source pages linked from inline citation markers. Pages are grouped to reduce repetition.")
+    st.caption("Source pages linked from inline citation markers. Each page lists the citation markers that point to it.")
+    citations_by_id = {citation.citation_id: citation for citation in view_model.citations}
     for page in view_model.evidence_pages:
         span_count = len(page.citation_ids)
         span_label = "1 cited span" if span_count == 1 else f"{span_count} cited spans"
         button_label = f"{page.display_index}. {_evidence_page_button_label(page)}"
         if span_count:
             button_label += f" · {span_label}"
-        _render_anchor_button(
-            label=button_label,
-            href="#selected-evidence-anchor",
-            css_class="da-evidence-link",
-            page_key=page.page_key,
+        st.markdown(
+            _evidence_page_card_html(page, button_label, citations_by_id),
+            unsafe_allow_html=True,
         )
 
 
-def _render_anchor_button(
-    *,
+def _evidence_page_card_html(
+    page: EvidencePageView,
     label: str,
-    href: str,
-    css_class: str,
-    citation_id: str | None = None,
-    page_key: str | None = None,
-) -> None:
+    citations_by_id: dict[str, CitationView],
+) -> str:
     attributes = [
-        f'class="da-list-button {html.escape(css_class, quote=True)}"',
-        f'href="{html.escape(href, quote=True)}"',
+        'class="da-list-button da-evidence-link"',
+        'href="#selected-evidence-anchor"',
         'target="_self"',
+        f'data-page-key="{html.escape(page.page_key, quote=True)}"',
     ]
-    if citation_id:
-        attributes.append(f'data-citation-id="{html.escape(citation_id, quote=True)}"')
-    if page_key:
-        attributes.append(f'data-page-key="{html.escape(page_key, quote=True)}"')
-    st.markdown(
-        f"<a {' '.join(attributes)}>{html.escape(label)}</a>",
-        unsafe_allow_html=True,
+    page_link = f"<a {' '.join(attributes)}>{html.escape(label)}</a>"
+    return (
+        '<div class="da-evidence-card">'
+        f"{page_link}"
+        f"{_evidence_page_citation_map_html(page, citations_by_id)}"
+        "</div>"
     )
+
+
+def _evidence_page_citation_map_html(
+    page: EvidencePageView,
+    citations_by_id: dict[str, CitationView],
+) -> str:
+    chips: list[str] = []
+    for citation_id in page.citation_ids:
+        citation = citations_by_id.get(citation_id)
+        marker = citation.marker if citation else citation_id
+        label = f"{marker} {_compact_label(citation.answer_text, 96)}" if citation else marker
+        attributes = [
+            'class="da-citation-chip"',
+            'href="#selected-evidence-anchor"',
+            'target="_self"',
+            f'data-citation-id="{html.escape(citation_id, quote=True)}"',
+            f'data-citation-page-key="{html.escape(page.page_key, quote=True)}"',
+            f'title="{html.escape(label, quote=True)}"',
+            f'aria-label="Show evidence for {html.escape(marker, quote=True)} on this source page"',
+        ]
+        chips.append(f"<a {' '.join(attributes)}>{html.escape(marker)}</a>")
+    if not chips:
+        return ""
+    return '<div class="da-citation-map"><span>Citation markers</span>' + "".join(chips) + "</div>"
 
 
 def _evidence_page_button_label(page: EvidencePageView) -> str:
@@ -1383,11 +1473,26 @@ def _install_citation_interaction_script(
     selected_page_key: str,
     selected_citation_id: str,
 ) -> None:
+    st.iframe(
+        _citation_interaction_script(
+            payloads,
+            selected_page_key=selected_page_key,
+            selected_citation_id=selected_citation_id,
+        ),
+        height=1,
+    )
+
+
+def _citation_interaction_script(
+    payloads: dict[str, dict[str, object]],
+    *,
+    selected_page_key: str,
+    selected_citation_id: str,
+) -> str:
     payload_json = json.dumps(payloads).replace("</", "<\\/")
     initial_page_json = json.dumps(selected_page_key)
     initial_citation_json = json.dumps(selected_citation_id)
-    st.iframe(
-        f"""
+    return f"""
         <script>
         const parentWin = window.parent;
         const parentDoc = parentWin.document;
@@ -1414,10 +1519,25 @@ def _install_citation_interaction_script(
                 ? preferredCitationId
                 : (record.primary_citation_id || citationIds[0] || "");
             parentDoc.querySelectorAll("[data-page-key]").forEach((node) => {{
-                node.classList.toggle("da-active-page", node.dataset.pageKey === pageKey);
+                const active = node.dataset.pageKey === pageKey;
+                node.classList.toggle("da-active-page", active);
+                if (active) {{
+                    node.setAttribute("aria-current", "true");
+                }} else {{
+                    node.removeAttribute("aria-current");
+                }}
             }});
             parentDoc.querySelectorAll("[data-citation-id]").forEach((node) => {{
-                node.classList.toggle("da-active-citation", Boolean(activeCitationId) && node.dataset.citationId === activeCitationId);
+                const chipPageKey = node.dataset.citationPageKey || "";
+                const active = Boolean(activeCitationId)
+                    && node.dataset.citationId === activeCitationId
+                    && (!chipPageKey || chipPageKey === pageKey);
+                node.classList.toggle("da-active-citation", active);
+                if (active) {{
+                    node.setAttribute("aria-current", "true");
+                }} else {{
+                    node.removeAttribute("aria-current");
+                }}
             }});
             const anchor = parentDoc.getElementById("selected-evidence-anchor");
             if (shouldScroll && anchor) {{
@@ -1432,29 +1552,36 @@ def _install_citation_interaction_script(
         }};
         if (!parentWin.__defenceAgentCitationClickInstalled) {{
             parentDoc.addEventListener("click", (event) => {{
-                const pageTarget = event.target.closest("[data-page-key]");
+                const target = event.target;
+                if (!(target instanceof parentWin.Element)) return;
+                const citationTarget = target.closest("[data-citation-id]");
+                if (citationTarget) {{
+                    const citationId = citationTarget.dataset.citationId;
+                    const evidence = parentWin.__defenceAgentEvidencePages || {{}};
+                    const pageKey = citationTarget.dataset.citationPageKey;
+                    if (!citationId || !parentWin.__defenceAgentEvidenceRecordForCitation(citationId)) return;
+                    event.preventDefault();
+                    if (pageKey && evidence[pageKey]) {{
+                        parentWin.__defenceAgentSelectPage(pageKey, citationId);
+                    }} else {{
+                        parentWin.__defenceAgentSelectCitation(citationId);
+                    }}
+                    return;
+                }}
+                const pageTarget = target.closest("[data-page-key]");
                 if (pageTarget) {{
                     const pageKey = pageTarget.dataset.pageKey;
                     const evidence = parentWin.__defenceAgentEvidencePages || {{}};
                     if (!pageKey || !evidence[pageKey]) return;
                     event.preventDefault();
                     parentWin.__defenceAgentSelectPage(pageKey, evidence[pageKey].primary_citation_id || "");
-                    return;
                 }}
-                const citationTarget = event.target.closest("[data-citation-id]");
-                if (!citationTarget) return;
-                const citationId = citationTarget.dataset.citationId;
-                if (!citationId || !parentWin.__defenceAgentEvidenceRecordForCitation(citationId)) return;
-                event.preventDefault();
-                parentWin.__defenceAgentSelectCitation(citationId);
             }}, true);
             parentWin.__defenceAgentCitationClickInstalled = true;
         }}
         parentWin.__defenceAgentSelectPage({initial_page_json}, {initial_citation_json}, false);
         </script>
-        """,
-        height=1,
-    )
+        """
 
 
 def _selected_citation(view_model: DefenceAgentViewModel) -> CitationView | None:
@@ -1672,6 +1799,17 @@ def _render_trace_story(view_model: DefenceAgentViewModel) -> None:
         key=f"trace_query_{view_model.session_id}",
         label_visibility="collapsed",
     )
+    if view_model.thinking_blocks:
+        with st.expander("Cohere thinking blocks", expanded=False):
+            st.caption("Returned only by reasoning-capable Cohere models; separate from the action audit above.")
+            for block in view_model.thinking_blocks:
+                st.text_area(
+                    f"Thinking block {block.get('index', '')}",
+                    value=str(block.get("thinking", "")),
+                    height=180,
+                    disabled=True,
+                    key=f"thinking_{view_model.session_id}_{block.get('index', len(str(block)))}",
+                )
 
 
 def _trace_timeline_html(view_model: DefenceAgentViewModel) -> str:
@@ -1707,7 +1845,7 @@ def _trace_timeline_html(view_model: DefenceAgentViewModel) -> str:
     steps.append(
         (
             f"{next_index}. Answer generated",
-            f"Command A used {view_model.documents_sent_to_model} evidence documents for the grounded response.",
+            f"{_generation_model_label(view_model)} used {view_model.documents_sent_to_model} evidence documents for the grounded response.",
         )
     )
     next_index += 1
@@ -1721,6 +1859,18 @@ def _trace_timeline_html(view_model: DefenceAgentViewModel) -> str:
 
     items = "".join(_trace_step_html(title, detail) for title, detail in steps)
     return f'<div class="da-trace-timeline">{items}</div>'
+
+
+def _generation_model_label(view_model: DefenceAgentViewModel) -> str:
+    generation = view_model.answer_audit.get("generation", {}) if isinstance(view_model.answer_audit, dict) else {}
+    model = str(generation.get("model", "") or "")
+    if not model:
+        return "Cohere"
+    if "reasoning" in model:
+        return "Command A Reasoning"
+    if "command-a" in model:
+        return "Command A"
+    return model
 
 
 def _trace_step_html(title: str, detail: str) -> str:
@@ -1861,8 +2011,11 @@ def _citation_resolution_rows(view_model: DefenceAgentViewModel) -> list[dict[st
 
 
 def _apply_styles() -> None:
-    st.markdown(
-        """
+    st.markdown(_app_css(), unsafe_allow_html=True)
+
+
+def _app_css() -> str:
+    return """
         <style>
         :root {
             --da-green: #062c22;
@@ -1872,6 +2025,7 @@ def _apply_styles() -> None:
             --da-panel: #f8f6ef;
             --da-pale-green: #f1fdea;
             --da-aqua: #b8f9f3;
+            --da-selected-border: #287e78;
             --da-coral: #da532c;
             --da-gray: #a4a4a4;
             --da-border: #d6d1c8;
@@ -1909,33 +2063,131 @@ def _apply_styles() -> None:
         div[data-testid="stAlert"] {
             font-size: 0.94rem;
         }
+        .da-tool-card {
+            margin: 0.35rem 0 1rem;
+            padding: 0.72rem;
+            border: 1px solid rgba(248, 246, 239, 0.24);
+            border-radius: var(--da-radius);
+            background: rgba(248, 246, 239, 0.09);
+            color: var(--da-off-white);
+        }
+        .da-tool-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0.45rem;
+        }
+        .da-tool-header span {
+            color: rgba(240, 238, 233, 0.72);
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .da-tool-header code,
+        .da-tool-signature {
+            font-family: var(--da-mono);
+            font-size: 0.74rem;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+        .da-tool-purpose {
+            margin-bottom: 0.52rem;
+            color: rgba(240, 238, 233, 0.9);
+            font-size: 0.84rem;
+            line-height: 1.35;
+        }
+        .da-tool-flow {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.28rem;
+            margin-bottom: 0.56rem;
+        }
+        .da-tool-flow span {
+            padding: 0.14rem 0.34rem;
+            border: 1px solid rgba(184, 249, 243, 0.36);
+            border-radius: var(--da-radius-sm);
+            background: rgba(184, 249, 243, 0.12);
+            color: var(--da-aqua);
+            font-size: 0.72rem;
+            font-weight: 650;
+            line-height: 1.25;
+        }
+        .da-tool-signature {
+            display: block;
+            margin-bottom: 0.38rem;
+            color: rgba(240, 238, 233, 0.86);
+        }
+        .da-tool-timeout {
+            color: rgba(240, 238, 233, 0.64);
+            font-size: 0.72rem;
+        }
         .da-list-button {
             display: block;
             width: 100%;
-            margin: 0.42rem 0;
-            padding: 0.66rem 0.78rem;
-            border: 1px solid #d8d8d4;
-            border-radius: 0.5rem;
-            background: #ffffff;
-            color: #2e2f3a !important;
-            font-size: 0.92rem;
-            font-weight: 500;
+            margin: 0.34rem 0;
+            padding: 0.55rem 0.64rem;
+            border: 1px solid var(--da-border);
+            border-radius: var(--da-radius-sm);
+            background: var(--da-panel);
+            color: var(--da-near-black) !important;
+            font-size: 0.86rem;
+            font-weight: 620;
             line-height: 1.35;
             text-align: left;
             text-decoration: none !important;
+            box-shadow: var(--da-shadow);
         }
         .da-list-button:hover,
         .da-list-button:focus {
-            border-color: #82b6a1;
-            background: #f4fbf8;
-            color: #185b45 !important;
+            border-color: var(--da-accent);
+            background: var(--da-pale-green);
+            color: var(--da-green) !important;
         }
         .da-list-button.da-active-citation,
-        .da-list-button.da-active-page,
-        .da-inline-cite.da-active-citation {
-            border-color: #2f8f68;
-            background: #e4f5ee;
-            color: #124735 !important;
+        .da-list-button.da-active-page {
+            border-color: var(--da-selected-border);
+            background: var(--da-aqua);
+            color: var(--da-near-black) !important;
+        }
+        .da-evidence-card {
+            margin: 0.42rem 0 0.72rem;
+        }
+        .da-evidence-card .da-list-button {
+            margin-bottom: 0.24rem;
+        }
+        .da-citation-map {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.32rem;
+            margin: 0 0 0.32rem;
+            color: #5d6762;
+            font-size: 0.78rem;
+            line-height: 1.3;
+        }
+        .da-citation-map span {
+            font-weight: 650;
+        }
+        .da-citation-chip {
+            display: inline-flex;
+            align-items: center;
+            min-height: 1.35rem;
+            padding: 0.03rem 0.34rem;
+            border: 1px solid var(--da-border);
+            border-radius: var(--da-radius-sm);
+            background: var(--da-off-white);
+            color: var(--da-near-black) !important;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-decoration: none !important;
+        }
+        .da-list-button:focus-visible,
+        .da-inline-cite:focus-visible,
+        .da-citation-chip:focus-visible {
+            outline: 2px solid var(--da-selected-border) !important;
+            outline-offset: 2px;
         }
         .da-answer {
             font-size: 1rem;
@@ -1955,18 +2207,19 @@ def _apply_styles() -> None:
             align-items: center;
             min-height: 1.75rem;
             padding: 0.22rem 0.52rem;
-            border: 1px solid #deded9;
-            border-radius: 0.5rem;
-            background: #fffefa;
-            color: #2e2f3a;
+            border: 1px solid var(--da-border);
+            border-radius: var(--da-radius-sm);
+            background: var(--da-panel);
+            color: var(--da-near-black);
+            box-shadow: var(--da-shadow);
             font-size: 0.78rem;
             font-weight: 600;
             line-height: 1.2;
         }
         .da-language-strip .da-language-title {
-            border-color: #8bc8ae;
-            background: #edf8f3;
-            color: #185b45;
+            border-color: var(--da-border-strong);
+            background: var(--da-off-white);
+            color: var(--da-near-black);
         }
         .da-inline-cite {
             position: relative;
@@ -1974,21 +2227,29 @@ def _apply_styles() -> None:
             align-items: center;
             margin-left: 0.18rem;
             padding: 0.05rem 0.34rem;
-            border: 1px solid #b9d7cc;
-            border-radius: 999px;
-            background: #edf8f3;
-            color: #185b45 !important;
-            font-size: 0.76em;
-            font-weight: 650;
+            border: 1px solid var(--da-border);
+            border-radius: var(--da-radius-sm);
+            background: var(--da-off-white);
+            color: var(--da-near-black) !important;
+            font-size: 0.72em;
+            font-weight: 750;
             line-height: 1.25;
             text-decoration: none !important;
             transform: translateY(-0.04rem);
         }
         .da-inline-cite:hover,
-        .da-inline-cite:focus {
-            border-color: #82b6a1;
-            background: #f4fbf8;
-            color: #185b45 !important;
+        .da-inline-cite:focus,
+        .da-citation-chip:hover,
+        .da-citation-chip:focus {
+            border-color: var(--da-accent);
+            background: var(--da-pale-green);
+            color: var(--da-green) !important;
+        }
+        .da-inline-cite.da-active-citation,
+        .da-citation-chip.da-active-citation {
+            border-color: var(--da-selected-border);
+            background: var(--da-aqua);
+            color: var(--da-near-black) !important;
         }
         .da-inline-cite[data-tooltip]:hover::after,
         .da-inline-cite[data-tooltip]:focus::after {
@@ -2096,6 +2357,7 @@ def _apply_styles() -> None:
         .da-page-text pre {
             margin: 0.7rem 0 0;
             white-space: pre-wrap;
+            overflow-wrap: anywhere;
             font-family: inherit;
             font-size: 0.9rem;
             line-height: 1.45;
@@ -2225,6 +2487,134 @@ def _apply_styles() -> None:
 	        .da-json-trace pre code {
 	            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 	        }
+        .da-runtime-flow {
+            display: grid;
+            gap: 0.42rem;
+            margin: 0.2rem 0 0.1rem;
+        }
+        .da-runtime-step {
+            display: grid;
+            grid-template-columns: 0.9rem 1fr;
+            gap: 0.5rem;
+            align-items: start;
+            padding: 0.58rem 0.68rem;
+            border: 1px solid #deded9;
+            border-radius: 0.55rem;
+            background: #fffefa;
+        }
+        .da-runtime-status-dot,
+        .da-runtime-model-dot {
+            display: inline-block;
+            flex: 0 0 auto;
+            border-radius: 999px;
+        }
+        .da-runtime-status-dot {
+            width: 0.52rem;
+            height: 0.52rem;
+            margin-top: 0.34rem;
+            box-shadow: 0 0 0 0.18rem rgba(15, 31, 25, 0.04);
+        }
+        .da-runtime-status-dot--success {
+            background: #00b368;
+        }
+        .da-runtime-status-dot--denied {
+            background: #d94f3d;
+        }
+        .da-runtime-status-dot--neutral {
+            background: #a4a4a4;
+        }
+        .da-runtime-step--denied {
+            border-color: rgba(217, 79, 61, 0.42);
+            background: #fff8f5;
+        }
+        .da-runtime-step-title {
+            color: #151922;
+            font-size: 0.84rem;
+            font-weight: 750;
+            line-height: 1.28;
+            overflow-wrap: anywhere;
+        }
+        .da-runtime-step-text {
+            color: #2e2f3a;
+            font-size: 0.82rem;
+            line-height: 1.38;
+            margin-top: 0.12rem;
+            overflow-wrap: anywhere;
+        }
+        .da-runtime-code {
+            display: block;
+            width: fit-content;
+            max-width: 100%;
+            margin: 0.28rem 0 0.2rem;
+            padding: 0.32rem 0.46rem;
+            border: 1px solid #d8d4c8;
+            border-radius: 0.34rem;
+            background: #eef7f4;
+            color: #102c26;
+            font-family: var(--da-mono);
+            font-size: 0.78rem;
+            line-height: 1.35;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+        .da-runtime-step-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.32rem;
+            margin-top: 0.4rem;
+        }
+        .da-runtime-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.32rem;
+            min-height: 1.35rem;
+            padding: 0.08rem 0.42rem;
+            border: 1px solid #deded9;
+            border-radius: 999px;
+            background: #f8f6ef;
+            color: #2e2f3a;
+            font-size: 0.72rem;
+            font-weight: 650;
+            line-height: 1.2;
+        }
+        .da-runtime-metric {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.24rem;
+            min-height: 1.35rem;
+            padding: 0.08rem 0.42rem;
+            border: 1px solid #ece8dc;
+            border-radius: 0.38rem;
+            background: #fffdfa;
+            color: #3b3d47;
+            font-size: 0.72rem;
+            line-height: 1.2;
+        }
+        .da-runtime-metric strong {
+            color: #171b24;
+            font-weight: 750;
+        }
+        .da-runtime-model-dot {
+            width: 0.46rem;
+            height: 0.46rem;
+        }
+        .da-runtime-model-dot--command {
+            background: #c77de8;
+        }
+        .da-runtime-model-dot--tool {
+            background: #5b78f0;
+        }
+        .da-runtime-model-dot--embed,
+        .da-runtime-model-dot--rerank {
+            background: #ff7759;
+        }
+        .da-runtime-model-dot--search {
+            background: #0f8f83;
+        }
+        .da-runtime-model-dot--access {
+            background: #00b368;
+        }
         .stApp,
         .stApp p,
         .stApp label,
@@ -2370,57 +2760,11 @@ def _apply_styles() -> None:
             color: var(--da-near-black);
             font-size: 0.88rem;
         }
-        .da-list-button {
-            margin: 0.34rem 0;
-            padding: 0.55rem 0.64rem;
-            border-color: var(--da-border);
-            border-radius: var(--da-radius-sm);
-            background: var(--da-panel);
-            color: var(--da-near-black) !important;
-            font-size: 0.86rem;
-            font-weight: 620;
-            box-shadow: var(--da-shadow);
-        }
-        .da-list-button:hover,
-        .da-list-button:focus,
-        .da-list-button.da-active-citation,
-        .da-list-button.da-active-page {
-            border-color: var(--da-accent);
-            background: var(--da-pale-green);
-            color: var(--da-green) !important;
-        }
         .da-answer {
             padding: 0.15rem 0 0.25rem;
             color: var(--da-near-black);
             font-size: 0.95rem;
             line-height: 1.58;
-        }
-        .da-language-strip span {
-            border-color: var(--da-border);
-            border-radius: var(--da-radius-sm);
-            background: var(--da-panel);
-            color: var(--da-near-black);
-            box-shadow: var(--da-shadow);
-        }
-        .da-language-strip .da-language-title {
-            border-color: #8bc8ae;
-            background: var(--da-pale-green);
-            color: var(--da-green);
-        }
-        .da-inline-cite {
-            border-color: #8bc8ae;
-            border-radius: var(--da-radius-sm);
-            background: var(--da-pale-green);
-            color: var(--da-green) !important;
-            font-size: 0.72em;
-            font-weight: 750;
-        }
-        .da-inline-cite:hover,
-        .da-inline-cite:focus,
-        .da-inline-cite.da-active-citation {
-            border-color: var(--da-accent);
-            background: var(--da-aqua);
-            color: var(--da-near-black) !important;
         }
         .da-selected-evidence-card,
         .da-trace-timeline > div,
@@ -2544,9 +2888,7 @@ def _apply_styles() -> None:
             }
         }
 	        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+        """
 
 
 if __name__ == "__main__":

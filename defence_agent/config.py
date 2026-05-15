@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     cohere_max_retries: int = Field(default=6, alias="COHERE_MAX_RETRIES")
     cohere_retry_max_wait_seconds: float = Field(default=90.0, alias="COHERE_RETRY_MAX_WAIT_SECONDS")
     cohere_timeout_seconds: float = Field(default=60.0, alias="COHERE_TIMEOUT_SECONDS")
+    cohere_thinking_token_budget: int | None = Field(default=None, alias="COHERE_THINKING_TOKEN_BUDGET")
     tool_cache_enabled: bool = Field(default=True, alias="DEFENCE_AGENT_TOOL_CACHE_ENABLED")
     tool_cache_max_entries: int = Field(default=24, alias="DEFENCE_AGENT_TOOL_CACHE_MAX_ENTRIES")
 
@@ -35,6 +36,13 @@ class Settings(BaseSettings):
     @classmethod
     def expand_paths(cls, value: str | Path) -> Path:
         return Path(value).expanduser()
+
+    @field_validator("cohere_thinking_token_budget", mode="before")
+    @classmethod
+    def blank_thinking_budget_as_none(cls, value: object) -> object:
+        if value == "":
+            return None
+        return value
 
     @field_validator("cohere_api_key")
     @classmethod
@@ -59,6 +67,8 @@ class Settings(BaseSettings):
             raise ValueError("COHERE_RETRY_MAX_WAIT_SECONDS must be positive")
         if self.cohere_timeout_seconds <= 0:
             raise ValueError("COHERE_TIMEOUT_SECONDS must be positive")
+        if self.cohere_thinking_token_budget is not None and self.cohere_thinking_token_budget <= 0:
+            raise ValueError("COHERE_THINKING_TOKEN_BUDGET must be positive when set")
         if self.tool_cache_max_entries < 1:
             raise ValueError("DEFENCE_AGENT_TOOL_CACHE_MAX_ENTRIES must be at least 1")
         return self

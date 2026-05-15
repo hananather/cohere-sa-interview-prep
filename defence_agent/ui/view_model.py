@@ -131,6 +131,36 @@ class EvidencePageView:
 
 
 @dataclass(frozen=True)
+class RuntimeStepView:
+    index: int
+    title: str
+    detail: str
+    code: str = ""
+    status: str = "success"
+    markers: tuple[tuple[str, str], ...] = ()
+    metrics: tuple[tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True)
+class SearchExecutionView:
+    call_index: int
+    tool_name: str = "search_documents"
+    query: str = ""
+    arguments: dict[str, Any] = field(default_factory=dict)
+    filters: dict[str, Any] = field(default_factory=dict)
+    authorized_source_count: int = 0
+    sources_sent_to_answer_count: int = 0
+    excluded_source_count: int = 0
+    embedding_backend: str = ""
+    rerank_backend: str = ""
+    collection: str = ""
+    vector_score: float | None = None
+    rerank_score: float | None = None
+    status: str = "observed"
+    answerable: bool | None = None
+
+
+@dataclass(frozen=True)
 class ToolCallView:
     call_index: int
     tool_name: str
@@ -142,6 +172,9 @@ class ToolCallView:
     excluded_source_count: int = 0
     embedding_backend: str = ""
     rerank_backend: str = ""
+    collection: str = ""
+    vector_score: float | None = None
+    rerank_score: float | None = None
     status: str = "observed"
 
     def as_row(self) -> dict[str, Any]:
@@ -154,6 +187,8 @@ class ToolCallView:
             "authorized_sources": self.authorized_source_count,
             "sent_to_model": self.sources_sent_to_answer_count,
             "excluded_sources": self.excluded_source_count,
+            "per_page_vector_match": _format_score(self.vector_score),
+            "per_page_rerank_relevance": _format_score(self.rerank_score),
             "status": self.status,
         }
 
@@ -179,11 +214,13 @@ class DefenceAgentViewModel:
     citation_quality: dict[str, Any]
     target_answer_language: str
     documents_sent_to_model: int
+    thinking_blocks: tuple[dict[str, Any], ...]
     retrieval_status: str
     citations: tuple[CitationView, ...]
     evidence_pages: tuple[EvidencePageView, ...]
     sources: dict[str, SourceView]
     tool_calls: tuple[ToolCallView, ...]
+    runtime_steps: tuple[RuntimeStepView, ...]
     authorized_source_rows: tuple[dict[str, Any], ...]
     excluded_source_summary: tuple[dict[str, Any], ...]
     sanitized_answer_audit: dict[str, Any]
@@ -229,9 +266,23 @@ def build_view_model(
     sources = _build_source_registry(audit)
     citations = _build_citations(audit)
     evidence_pages = _build_evidence_pages(citations, sources)
-    tool_calls = _build_tool_calls(audit)
+    search_executions = _build_search_executions(audit)
+    tool_calls = _build_tool_calls(search_executions)
     answerability, reason = _answerability(retrieval, result.answer)
     display_answer = _display_answer(result.raw_answer or result.answer)
+    documents_sent_to_model = int(result.documents_sent_to_model or generation.get("document_count", 0) or 0)
+    runtime_steps = _build_runtime_steps(
+        query=str(audit.get("query") or ""),
+        persona=persona,
+        tool_calls=tool_calls,
+        answerability=answerability,
+        answerability_reason=reason,
+        retrieval_status=result.retrieval_status,
+        documents_sent_to_model=documents_sent_to_model,
+        citation_count=len(citations),
+        evidence_page_count=len(evidence_pages),
+        generation_model=str(generation.get("model", "") or ""),
+    )
 
     return DefenceAgentViewModel(
         schema_version=SCHEMA_VERSION,
@@ -252,12 +303,14 @@ def build_view_model(
         citation_validation=dict(result.citation_validation or generation.get("citation_resolution", {}) or {}),
         citation_quality=dict(generation.get("citation_quality", {}) or {}),
         target_answer_language=str(generation.get("target_answer_language", "auto") or "auto"),
-        documents_sent_to_model=int(result.documents_sent_to_model or generation.get("document_count", 0) or 0),
+        documents_sent_to_model=documents_sent_to_model,
+        thinking_blocks=tuple(_thinking_blocks(generation.get("thinking_blocks", result.thinking_blocks))),
         retrieval_status=result.retrieval_status,
         citations=tuple(citations),
         evidence_pages=tuple(evidence_pages),
         sources=sources,
         tool_calls=tuple(tool_calls),
+        runtime_steps=tuple(runtime_steps),
         authorized_source_rows=tuple(_source_rows(retrieval.get("authorized_sources", []), sources)),
         excluded_source_summary=tuple(_sanitize_excluded_sources(retrieval.get("excluded_sources", []))),
         sanitized_answer_audit=sanitize_answer_audit(audit),
@@ -311,9 +364,35 @@ def sanitize_answer_audit(audit: dict[str, Any]) -> dict[str, Any]:
             "document_count": generation.get("document_count", 0),
             "cohere_document_ids": list(generation.get("cohere_document_ids", []) or []),
             "target_answer_language": generation.get("target_answer_language", "auto"),
+            "thinking_blocks": _thinking_blocks(generation.get("thinking_blocks", [])),
+            "thinking_block_count": generation.get("thinking_block_count", 0),
         },
         "citations": [_sanitize_citation(citation) for citation in audit.get("citations", []) or []],
     }
+
+
+def _thinking_blocks(raw_blocks: Any) -> list[dict[str, Any]]:
+    blocks: list[dict[str, Any]] = []
+    if not isinstance(raw_blocks, list):
+        return blocks
+    for index, block in enumerate(raw_blocks, start=1):
+        if not isinstance(block, dict):
+            continue
+        text = str(block.get("thinking", "") or "")
+        if not text:
+            continue
+        try:
+            block_index = int(block.get("index") or index)
+        except (TypeError, ValueError):
+            block_index = index
+        blocks.append(
+            {
+                "index": block_index,
+                "type": "thinking",
+                "thinking": text,
+            }
+        )
+    return blocks
 
 
 def _sanitize_citation(citation: Any) -> dict[str, Any]:
@@ -438,39 +517,297 @@ def _build_evidence_pages(
     return pages
 
 
-def _build_tool_calls(audit: dict[str, Any]) -> list[ToolCallView]:
+def _build_runtime_steps(
+    *,
+    query: str,
+    persona: UiPersona,
+    tool_calls: list[ToolCallView],
+    answerability: str,
+    answerability_reason: str,
+    retrieval_status: str,
+    documents_sent_to_model: int,
+    citation_count: int,
+    evidence_page_count: int,
+    generation_model: str,
+) -> list[RuntimeStepView]:
+    steps: list[RuntimeStepView] = [
+        RuntimeStepView(
+            index=1,
+            title="User query",
+            detail="Captured from the Ask field.",
+        ),
+        RuntimeStepView(
+            index=2,
+            title="Agent runtime and session context",
+            detail="The agent runtime sends the query and session context to the model runtime.",
+            metrics=(("Persona", _persona_runtime_label(persona)),),
+        ),
+    ]
+
+    if tool_calls:
+        plan_detail = f"Command A planned {len(tool_calls)} ordered search_documents call(s)."
+        plan_status = "success"
+    else:
+        plan_detail = (
+            "Command A did not record a fresh search_documents call for this turn; "
+            "the UI is showing the available audit state."
+        )
+        plan_status = "neutral"
+    steps.append(
+        RuntimeStepView(
+            index=3,
+            title="Model runtime tool plan",
+            detail=plan_detail,
+            status=plan_status,
+            markers=(("Command A", "command"),),
+        )
+    )
+
+    next_index = 4
+    for call in tool_calls:
+        metrics = _search_runtime_metrics(call)
+        steps.append(
+            RuntimeStepView(
+                index=next_index,
+                title=f"Tool call {call.call_index}: search_documents",
+                detail=(
+                    "Embed v4 embeds the query; vector search returns authorized page candidates; "
+                    "Rerank v4 ranks each candidate page."
+                ),
+                code=_search_call_code(call),
+                metrics=metrics,
+            )
+        )
+        next_index += 1
+
+    if answerability == "REFUSED":
+        gate_status = "denied"
+        if documents_sent_to_model:
+            gate_detail = "Evidence not sufficient after reviewing authorized pages."
+        else:
+            gate_detail = "Evidence not sufficient before generation."
+    else:
+        gate_status = "success"
+        gate_detail = "Evidence sufficient."
+    steps.append(
+        RuntimeStepView(
+            index=next_index,
+            title="Evidence check",
+            detail=gate_detail,
+            status=gate_status,
+        )
+    )
+    next_index += 1
+
+    if documents_sent_to_model:
+        model = generation_model or "command-a-03-2025"
+        if answerability == "REFUSED":
+            generation_detail = (
+                f"Cohere Chat / Command A ({model}) reviewed "
+                f"{documents_sent_to_model} authorized page(s) as documents=authorized_pages and returned an insufficiency refusal."
+            )
+            generation_status = "denied"
+        else:
+            generation_detail = (
+                f"Cohere Chat / Command A ({model}) received "
+                f"{documents_sent_to_model} authorized page(s) as documents=authorized_pages."
+            )
+            generation_status = "success"
+    else:
+        generation_detail = (
+            "Zero-doc generation path: no source text was sent to Command A, "
+            "and the UI rendered a refusal."
+        )
+        generation_status = "denied"
+    steps.append(
+        RuntimeStepView(
+            index=next_index,
+            title="Grounded generation",
+            detail=generation_detail,
+            code="documents=authorized_pages",
+            status=generation_status,
+            markers=(("Command A", "command"),),
+            metrics=(("Documents sent", str(documents_sent_to_model)),),
+        )
+    )
+    next_index += 1
+
+    steps.append(
+        RuntimeStepView(
+            index=next_index,
+            title="UI output",
+            detail="Answer and citations rendered; detailed audit stays in Trace.",
+            status="denied" if answerability == "REFUSED" else "success",
+            metrics=(
+                ("Citations", str(citation_count)),
+                ("Evidence pages", str(evidence_page_count)),
+            ),
+        )
+    )
+    return steps
+
+
+def _search_runtime_metrics(call: ToolCallView) -> tuple[tuple[str, str], ...]:
+    return (("Authorized pages", str(call.authorized_source_count)),)
+
+
+def _persona_runtime_label(persona: UiPersona) -> str:
+    label = persona.label
+    label = label.replace("Persona A: ", "Persona A · ")
+    label = label.replace("Persona B: ", "Persona B · ")
+    return f"{label} · {persona.visible_access_label}"
+
+
+def _search_call_code(call: ToolCallView) -> str:
+    query = call.query or str(call.arguments.get("query", "") or "query not recorded")
+    args = [f'query="{query}"']
+    if call.arguments.get("top_k") not in (None, ""):
+        args.append(f"top_k={call.arguments['top_k']}")
+    return f"{call.tool_name}({', '.join(args)})"
+
+
+def _compact_filter_value(value: Any) -> str:
+    if isinstance(value, (list, tuple, set)):
+        return ", ".join(str(item) for item in value)
+    return str(value)
+
+
+def _build_search_executions(audit: dict[str, Any]) -> list[SearchExecutionView]:
     retrieval = audit.get("retrieval", {}) if isinstance(audit.get("retrieval"), dict) else {}
-    names = [str(name) for name in audit.get("tool_calls", []) or [] if str(name)]
-    records = [item for item in audit.get("tool_call_records", []) or [] if isinstance(item, dict)]
+    names = [str(name) for name in audit.get("tool_calls", []) or [] if str(name) == "search_documents"]
+    records = [
+        item
+        for item in audit.get("tool_call_records", []) or []
+        if isinstance(item, dict) and _is_search_record(item)
+    ]
     searches = [item for item in retrieval.get("searches", []) or [] if isinstance(item, dict)]
     queries = [str(query) for query in retrieval.get("search_queries", []) or [] if str(query)]
-    filters = retrieval.get("filters_applied", []) or []
+    filters = [item for item in retrieval.get("filters_applied", []) or [] if isinstance(item, dict)]
+    answerability_records = [item for item in retrieval.get("answerability", []) or [] if isinstance(item, dict)]
+    tool_cache = retrieval.get("tool_cache", {})
+    if not isinstance(tool_cache, dict):
+        tool_cache = {}
+    cache_events = [
+        item
+        for item in tool_cache.get("events", [])
+        if isinstance(item, dict) and _is_search_cache_event(item)
+    ]
 
-    rows: list[ToolCallView] = []
-    for index, name in enumerate(names or ["search_documents"] * len(queries), start=1):
+    search_count = max(len(names), len(records), len(searches), len(queries), len(cache_events))
+    rows: list[SearchExecutionView] = []
+    for index in range(1, search_count + 1):
         record = records[index - 1] if index - 1 < len(records) else {}
-        raw_args = record.get("args", {}) if isinstance(record.get("args", {}), dict) else {}
+        raw_args = dict(record.get("args", {}) if isinstance(record.get("args", {}), dict) else {})
+        cache_event = cache_events[index - 1] if index - 1 < len(cache_events) else {}
+        cache_args = cache_event.get("normalized_args", {}) if isinstance(cache_event.get("normalized_args", {}), dict) else {}
+        for key, value in cache_args.items():
+            raw_args.setdefault(key, value)
         search = searches[index - 1] if index - 1 < len(searches) else {}
-        query = str(search.get("query") or raw_args.get("query") or (queries[index - 1] if index - 1 < len(queries) else ""))
+        answerability = answerability_records[index - 1] if index - 1 < len(answerability_records) else {}
+        evidence_quality = (
+            answerability.get("evidence_quality", {})
+            if isinstance(answerability.get("evidence_quality", {}), dict)
+            else {}
+        )
+        query = str(
+            search.get("query")
+            or raw_args.get("query")
+            or (queries[index - 1] if index - 1 < len(queries) else "")
+        )
         raw_filters = search.get("filters_applied")
         if not isinstance(raw_filters, dict):
-            raw_filters = filters[index - 1] if index - 1 < len(filters) and isinstance(filters[index - 1], dict) else {}
+            raw_filters = (
+                filters[index - 1]
+                if index - 1 < len(filters) and isinstance(filters[index - 1], dict)
+                else {}
+            )
+        raw_filters = _filters_from_args_and_retrieval(raw_filters, raw_args, retrieval)
         rows.append(
-            ToolCallView(
+            SearchExecutionView(
                 call_index=index,
-                tool_name=str(record.get("tool_name") or name),
+                tool_name=str(record.get("tool_name") or cache_event.get("tool_name") or "search_documents"),
                 query=query,
                 arguments=dict(raw_args),
                 filters=raw_filters,
-                authorized_source_count=int(search.get("authorized_source_count", 0) or 0),
+                authorized_source_count=int(
+                    search.get("authorized_source_count")
+                    or evidence_quality.get("selected_source_count")
+                    or 0
+                ),
                 sources_sent_to_answer_count=int(search.get("sources_sent_to_answer_count", 0) or 0),
                 excluded_source_count=int(search.get("excluded_source_count", 0) or 0),
                 embedding_backend=str(search.get("embedding_backend", "") or ""),
                 rerank_backend=str(search.get("rerank_backend", "") or ""),
-                status=str(search.get("policy_decision") or "observed"),
+                collection=str(search.get("collection", "") or ""),
+                vector_score=_optional_float(
+                    search.get("top_authorized_vector_score")
+                    if search.get("top_authorized_vector_score") is not None
+                    else evidence_quality.get("top_authorized_vector_score")
+                ),
+                rerank_score=_optional_float(
+                    search.get("top_authorized_rerank_score")
+                    if search.get("top_authorized_rerank_score") is not None
+                    else evidence_quality.get("top_authorized_rerank_score")
+                ),
+                status=str(search.get("policy_decision") or answerability.get("reason") or "observed"),
+                answerable=(
+                    answerability.get("answerable")
+                    if isinstance(answerability.get("answerable"), bool)
+                    else None
+                ),
             )
         )
     return rows
+
+
+def _build_tool_calls(search_executions: list[SearchExecutionView]) -> list[ToolCallView]:
+    return [
+        ToolCallView(
+            call_index=search.call_index,
+            tool_name=search.tool_name,
+            query=search.query,
+            arguments=search.arguments,
+            filters=search.filters,
+            authorized_source_count=search.authorized_source_count,
+            sources_sent_to_answer_count=search.sources_sent_to_answer_count,
+            excluded_source_count=search.excluded_source_count,
+            embedding_backend=search.embedding_backend,
+            rerank_backend=search.rerank_backend,
+            collection=search.collection,
+            vector_score=search.vector_score,
+            rerank_score=search.rerank_score,
+            status=search.status,
+        )
+        for search in search_executions
+    ]
+
+
+def _is_search_record(record: dict[str, Any]) -> bool:
+    tool_name = str(record.get("tool_name", "") or "")
+    args = record.get("args", {}) if isinstance(record.get("args", {}), dict) else {}
+    return tool_name == "search_documents" or (not tool_name and "query" in args)
+
+
+def _is_search_cache_event(event: dict[str, Any]) -> bool:
+    tool_name = str(event.get("tool_name", "") or "")
+    args = event.get("normalized_args", {}) if isinstance(event.get("normalized_args", {}), dict) else {}
+    return tool_name == "search_documents" or (not tool_name and "query" in args)
+
+
+def _filters_from_args_and_retrieval(
+    filters: dict[str, Any],
+    args: dict[str, Any],
+    retrieval: dict[str, Any],
+) -> dict[str, Any]:
+    merged = dict(filters)
+    if "status_filter" in args and "status" not in merged:
+        merged["status"] = args["status_filter"]
+    if "language" in args and "language" not in merged:
+        merged["language"] = args["language"]
+    allowed_access = retrieval.get("allowed_access")
+    if allowed_access and "access_level" not in merged:
+        merged["access_level"] = list(allowed_access)
+    return merged
 
 
 def _source_from_dict(
@@ -629,7 +966,10 @@ def _answerability(retrieval: dict[str, Any], answer: str) -> tuple[str, str]:
     if retrieval.get("sources_sent_to_answer"):
         return "ANSWERED", "authorized_evidence_sent"
     text = answer.lower()
-    if any(phrase in text for phrase in ("do not have enough", "insufficient evidence", "cannot answer")):
+    if any(
+        phrase in text
+        for phrase in ("do not have enough", "evidence is insufficient", "insufficient evidence", "cannot answer")
+    ):
         return "REFUSED", "insufficient_authorized_evidence"
     return "PARTIAL", "answerability_not_explicit"
 
@@ -681,4 +1021,4 @@ def _optional_int(value: Any) -> int | None:
 
 
 def _format_score(value: float | None) -> str:
-    return "" if value is None else f"{value:.2f}"
+    return "" if value is None else f"{value:.4f}"

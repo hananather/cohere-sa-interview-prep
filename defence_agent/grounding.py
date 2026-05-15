@@ -35,6 +35,18 @@ class GroundedAnswer:
     documents_sent: int = 0
     document_ids: list[str] = field(default_factory=list)
     model: str = ""
+    content_blocks: list[dict[str, Any]] = field(default_factory=list)
+    thinking_blocks: list[dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class CohereChatResult:
+    """Raw native Cohere message pieces used by final grounding."""
+
+    text: str
+    citations: list[Any] = field(default_factory=list)
+    content_blocks: list[dict[str, Any]] = field(default_factory=list)
+    thinking_blocks: list[dict[str, Any]] = field(default_factory=list)
 
 
 def finalize_answer(
@@ -87,19 +99,21 @@ def _cohere_native_answer(
             "source_ids": [doc["id"] for doc in documents],
         },
     )
-    raw_answer, raw_citations = _cohere_chat(
+    chat_result = _cohere_chat(
         chat_model=chat_model,
         query=query,
         prior_answer=prior_answer,
         documents=documents,
         target_answer_language=target_answer_language,
     )
+    raw_answer = chat_result.text
+    raw_citations = chat_result.citations
     citations = _normalize_citations(raw_citations, evidence_by_label)
     validation = _validate_native_citations(citations, evidence_by_label, answer=raw_answer, query=query)
     for _ in range(MAX_CITATION_REPAIR_ATTEMPTS):
         if validation.get("passed") and not validation.get("warnings"):
             break
-        retry_answer, retry_raw_citations = _cohere_chat(
+        retry_result = _cohere_chat(
             chat_model=chat_model,
             query=query,
             prior_answer=prior_answer,
@@ -107,6 +121,8 @@ def _cohere_native_answer(
             target_answer_language=target_answer_language,
             citation_repair_feedback=_citation_repair_feedback(validation),
         )
+        retry_answer = retry_result.text
+        retry_raw_citations = retry_result.citations
         retry_citations = _normalize_citations(retry_raw_citations, evidence_by_label)
         retry_validation = _validate_native_citations(
             retry_citations,
@@ -115,6 +131,7 @@ def _cohere_native_answer(
             query=query,
         )
         if _validation_score(retry_validation) >= _validation_score(validation):
+            chat_result = retry_result
             raw_answer = retry_answer
             citations = retry_citations
             validation = retry_validation
@@ -141,6 +158,8 @@ def _cohere_native_answer(
         documents_sent=len(documents),
         document_ids=[str(doc["id"]) for doc in documents],
         model=chat_model,
+        content_blocks=chat_result.content_blocks,
+        thinking_blocks=chat_result.thinking_blocks,
     )
 
 
@@ -152,10 +171,10 @@ def _cohere_chat(
     documents: list[dict[str, Any]],
     target_answer_language: str,
     citation_repair_feedback: str = "",
-) -> tuple[str, list[Any]]:
-    response = cohere_gateway.chat(
-        model=chat_model,
-        messages=[
+) -> CohereChatResult:
+    kwargs: dict[str, Any] = {
+        "model": chat_model,
+        "messages": [
             {
                 "role": "system",
                 "content": _grounding_system_message(
@@ -165,11 +184,58 @@ def _cohere_chat(
             },
             {"role": "user", "content": _grounded_user_message(query, prior_answer)},
         ],
-        documents=documents,
-        temperature=0.05,
-        max_tokens=1000,
+        "documents": documents,
+        "temperature": 0.05,
+        "max_tokens": _cohere_chat_max_tokens(chat_model),
+    }
+    thinking = _thinking_config(chat_model)
+    if thinking is not None:
+        kwargs["thinking"] = thinking
+    response = cohere_gateway.chat(**kwargs)
+    content_blocks = _message_content_blocks(response)
+    return CohereChatResult(
+        text=_message_text(response),
+        citations=_response_citations(response),
+        content_blocks=content_blocks,
+        thinking_blocks=[block for block in content_blocks if block.get("type") == "thinking"],
     )
-    return _message_text(response), _response_citations(response)
+
+
+def _thinking_config(chat_model: str) -> dict[str, int] | None:
+    if "reasoning" not in chat_model.lower():
+        return None
+    budget = get_settings().cohere_thinking_token_budget
+    if budget is None:
+        return None
+    return {"token_budget": budget}
+
+
+def _cohere_chat_max_tokens(chat_model: str) -> int:
+    if "reasoning" not in chat_model.lower():
+        return 1000
+    budget = get_settings().cohere_thinking_token_budget
+    if budget is None:
+        return 1000
+    return max(1000, budget + 1000)
+
+
+def _message_content_blocks(response: Any) -> list[dict[str, Any]]:
+    message = getattr(response, "message", None)
+    content = getattr(message, "content", None) if message else None
+    if not isinstance(content, list):
+        return []
+    blocks: list[dict[str, Any]] = []
+    for index, part in enumerate(content, start=1):
+        content_type = str(getattr(part, "type", "") or "")
+        block: dict[str, Any] = {"index": index, "type": content_type}
+        if content_type == "thinking":
+            block["thinking"] = str(getattr(part, "thinking", "") or "")
+        elif content_type == "text":
+            block["text"] = str(getattr(part, "text", "") or "")
+        else:
+            block["value"] = str(part)
+        blocks.append(block)
+    return blocks
 
 
 def _grounding_system_message(
@@ -348,7 +414,8 @@ def _validate_native_citations(
 ) -> dict[str, Any]:
     errors: list[str] = []
     warnings: list[str] = []
-    if not citations:
+    coverage = _citation_coverage(answer, citations) if answer else {}
+    if not citations and int(coverage.get("claim_count", 0) or 0) > 0:
         errors.append("cohere_returned_no_native_citations")
     allowed_labels = set(evidence_by_label)
     cited_source_ids: set[str] = set()
@@ -366,7 +433,6 @@ def _validate_native_citations(
             errors.append(f"citation_references_unknown_source:{','.join(unknown)}")
         if not source_ids:
             errors.append("citation_has_no_sources")
-    coverage = _citation_coverage(answer, citations) if answer else {}
     if coverage.get("uncited_claim_count", 0):
         message = f"uncited_claims:{coverage['uncited_claim_count']}"
         claim_count = int(coverage.get("claim_count", 0) or 0)

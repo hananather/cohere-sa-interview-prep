@@ -26,6 +26,19 @@ rendered-page Embed v4 pipeline as PDF-origin documents.
 |---|---|---|---|---|---|---|---|
 | `UK-MOD-ASOEM-2023-EN` | `public/uk_mod_asoem_issue_2.pdf` | DOCX | PDF | UK Ministry of Defence and Military Aviation Authority | https://www.gov.uk/government/publications/aviation-safe-operating-environment-manual-asoem | https://assets.publishing.service.gov.uk/media/656da8951104cf0013fa740b/ASOEM_Issue_2.docx | https://assets.publishing.service.gov.uk/media/656da8b20f12ef070e3e0144/ASOEM_Issue_2.pdf |
 
+## Official Scanned Manual Excerpt
+
+This source demonstrates the assignment scenario where a customer has physical
+manuals and textbooks entering a digital evidence workflow. The local file is a
+10-page excerpt from a digitized physical copy of `FM 30-16, Technical
+Intelligence, 1972`. The source scan includes page images and an OCR text layer,
+so the existing rendered-page pipeline can retrieve and cite it without adding a
+separate OCR subsystem.
+
+| doc_id | Local file | Source format | Indexed format | Source | Canonical URL | Direct PDF URL |
+|---|---|---|---|---|---|---|
+| `US-ARMY-FM30-16-1972-SCAN` | `public/fm30_16_technical_intelligence_1972_scanned_excerpt.pdf` | Scanned PDF with OCR layer | PDF | U.S. Department of Defense Military Intelligence / DigitalCommons@University of Nebraska - Lincoln | https://digitalcommons.unl.edu/dodmilintel/101 | https://digitalcommons.unl.edu/cgi/viewcontent.cgi?article=1101&context=dodmilintel |
+
 ## Synthetic Restricted PDFs
 
 The synthetic files are fictional demo data created in this repository. They use `secret` and `top_secret` access labels only to exercise permission-aware retrieval. The disclaimer lives here and in `synthetic/README.md` so indexed PDF pages stay focused on retrieval evidence.

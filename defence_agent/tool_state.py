@@ -25,8 +25,7 @@ def record_search_documents_state(
 ) -> dict[str, Any]:
     """Record a search result in ADK session state and return its audit."""
 
-    answerable = bool(result.get("answerability", {}).get("answerable", True))
-    sources_for_answer = result.get("authorized_sources", []) if answerable else []
+    sources_for_answer = _sources_for_answer(result)
     search_audit = _search_audit(query, persona_id, result, sources_for_answer)
     if cache_event is not None:
         search_audit["cache"] = dict(cache_event)
@@ -85,6 +84,15 @@ def attach_cache_event_to_latest_search(
             history[-1] = audit
             state["search_history_audits"] = history[-MAX_AUDIT_HISTORY:]
     return result
+
+
+def _sources_for_answer(result: dict[str, Any]) -> list[dict[str, Any]]:
+    answerability = result.get("answerability", {}) if isinstance(result.get("answerability", {}), dict) else {}
+    reason = str(answerability.get("reason", "") or "")
+    answerable = bool(answerability.get("answerable", True))
+    if answerable or reason == "insufficient_authorized_evidence":
+        return [source for source in result.get("authorized_sources", []) or [] if isinstance(source, dict)]
+    return []
 
 
 def _merge_source_history(existing: Any, new_sources: list[dict[str, Any]]) -> list[dict[str, Any]]:

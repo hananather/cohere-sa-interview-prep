@@ -1,25 +1,29 @@
 # Streamlit Community Cloud Deployment
 
-Use this for the reliable hosted backup demo.
+Use this for the hosted Defence Agent demo.
 
 ## Recommended Deployment
 
 - Repository: `hananather/cohere-sa-interview-prep`
-- Branch: `codex/streamlit-community-static-demo`
+- Branch: `streamlit-community-static-demo`
 - Main file path: `app.py`
 - Secrets: none required
 
-This entrypoint renders `presentation_backup/index.html`, which is a static replay of verified Defence Agent runs.
+This entrypoint imports `streamlit_app.py`, so Streamlit Community Cloud opens the actual application. The default run mode uses bundled guided replays, so the demo can work without a `COHERE_API_KEY`.
 
 ## Why This Path
 
 - It does not require `COHERE_API_KEY`.
-- It does not require Chroma runtime state.
-- It does not require ignored transcript folders at runtime.
+- It opens the same Streamlit application used locally.
+- It bundles the curated transcript runs needed for guided replay mode.
 - It works as a hosted demo even if your laptop is unavailable.
 
 ## Full Local App
 
-Use `streamlit_app.py` locally when you want the full guided/live app.
+Use `streamlit_app.py` locally when you want to run the app directly.
 
-For Streamlit Community Cloud, use `app.py`.
+For Streamlit Community Cloud, use `app.py`; it delegates to the same app.
+
+## Static Backup
+
+The standalone fallback remains in `presentation_backup/index.html`.

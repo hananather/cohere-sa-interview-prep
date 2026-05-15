@@ -18,7 +18,7 @@ from defence_agent.ui.view_model import DEFAULT_UI_PERSONA_ID, UiPersona, person
 
 
 DEFAULT_CORPUS_DIR = Path(__file__).resolve().parents[1] / "data" / "corpus"
-CATALOG_FILTERS = ("All", "Official", "DOCX-origin", "Synthetic")
+CATALOG_FILTERS = ("All", "Official", "Scanned", "DOCX-origin", "Synthetic")
 CATALOG_COLUMNS = (
     "Dataset",
     "Document",
@@ -170,6 +170,8 @@ def _dataset_label(entry: dict[str, Any]) -> str:
     source_type = str(entry.get("source_type", "") or "").lower()
     if bool(entry.get("synthetic")) or source_type.startswith("synthetic"):
         return "Synthetic"
+    if "scanned" in source_type or str(entry.get("source_format", "") or "").lower() == "scanned_pdf":
+        return "Scanned"
     if str(entry.get("source_format", "") or "").lower() == "docx" or "docx_origin" in source_type:
         return "DOCX-origin"
     return "Official"

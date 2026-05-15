@@ -169,7 +169,7 @@ def search_index(
             "status": normalized_status,
             "language": normalized_language,
         },
-        "policy_decision": "allow" if answerability["answerable"] else "refuse",
+        "policy_decision": _policy_decision(answerability),
         "answerability": answerability,
         "authorized_sources": authorized_sources,
         "citation_guide": [
@@ -437,10 +437,11 @@ def _answerability(
     authorized_sources: list[dict[str, Any]],
     excluded_sources: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Decide whether authorized evidence is strong enough to answer.
+    """Record evidence sufficiency signals for grounded generation.
 
     This is intentionally metadata/text-light. It prevents the final answer
-    layer from using unrelated public pages when the best match is denied.
+    layer from using unrelated public pages when the best match is denied, while
+    allowing authorized evidence gaps to reach model-grounded abstention.
     """
 
     if not authorized_sources:
@@ -478,7 +479,7 @@ def _answerability(
         }
 
     unsupported_specificity = _unsupported_specificity(query, authorized_sources)
-    if unsupported_specificity["hard_refusal"]:
+    if unsupported_specificity["evidence_gap"]:
         return {
             "answerable": False,
             "reason": "insufficient_authorized_evidence",
@@ -489,7 +490,7 @@ def _answerability(
                 authorized_sources,
                 best_authorized_overlap=best_authorized,
                 best_denied_metadata_overlap=best_denied,
-                hard_refusal=True,
+                hard_refusal=False,
                 status="insufficient_authorized_evidence",
             ),
         }
@@ -528,17 +529,32 @@ def _evidence_quality(
         "best_denied_metadata_overlap": best_denied_metadata_overlap,
         "top_authorized_vector_score": top_source.get("vector_score"),
         "top_authorized_rerank_score": top_source.get("rerank_score"),
-        "threshold_policy": "hard_refusal" if hard_refusal else "audit_only_until_calibrated",
+        "threshold_policy": _threshold_policy(status, hard_refusal),
     }
 
 
-def _unsupported_specificity(query: str, authorized_sources: list[dict[str, Any]]) -> dict[str, Any]:
-    """Detect unsupported highly specific facts before final generation.
+def _threshold_policy(status: str, hard_refusal: bool) -> str:
+    if status in {"no_authorized_sources", "denied_source_matches_query"} or hard_refusal:
+        return "zero_doc_refusal"
+    if status == "insufficient_authorized_evidence":
+        return "model_grounded_abstention"
+    return "audit_only_until_calibrated"
 
-    This is intentionally conservative. It only hard-refuses when the user asks
-    for a dated or scheduled fact and the authorized evidence does not contain
-    those specificity anchors. It avoids treating weak but generic lexical
-    overlap as a calibrated relevance score.
+
+def _policy_decision(answerability: dict[str, Any]) -> str:
+    reason = str(answerability.get("reason", "") or "")
+    if reason in {"no_authorized_sources", "denied_source_matches_query"}:
+        return "refuse"
+    return "allow"
+
+
+def _unsupported_specificity(query: str, authorized_sources: list[dict[str, Any]]) -> dict[str, Any]:
+    """Detect unsupported highly specific facts for audit and evaluation.
+
+    This is intentionally conservative. It flags dated or scheduled claims where
+    authorized evidence does not contain the specificity anchors. Authorized
+    pages still flow to Command A so the final result is model-grounded
+    abstention rather than a pre-generation hard stop.
     """
 
     query_tokens = _tokens(query)
@@ -548,14 +564,15 @@ def _unsupported_specificity(query: str, authorized_sources: list[dict[str, Any]
     missing_years = [year for year in year_terms if year not in support_text]
     scheduled_terms = _scheduled_fact_terms(query_tokens)
     missing_scheduled_terms = sorted(term for term in scheduled_terms if term not in support_tokens)
-    hard_refusal = bool(missing_years) and bool(missing_scheduled_terms)
+    evidence_gap = bool(missing_years) and bool(missing_scheduled_terms)
     return {
-        "hard_refusal": hard_refusal,
+        "evidence_gap": evidence_gap,
+        "hard_refusal": False,
         "year_terms": year_terms,
         "missing_year_terms": missing_years,
         "scheduled_fact_terms": sorted(scheduled_terms),
         "missing_scheduled_fact_terms": missing_scheduled_terms,
-        "policy": "hard_refuse_when_dated_scheduled_fact_lacks_authorized_support",
+        "policy": "send_authorized_evidence_for_model_grounded_abstention",
     }
 
 

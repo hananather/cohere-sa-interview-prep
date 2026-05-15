@@ -24,6 +24,7 @@ load_dotenv()
 
 AGENT_ID = "defence_agent"
 MODEL = os.getenv("DEFTECH_ADK_MODEL", "cohere/command-a-03-2025")
+ADK_TIMEOUT_SECONDS = float(os.getenv("DEFTECH_ADK_TIMEOUT_SECONDS", "45"))
 
 
 def _instruction(context: ReadonlyContext) -> str:
@@ -42,7 +43,7 @@ def _instruction(context: ReadonlyContext) -> str:
 
 root_agent = LlmAgent(
     name=AGENT_ID,
-    model=LiteLlm(model=MODEL),
+    model=LiteLlm(model=MODEL, timeout=ADK_TIMEOUT_SECONDS),
     instruction=_instruction,
     tools=[search_documents],
     output_key="last_retrieval_status",

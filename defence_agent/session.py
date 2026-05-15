@@ -52,6 +52,7 @@ class AgentTurnResult:
     citation_validation: dict[str, Any] = field(default_factory=dict)
     grounded_model: str = ""
     documents_sent_to_model: int = 0
+    thinking_blocks: list[dict[str, Any]] = field(default_factory=list)
     retrieval_status: str = ""
     answer_audit: dict[str, Any] = field(default_factory=dict)
 
@@ -254,6 +255,7 @@ async def run_turn(
         citation_validation=grounded.citation_validation,
         grounded_model=grounded.model,
         documents_sent_to_model=grounded.documents_sent,
+        thinking_blocks=grounded.thinking_blocks,
         retrieval_status=retrieval_status,
         answer_audit=answer_audit,
     )
@@ -337,6 +339,7 @@ async def _audit_follow_up_result(
         citation_validation=grounded.citation_validation,
         grounded_model=grounded.model,
         documents_sent_to_model=grounded.documents_sent,
+        thinking_blocks=grounded.thinking_blocks,
         retrieval_status="audit_lookup_complete",
         answer_audit=answer_audit,
     )
@@ -479,6 +482,9 @@ def _audit_lookup_audit(
             "document_count": grounded.documents_sent,
             "cohere_document_ids": grounded.document_ids,
             "target_answer_language": "auto",
+            "content_blocks": grounded.content_blocks,
+            "thinking_blocks": grounded.thinking_blocks,
+            "thinking_block_count": len(grounded.thinking_blocks),
         },
         "citations": grounded.citations,
     }
@@ -702,6 +708,9 @@ def _answer_audit(
             "document_count": grounded.documents_sent,
             "cohere_document_ids": grounded.document_ids,
             "target_answer_language": target_answer_language,
+            "content_blocks": grounded.content_blocks,
+            "thinking_blocks": grounded.thinking_blocks,
+            "thinking_block_count": len(grounded.thinking_blocks),
         },
         "citations": [_citation_summary(citation, lookup) for citation in grounded.citations],
     }

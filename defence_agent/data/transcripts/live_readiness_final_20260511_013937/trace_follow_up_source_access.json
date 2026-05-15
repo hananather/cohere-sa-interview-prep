@@ -1,0 +1,873 @@
+{
+  "answer": "The previous answer was supported by:\n- SYN-FUSION-S-RELEASE-001 page 1, access level secret, source id SYN-FUSION-S-RELEASE-001_page_001 (Fusion Model Release Control Procedure) [C1]\n- SYN-FUSION-S-RELEASE-001 page 2, access level secret, source id SYN-FUSION-S-RELEASE-001_page_002 (Fusion Model Release Control Procedure) [C2]",
+  "case_id": "trace_follow_up_source_access",
+  "citation_count": 2,
+  "citation_quality": {},
+  "citation_validation": {
+    "citation_count": 2,
+    "errors": [],
+    "passed": true
+  },
+  "demo_point": "Source/access follow-up is answered from prior audit metadata instead of a fresh unrelated search.",
+  "doc_ids": [
+    "SYN-FUSION-S-RELEASE-001"
+  ],
+  "excluded_doc_ids": [
+    "SYN-FUSION-TS-ANNEX-002"
+  ],
+  "failures": [],
+  "final_answer_audit": {
+    "audit_lookup": {
+      "excluded_sources": [
+        {
+          "access_level": "top_secret",
+          "doc_family": "synthetic_fusion_model_acl_eval",
+          "doc_id": "SYN-FUSION-TS-ANNEX-002",
+          "language": "en",
+          "reason": "access_denied",
+          "title": "Fusion Model Restricted Routing Annex",
+          "vector_score": 0.4278
+        }
+      ],
+      "previous_query": "For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?",
+      "source": "last_answer_audit",
+      "supporting_sources": [
+        {
+          "access_level": "secret",
+          "chunk_id": "SYN-FUSION-S-RELEASE-001_page_001",
+          "doc_id": "SYN-FUSION-S-RELEASE-001",
+          "label": "C1",
+          "language": "en",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 1,
+          "page_image_sha256": "7c012a5092aefa62146aa5d38f181cfdbec55003d30e20f163ac5e772bb9aa73",
+          "rerank_score": 0.8775,
+          "source_id": "SYN-FUSION-S-RELEASE-001_page_001",
+          "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+          "source_type": "synthetic_pdf",
+          "status": "approved",
+          "title": "Fusion Model Release Control Procedure",
+          "vector_score": 0.4697,
+          "version": "2026"
+        },
+        {
+          "access_level": "secret",
+          "chunk_id": "SYN-FUSION-S-RELEASE-001_page_002",
+          "doc_id": "SYN-FUSION-S-RELEASE-001",
+          "label": "C2",
+          "language": "en",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 2,
+          "page_image_sha256": "032e835ea6d05b1dd9b4ff20e92fe8bddabae1de14d24633ad9284a32489ea53",
+          "rerank_score": 0.789,
+          "source_id": "SYN-FUSION-S-RELEASE-001_page_002",
+          "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+          "source_type": "synthetic_pdf",
+          "status": "approved",
+          "title": "Fusion Model Release Control Procedure",
+          "vector_score": 0.446,
+          "version": "2026"
+        }
+      ]
+    },
+    "citations": [
+      {
+        "end": null,
+        "sources": [
+          {
+            "access_level": "secret",
+            "chunk_id": "SYN-FUSION-S-RELEASE-001_page_001",
+            "doc_id": "SYN-FUSION-S-RELEASE-001",
+            "label": "C1",
+            "language": "en",
+            "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+            "page": 1,
+            "page_image_sha256": "7c012a5092aefa62146aa5d38f181cfdbec55003d30e20f163ac5e772bb9aa73",
+            "rerank_score": 0.8775,
+            "source_id": "SYN-FUSION-S-RELEASE-001_page_001",
+            "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+            "source_type": "synthetic_pdf",
+            "status": "approved",
+            "title": "Fusion Model Release Control Procedure",
+            "vector_score": 0.4697,
+            "version": "2026"
+          }
+        ],
+        "start": null,
+        "text": "SYN-FUSION-S-RELEASE-001",
+        "type": "answer_audit_lookup"
+      },
+      {
+        "end": null,
+        "sources": [
+          {
+            "access_level": "secret",
+            "chunk_id": "SYN-FUSION-S-RELEASE-001_page_002",
+            "doc_id": "SYN-FUSION-S-RELEASE-001",
+            "label": "C2",
+            "language": "en",
+            "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+            "page": 2,
+            "page_image_sha256": "032e835ea6d05b1dd9b4ff20e92fe8bddabae1de14d24633ad9284a32489ea53",
+            "rerank_score": 0.789,
+            "source_id": "SYN-FUSION-S-RELEASE-001_page_002",
+            "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+            "source_type": "synthetic_pdf",
+            "status": "approved",
+            "title": "Fusion Model Release Control Procedure",
+            "vector_score": 0.446,
+            "version": "2026"
+          }
+        ],
+        "start": null,
+        "text": "SYN-FUSION-S-RELEASE-001",
+        "type": "answer_audit_lookup"
+      }
+    ],
+    "generation": {
+      "citation_mode": "answer_audit_lookup",
+      "citation_resolution": {
+        "citation_count": 2,
+        "errors": [],
+        "passed": true
+      },
+      "cohere_document_ids": [
+        "SYN-FUSION-S-RELEASE-001_page_001",
+        "SYN-FUSION-S-RELEASE-001_page_002"
+      ],
+      "document_count": 0,
+      "model": "answer_audit_lookup"
+    },
+    "persona_id": "clearance_secret",
+    "query": "Which source page supports that, and what access level was required?",
+    "retrieval": {
+      "allowed_access": [
+        "unclassified",
+        "secret"
+      ],
+      "answerability": [],
+      "authorized_sources": [
+        {
+          "access_level": "secret",
+          "chunk_id": "SYN-FUSION-S-RELEASE-001_page_001",
+          "doc_id": "SYN-FUSION-S-RELEASE-001",
+          "label": "C1",
+          "language": "en",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 1,
+          "page_image_sha256": "7c012a5092aefa62146aa5d38f181cfdbec55003d30e20f163ac5e772bb9aa73",
+          "rerank_score": 0.8775,
+          "source_id": "SYN-FUSION-S-RELEASE-001_page_001",
+          "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+          "source_type": "synthetic_pdf",
+          "status": "approved",
+          "title": "Fusion Model Release Control Procedure",
+          "vector_score": 0.4697,
+          "version": "2026"
+        },
+        {
+          "access_level": "secret",
+          "chunk_id": "SYN-FUSION-S-RELEASE-001_page_002",
+          "doc_id": "SYN-FUSION-S-RELEASE-001",
+          "label": "C2",
+          "language": "en",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 2,
+          "page_image_sha256": "032e835ea6d05b1dd9b4ff20e92fe8bddabae1de14d24633ad9284a32489ea53",
+          "rerank_score": 0.789,
+          "source_id": "SYN-FUSION-S-RELEASE-001_page_002",
+          "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+          "source_type": "synthetic_pdf",
+          "status": "approved",
+          "title": "Fusion Model Release Control Procedure",
+          "vector_score": 0.446,
+          "version": "2026"
+        }
+      ],
+      "excluded_sources": [
+        {
+          "access_level": "top_secret",
+          "doc_family": "synthetic_fusion_model_acl_eval",
+          "doc_id": "SYN-FUSION-TS-ANNEX-002",
+          "language": "en",
+          "reason": "access_denied",
+          "title": "Fusion Model Restricted Routing Annex",
+          "vector_score": 0.4278
+        }
+      ],
+      "filters_applied": [],
+      "policy_decisions": [
+        "audit_lookup"
+      ],
+      "search_count": 0,
+      "sources_sent_to_answer": [
+        {
+          "access_level": "secret",
+          "chunk_id": "SYN-FUSION-S-RELEASE-001_page_001",
+          "doc_id": "SYN-FUSION-S-RELEASE-001",
+          "label": "C1",
+          "language": "en",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 1,
+          "page_image_sha256": "7c012a5092aefa62146aa5d38f181cfdbec55003d30e20f163ac5e772bb9aa73",
+          "rerank_score": 0.8775,
+          "source_id": "SYN-FUSION-S-RELEASE-001_page_001",
+          "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+          "source_type": "synthetic_pdf",
+          "status": "approved",
+          "title": "Fusion Model Release Control Procedure",
+          "vector_score": 0.4697,
+          "version": "2026"
+        },
+        {
+          "access_level": "secret",
+          "chunk_id": "SYN-FUSION-S-RELEASE-001_page_002",
+          "doc_id": "SYN-FUSION-S-RELEASE-001",
+          "label": "C2",
+          "language": "en",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 2,
+          "page_image_sha256": "032e835ea6d05b1dd9b4ff20e92fe8bddabae1de14d24633ad9284a32489ea53",
+          "rerank_score": 0.789,
+          "source_id": "SYN-FUSION-S-RELEASE-001_page_002",
+          "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+          "source_type": "synthetic_pdf",
+          "status": "approved",
+          "title": "Fusion Model Release Control Procedure",
+          "vector_score": 0.446,
+          "version": "2026"
+        }
+      ]
+    },
+    "retrieval_status": "audit_lookup_complete",
+    "session_id": "s_a7afd56e66f64b41891255198cdfce2e",
+    "tool_calls": [
+      "answer_audit_lookup"
+    ],
+    "tool_responses": [
+      "answer_audit_lookup"
+    ],
+    "user_id": "clearance_secret"
+  },
+  "first_answer_audit": {
+    "citations": [
+      {
+        "end": 78,
+        "sources": [
+          {
+            "access_level": "secret",
+            "chunk_id": "SYN-FUSION-S-RELEASE-001_page_001",
+            "doc_id": "SYN-FUSION-S-RELEASE-001",
+            "label": "C1",
+            "language": "en",
+            "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+            "page": 1,
+            "page_image_sha256": "7c012a5092aefa62146aa5d38f181cfdbec55003d30e20f163ac5e772bb9aa73",
+            "rerank_score": 0.8775,
+            "source_id": "SYN-FUSION-S-RELEASE-001_page_001",
+            "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+            "source_type": "synthetic_pdf",
+            "status": "approved",
+            "title": "Fusion Model Release Control Procedure",
+            "vector_score": 0.4697,
+            "version": "2026"
+          },
+          {
+            "access_level": "secret",
+            "chunk_id": "SYN-FUSION-S-RELEASE-001_page_002",
+            "doc_id": "SYN-FUSION-S-RELEASE-001",
+            "label": "C2",
+            "language": "en",
+            "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+            "page": 2,
+            "page_image_sha256": "032e835ea6d05b1dd9b4ff20e92fe8bddabae1de14d24633ad9284a32489ea53",
+            "rerank_score": 0.789,
+            "source_id": "SYN-FUSION-S-RELEASE-001_page_002",
+            "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+            "source_type": "synthetic_pdf",
+            "status": "approved",
+            "title": "Fusion Model Release Control Procedure",
+            "vector_score": 0.446,
+            "version": "2026"
+          }
+        ],
+        "start": 26,
+        "text": "must meet or exceed a confidence threshold of 0.7342",
+        "type": "cohere_native"
+      },
+      {
+        "end": 241,
+        "sources": [
+          {
+            "access_level": "secret",
+            "chunk_id": "SYN-FUSION-S-RELEASE-001_page_002",
+            "doc_id": "SYN-FUSION-S-RELEASE-001",
+            "label": "C2",
+            "language": "en",
+            "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+            "page": 2,
+            "page_image_sha256": "032e835ea6d05b1dd9b4ff20e92fe8bddabae1de14d24633ad9284a32489ea53",
+            "rerank_score": 0.789,
+            "source_id": "SYN-FUSION-S-RELEASE-001_page_002",
+            "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+            "source_type": "synthetic_pdf",
+            "status": "approved",
+            "title": "Fusion Model Release Control Procedure",
+            "vector_score": 0.446,
+            "version": "2026"
+          }
+        ],
+        "start": 158,
+        "text": "must record whether the release followed the normal threshold or used an exception.",
+        "type": "cohere_native"
+      },
+      {
+        "end": 421,
+        "sources": [
+          {
+            "access_level": "secret",
+            "chunk_id": "SYN-FUSION-S-RELEASE-001_page_002",
+            "doc_id": "SYN-FUSION-S-RELEASE-001",
+            "label": "C2",
+            "language": "en",
+            "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+            "page": 2,
+            "page_image_sha256": "032e835ea6d05b1dd9b4ff20e92fe8bddabae1de14d24633ad9284a32489ea53",
+            "rerank_score": 0.789,
+            "source_id": "SYN-FUSION-S-RELEASE-001_page_002",
+            "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+            "source_type": "synthetic_pdf",
+            "status": "approved",
+            "title": "Fusion Model Release Control Procedure",
+            "vector_score": 0.446,
+            "version": "2026"
+          }
+        ],
+        "start": 273,
+        "text": "meets or exceeds 0.7342 can move to released status when the access label matches the receiving workspace and no source conflict remains unresolved.",
+        "type": "cohere_native"
+      },
+      {
+        "end": 571,
+        "sources": [
+          {
+            "access_level": "secret",
+            "chunk_id": "SYN-FUSION-S-RELEASE-001_page_002",
+            "doc_id": "SYN-FUSION-S-RELEASE-001",
+            "label": "C2",
+            "language": "en",
+            "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+            "page": 2,
+            "page_image_sha256": "032e835ea6d05b1dd9b4ff20e92fe8bddabae1de14d24633ad9284a32489ea53",
+            "rerank_score": 0.789,
+            "source_id": "SYN-FUSION-S-RELEASE-001_page_002",
+            "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+            "source_type": "synthetic_pdf",
+            "status": "approved",
+            "title": "Fusion Model Release Control Procedure",
+            "vector_score": 0.446,
+            "version": "2026"
+          }
+        ],
+        "start": 440,
+        "text": "below 0.7342, the watch lead can still approve an exception only when the simulated safety or continuity value outweighs the delay.",
+        "type": "cohere_native"
+      },
+      {
+        "end": 655,
+        "sources": [
+          {
+            "access_level": "secret",
+            "chunk_id": "SYN-FUSION-S-RELEASE-001_page_002",
+            "doc_id": "SYN-FUSION-S-RELEASE-001",
+            "label": "C2",
+            "language": "en",
+            "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+            "page": 2,
+            "page_image_sha256": "032e835ea6d05b1dd9b4ff20e92fe8bddabae1de14d24633ad9284a32489ea53",
+            "rerank_score": 0.789,
+            "source_id": "SYN-FUSION-S-RELEASE-001_page_002",
+            "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+            "source_type": "synthetic_pdf",
+            "status": "approved",
+            "title": "Fusion Model Release Control Procedure",
+            "vector_score": 0.446,
+            "version": "2026"
+          }
+        ],
+        "start": 588,
+        "text": "must include the below-threshold score and a follow-up review time.",
+        "type": "cohere_native"
+      },
+      {
+        "end": 884,
+        "sources": [
+          {
+            "access_level": "secret",
+            "chunk_id": "SYN-FUSION-S-RELEASE-001_page_002",
+            "doc_id": "SYN-FUSION-S-RELEASE-001",
+            "label": "C2",
+            "language": "en",
+            "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+            "page": 2,
+            "page_image_sha256": "032e835ea6d05b1dd9b4ff20e92fe8bddabae1de14d24633ad9284a32489ea53",
+            "rerank_score": 0.789,
+            "source_id": "SYN-FUSION-S-RELEASE-001_page_002",
+            "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+            "source_type": "synthetic_pdf",
+            "status": "approved",
+            "title": "Fusion Model Release Control Procedure",
+            "vector_score": 0.446,
+            "version": "2026"
+          }
+        ],
+        "start": 667,
+        "text": "must block a candidate observation even above 0.7342 when the access label is unclear, the receiving workspace is not allowed to see the item, the caveat is missing, or the underlying inputs describe different events.",
+        "type": "cohere_native"
+      }
+    ],
+    "generation": {
+      "citation_mode": "cohere_native_accurate_default",
+      "citation_quality": {
+        "citation_precision": "manual_or_llm_judge_required",
+        "citation_recall_proxy": 1.0,
+        "claim_count": 6,
+        "covered_claim_count": 6,
+        "note": "Span coverage and source resolution are automated checks. They do not prove that each citation supports its claim.",
+        "uncited_claim_count": 0
+      },
+      "citation_resolution": {
+        "citation_count": 6,
+        "cited_doc_ids": [
+          "SYN-FUSION-S-RELEASE-001"
+        ],
+        "cited_source_ids": [
+          "SYN-FUSION-S-RELEASE-001_page_001",
+          "SYN-FUSION-S-RELEASE-001_page_002"
+        ],
+        "coverage": {
+          "claim_count": 6,
+          "covered_claim_count": 6,
+          "uncited_claim_count": 0,
+          "uncited_claims": []
+        },
+        "errors": [],
+        "passed": true,
+        "warnings": []
+      },
+      "cohere_document_ids": [
+        "SYN-FUSION-S-RELEASE-001_page_001",
+        "SYN-FUSION-S-RELEASE-001_page_002",
+        "SYN-FUSION-S-RELEASE-001_page_003",
+        "CA-AI-STRAT-2024-EN_page_015",
+        "CA-AI-STRAT-2024-FR_page_015",
+        "CA-DEF-POL-2024-FR_page_036",
+        "CA-AI-STRAT-2024-FR_page_016",
+        "CA-AI-STRAT-2024-FR_page_020"
+      ],
+      "document_count": 8,
+      "model": "command-a-03-2025"
+    },
+    "persona_id": "clearance_secret",
+    "query": "For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?",
+    "retrieval": {
+      "allowed_access": [
+        "unclassified",
+        "secret"
+      ],
+      "answerability": [
+        {
+          "answerable": true,
+          "best_authorized_overlap": 4,
+          "best_denied_metadata_overlap": 1,
+          "evidence_quality": {
+            "best_authorized_lexical_overlap": 4,
+            "best_denied_metadata_overlap": 1,
+            "hard_refusal": false,
+            "selected_source_count": 8,
+            "status": "authorized_sources_available",
+            "threshold_policy": "audit_only_until_calibrated",
+            "top_authorized_rerank_score": 0.8775,
+            "top_authorized_vector_score": 0.4697
+          },
+          "reason": "authorized_sources_available"
+        }
+      ],
+      "authorized_sources": [
+        {
+          "access_level": "secret",
+          "chunk_id": "SYN-FUSION-S-RELEASE-001_page_001",
+          "citation_id": "C1",
+          "doc_id": "SYN-FUSION-S-RELEASE-001",
+          "effective_date": "",
+          "language": "en",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 1,
+          "page_image_sha256": "7c012a5092aefa62146aa5d38f181cfdbec55003d30e20f163ac5e772bb9aa73",
+          "rerank_score": 0.8775,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+          "source_type": "synthetic_pdf",
+          "status": "approved",
+          "title": "Fusion Model Release Control Procedure",
+          "vector_score": 0.4697,
+          "version": "2026"
+        },
+        {
+          "access_level": "secret",
+          "chunk_id": "SYN-FUSION-S-RELEASE-001_page_002",
+          "citation_id": "C2",
+          "doc_id": "SYN-FUSION-S-RELEASE-001",
+          "effective_date": "",
+          "language": "en",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 2,
+          "page_image_sha256": "032e835ea6d05b1dd9b4ff20e92fe8bddabae1de14d24633ad9284a32489ea53",
+          "rerank_score": 0.789,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+          "source_type": "synthetic_pdf",
+          "status": "approved",
+          "title": "Fusion Model Release Control Procedure",
+          "vector_score": 0.446,
+          "version": "2026"
+        },
+        {
+          "access_level": "secret",
+          "chunk_id": "SYN-FUSION-S-RELEASE-001_page_003",
+          "citation_id": "C3",
+          "doc_id": "SYN-FUSION-S-RELEASE-001",
+          "effective_date": "",
+          "language": "en",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 3,
+          "page_image_sha256": "2d5f5cf5b295958ae81d6f1272edcab1c22babb3a850cf2ab8ea3e20ceaef404",
+          "rerank_score": 0.7837,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+          "source_type": "synthetic_pdf",
+          "status": "approved",
+          "title": "Fusion Model Release Control Procedure",
+          "vector_score": 0.4522,
+          "version": "2026"
+        },
+        {
+          "access_level": "unclassified",
+          "chunk_id": "CA-AI-STRAT-2024-EN_page_015",
+          "citation_id": "C4",
+          "doc_id": "CA-AI-STRAT-2024-EN",
+          "effective_date": "2024-03-07",
+          "language": "en",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 15,
+          "page_image_sha256": "9fa7f2a5e590b0ed68cb0aa8e4ca537786c5c7e748ae3e167685ac2428a9c7bf",
+          "rerank_score": 0.3644,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/public/dnd_caf_ai_strategy_2024_en.pdf",
+          "source_type": "official_public_pdf",
+          "status": "approved",
+          "title": "The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy",
+          "vector_score": 0.3777,
+          "version": "2024"
+        },
+        {
+          "access_level": "unclassified",
+          "chunk_id": "CA-AI-STRAT-2024-FR_page_015",
+          "citation_id": "C5",
+          "doc_id": "CA-AI-STRAT-2024-FR",
+          "effective_date": "2024-03-07",
+          "language": "fr",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 15,
+          "page_image_sha256": "0084971ff7aa5d7841b7b831a64b894aa1a04cf35bdb8a76372c65a8acc4f325",
+          "rerank_score": 0.3644,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/public/dnd_caf_ai_strategy_2024_fr.pdf",
+          "source_type": "official_public_pdf",
+          "status": "approved",
+          "title": "La stratégie d'intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes",
+          "vector_score": 0.3741,
+          "version": "2024"
+        },
+        {
+          "access_level": "unclassified",
+          "chunk_id": "CA-DEF-POL-2024-FR_page_036",
+          "citation_id": "C6",
+          "doc_id": "CA-DEF-POL-2024-FR",
+          "effective_date": "2024-04-08",
+          "language": "fr",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 36,
+          "page_image_sha256": "5523c49b8852852ea0bea55f83d9025dfd3281c89ee3dad7a6681fcc84e06727",
+          "rerank_score": 0.3188,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/public/notre_nord_fort_libre_2024_fr.pdf",
+          "source_type": "official_public_pdf",
+          "status": "approved",
+          "title": "Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada",
+          "vector_score": 0.3797,
+          "version": "2024"
+        },
+        {
+          "access_level": "unclassified",
+          "chunk_id": "CA-AI-STRAT-2024-FR_page_016",
+          "citation_id": "C7",
+          "doc_id": "CA-AI-STRAT-2024-FR",
+          "effective_date": "2024-03-07",
+          "language": "fr",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 16,
+          "page_image_sha256": "629bceada891accec2d7e25dc4af0ad6c1a6573afa0967e94fbdf01fa6b4b7f7",
+          "rerank_score": 0.3087,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/public/dnd_caf_ai_strategy_2024_fr.pdf",
+          "source_type": "official_public_pdf",
+          "status": "approved",
+          "title": "La stratégie d'intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes",
+          "vector_score": 0.3624,
+          "version": "2024"
+        },
+        {
+          "access_level": "unclassified",
+          "chunk_id": "CA-AI-STRAT-2024-FR_page_020",
+          "citation_id": "C8",
+          "doc_id": "CA-AI-STRAT-2024-FR",
+          "effective_date": "2024-03-07",
+          "language": "fr",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 20,
+          "page_image_sha256": "cbc156622e5fcc778d4f3c31333e74c5c2975c30878947c89b9ec7817f4b6ac8",
+          "rerank_score": 0.3054,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/public/dnd_caf_ai_strategy_2024_fr.pdf",
+          "source_type": "official_public_pdf",
+          "status": "approved",
+          "title": "La stratégie d'intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes",
+          "vector_score": 0.3742,
+          "version": "2024"
+        }
+      ],
+      "excluded_sources": [
+        {
+          "access_level": "top_secret",
+          "doc_family": "synthetic_fusion_model_acl_eval",
+          "doc_id": "SYN-FUSION-TS-ANNEX-002",
+          "language": "en",
+          "reason": "access_denied",
+          "title": "Fusion Model Restricted Routing Annex",
+          "vector_score": 0.4278
+        }
+      ],
+      "filters_applied": [
+        {
+          "access_level": [
+            "unclassified",
+            "secret"
+          ],
+          "language": "any",
+          "status": "approved"
+        }
+      ],
+      "policy_decisions": [
+        "allow"
+      ],
+      "search_count": 1,
+      "search_queries": [
+        "new sensor-fusion release workflow"
+      ],
+      "sources_sent_to_answer": [
+        {
+          "access_level": "secret",
+          "chunk_id": "SYN-FUSION-S-RELEASE-001_page_001",
+          "citation_id": "C1",
+          "doc_id": "SYN-FUSION-S-RELEASE-001",
+          "effective_date": "",
+          "language": "en",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 1,
+          "page_image_sha256": "7c012a5092aefa62146aa5d38f181cfdbec55003d30e20f163ac5e772bb9aa73",
+          "rerank_score": 0.8775,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+          "source_type": "synthetic_pdf",
+          "status": "approved",
+          "title": "Fusion Model Release Control Procedure",
+          "vector_score": 0.4697,
+          "version": "2026"
+        },
+        {
+          "access_level": "secret",
+          "chunk_id": "SYN-FUSION-S-RELEASE-001_page_002",
+          "citation_id": "C2",
+          "doc_id": "SYN-FUSION-S-RELEASE-001",
+          "effective_date": "",
+          "language": "en",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 2,
+          "page_image_sha256": "032e835ea6d05b1dd9b4ff20e92fe8bddabae1de14d24633ad9284a32489ea53",
+          "rerank_score": 0.789,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+          "source_type": "synthetic_pdf",
+          "status": "approved",
+          "title": "Fusion Model Release Control Procedure",
+          "vector_score": 0.446,
+          "version": "2026"
+        },
+        {
+          "access_level": "secret",
+          "chunk_id": "SYN-FUSION-S-RELEASE-001_page_003",
+          "citation_id": "C3",
+          "doc_id": "SYN-FUSION-S-RELEASE-001",
+          "effective_date": "",
+          "language": "en",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 3,
+          "page_image_sha256": "2d5f5cf5b295958ae81d6f1272edcab1c22babb3a850cf2ab8ea3e20ceaef404",
+          "rerank_score": 0.7837,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/synthetic/fusion_model_release_control.pdf",
+          "source_type": "synthetic_pdf",
+          "status": "approved",
+          "title": "Fusion Model Release Control Procedure",
+          "vector_score": 0.4522,
+          "version": "2026"
+        },
+        {
+          "access_level": "unclassified",
+          "chunk_id": "CA-AI-STRAT-2024-EN_page_015",
+          "citation_id": "C4",
+          "doc_id": "CA-AI-STRAT-2024-EN",
+          "effective_date": "2024-03-07",
+          "language": "en",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 15,
+          "page_image_sha256": "9fa7f2a5e590b0ed68cb0aa8e4ca537786c5c7e748ae3e167685ac2428a9c7bf",
+          "rerank_score": 0.3644,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/public/dnd_caf_ai_strategy_2024_en.pdf",
+          "source_type": "official_public_pdf",
+          "status": "approved",
+          "title": "The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy",
+          "vector_score": 0.3777,
+          "version": "2024"
+        },
+        {
+          "access_level": "unclassified",
+          "chunk_id": "CA-AI-STRAT-2024-FR_page_015",
+          "citation_id": "C5",
+          "doc_id": "CA-AI-STRAT-2024-FR",
+          "effective_date": "2024-03-07",
+          "language": "fr",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 15,
+          "page_image_sha256": "0084971ff7aa5d7841b7b831a64b894aa1a04cf35bdb8a76372c65a8acc4f325",
+          "rerank_score": 0.3644,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/public/dnd_caf_ai_strategy_2024_fr.pdf",
+          "source_type": "official_public_pdf",
+          "status": "approved",
+          "title": "La stratégie d'intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes",
+          "vector_score": 0.3741,
+          "version": "2024"
+        },
+        {
+          "access_level": "unclassified",
+          "chunk_id": "CA-DEF-POL-2024-FR_page_036",
+          "citation_id": "C6",
+          "doc_id": "CA-DEF-POL-2024-FR",
+          "effective_date": "2024-04-08",
+          "language": "fr",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 36,
+          "page_image_sha256": "5523c49b8852852ea0bea55f83d9025dfd3281c89ee3dad7a6681fcc84e06727",
+          "rerank_score": 0.3188,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/public/notre_nord_fort_libre_2024_fr.pdf",
+          "source_type": "official_public_pdf",
+          "status": "approved",
+          "title": "Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada",
+          "vector_score": 0.3797,
+          "version": "2024"
+        },
+        {
+          "access_level": "unclassified",
+          "chunk_id": "CA-AI-STRAT-2024-FR_page_016",
+          "citation_id": "C7",
+          "doc_id": "CA-AI-STRAT-2024-FR",
+          "effective_date": "2024-03-07",
+          "language": "fr",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 16,
+          "page_image_sha256": "629bceada891accec2d7e25dc4af0ad6c1a6573afa0967e94fbdf01fa6b4b7f7",
+          "rerank_score": 0.3087,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/public/dnd_caf_ai_strategy_2024_fr.pdf",
+          "source_type": "official_public_pdf",
+          "status": "approved",
+          "title": "La stratégie d'intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes",
+          "vector_score": 0.3624,
+          "version": "2024"
+        },
+        {
+          "access_level": "unclassified",
+          "chunk_id": "CA-AI-STRAT-2024-FR_page_020",
+          "citation_id": "C8",
+          "doc_id": "CA-AI-STRAT-2024-FR",
+          "effective_date": "2024-03-07",
+          "language": "fr",
+          "manifest_path": "defence_agent/data/corpus/manifest.yaml",
+          "page": 20,
+          "page_image_sha256": "cbc156622e5fcc778d4f3c31333e74c5c2975c30878947c89b9ec7817f4b6ac8",
+          "rerank_score": 0.3054,
+          "section": "",
+          "source_pdf_path": "defence_agent/data/corpus/public/dnd_caf_ai_strategy_2024_fr.pdf",
+          "source_type": "official_public_pdf",
+          "status": "approved",
+          "title": "La stratégie d'intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes",
+          "vector_score": 0.3742,
+          "version": "2024"
+        }
+      ],
+      "tool_cache": {
+        "events": [
+          {
+            "cache_key": "a2906ec028d62e44552c893a7c27e8fe34de87a4dcb63062ad8bd908518ffd4c",
+            "cache_key_short": "a2906ec028d6",
+            "hit": false,
+            "normalized_args": {
+              "language": "any",
+              "query": "new sensor-fusion release workflow",
+              "status_filter": "approved",
+              "top_k": 8
+            },
+            "persona_id": "clearance_secret",
+            "schema_version": "search_tool_result_cache_v1",
+            "scope": "session",
+            "source": "live_tool_call",
+            "stored": true,
+            "tool_name": "search_documents"
+          }
+        ],
+        "hit_count": 0,
+        "store_count": 1
+      }
+    },
+    "retrieval_status": "",
+    "session_id": "s_a7afd56e66f64b41891255198cdfce2e",
+    "tool_calls": [
+      "search_documents"
+    ],
+    "tool_responses": [
+      "search_documents"
+    ],
+    "user_id": "clearance_secret"
+  },
+  "follow_up": "Which source page supports that, and what access level was required?",
+  "mode": "answer_audit_lookup",
+  "parent_id": "",
+  "passed": true,
+  "persona_id": "clearance_secret",
+  "query": "For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?",
+  "search_count": 1
+}
