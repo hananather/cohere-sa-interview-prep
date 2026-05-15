@@ -1,1 +1,2 @@
 .[ui]
+google-adk[extensions]>=1.0.0
