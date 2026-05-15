@@ -1,0 +1,2546 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Defence Agent Presentation Backup</title>
+  <style>
+
+:root {
+  --bg: #f6f7f4;
+  --panel: #ffffff;
+  --text: #17211d;
+  --muted: #64706a;
+  --line: #dfe5df;
+  --green: #266756;
+  --green-soft: #e5f1ec;
+  --blue: #215b7d;
+  --blue-soft: #e4eef5;
+  --amber: #8a5a13;
+  --amber-soft: #f7ecd7;
+  --red-soft: #f4e4e0;
+  --shadow: 0 16px 40px rgba(23, 33, 29, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background: var(--bg);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+a {
+  color: var(--blue);
+}
+
+code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.92em;
+}
+
+.shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0 72px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 24px;
+  align-items: stretch;
+  padding: 28px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.hero h1,
+.section h2,
+.panel h3,
+.citation-card h4 {
+  margin: 0;
+  line-height: 1.15;
+}
+
+.hero h1 {
+  font-size: clamp(34px, 5vw, 60px);
+  max-width: 820px;
+}
+
+.lead {
+  max-width: 760px;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.hero-panel,
+.metric-row,
+.trace-meta,
+.map-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.hero-panel {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.stat,
+.metric,
+.panel,
+.details {
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.stat,
+.metric {
+  padding: 14px;
+}
+
+.stat span,
+.metric span {
+  display: block;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.stat label,
+.metric label {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.quick-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: rgba(246, 247, 244, 0.94);
+  backdrop-filter: blur(10px);
+}
+
+.quick-nav a {
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  background: var(--panel);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.section {
+  margin-top: 28px;
+  scroll-margin-top: 84px;
+}
+
+.section-head {
+  margin-bottom: 14px;
+}
+
+.section-head h2 {
+  font-size: 30px;
+}
+
+.section-head p:not(.eyebrow) {
+  max-width: 840px;
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+
+.metric-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+td span {
+  color: var(--muted);
+}
+
+.run-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(290px, 0.65fr);
+  gap: 14px;
+}
+
+.panel {
+  padding: 18px;
+}
+
+.panel-top {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.badge,
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  background: #f9faf8;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge-good,
+.pill-unclassified {
+  border-color: #b9d6c8;
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.badge-warn,
+.pill-secret,
+.pill-top-secret {
+  border-color: #e2c58f;
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.query {
+  margin: 12px 0 18px;
+  padding: 14px;
+  border-left: 4px solid var(--blue);
+  background: var(--blue-soft);
+  font-weight: 700;
+}
+
+.answer {
+  margin-top: 10px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: #fbfcfa;
+  white-space: normal;
+}
+
+.presenter-panel {
+  background: #fbfcfa;
+}
+
+.compact-dl {
+  margin: 14px 0 0;
+}
+
+.compact-dl div {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.compact-dl dt {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.compact-dl dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.callout {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #cdded6;
+  background: var(--green-soft);
+}
+
+.callout span {
+  color: var(--muted);
+}
+
+.details {
+  margin-top: 12px;
+}
+
+.details summary {
+  cursor: pointer;
+  padding: 14px 16px;
+  font-weight: 800;
+}
+
+.details > *:not(summary) {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+
+.trace {
+  padding-bottom: 16px;
+}
+
+.trace-meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.trace-list {
+  display: grid;
+  gap: 10px;
+  margin: 0 16px 0 34px;
+  padding: 0 0 2px;
+}
+
+.trace-list li {
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #fbfcfa;
+}
+
+.trace-list span {
+  display: block;
+  color: var(--muted);
+}
+
+.mini-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.mini-metrics span {
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.compact th,
+.compact td {
+  font-size: 13px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.citation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding-bottom: 16px;
+}
+
+.citation-card {
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #fbfcfa;
+}
+
+.citation-card p {
+  margin: 8px 0;
+}
+
+.citation-card small {
+  color: var(--muted);
+}
+
+.map-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.run-primary .section-head .eyebrow {
+  color: var(--blue);
+}
+
+.run-warn .query {
+  border-left-color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.run-secure .query {
+  border-left-color: var(--green);
+  background: var(--green-soft);
+}
+
+@media (max-width: 900px) {
+  .hero,
+  .run-grid,
+  .metric-row,
+  .trace-meta,
+  .map-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .citation-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .shell {
+    width: 100%;
+    padding: 0;
+  }
+
+  .quick-nav {
+    display: none;
+  }
+
+  .hero,
+  .panel,
+  .details,
+  .table-wrap,
+  .stat,
+  .metric {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  .section {
+    break-inside: avoid;
+  }
+}
+
+  </style>
+</head>
+<body>
+  <div class="shell">
+
+<header class="hero">
+  <div>
+    <p class="eyebrow">Static backup page</p>
+    <h1>Defence Agent Presentation Backup</h1>
+    <p class="lead">A deterministic walkthrough of the same evidence workflow: database, planning answer, trace, citations, access boundary, scanned manual retrieval, refusal, and follow-up.</p>
+  </div>
+  <div class="hero-panel">
+    <div class="stat"><span>10</span><label>catalog sources</label></div>
+    <div class="stat"><span>7</span><label>demo runs</label></div>
+    <div class="stat"><span>76</span><label>citation spans</label></div>
+    <div class="stat"><span>docx: 1, official_public_pdf: 6, scanned_pdf: 1, synthetic_pdf: 2</span><label>source formats</label></div>
+    <div class="stat"><span>secret: 1, top_secret: 1, unclassified: 8</span><label>access levels</label></div>
+    <div class="stat"><span>2026-05-15 14:46 UTC</span><label>page build time</label></div>
+  </div>
+</header>
+<nav class="quick-nav" aria-label="Page sections">
+  <a href="#database">Database</a>
+  <a href="#planning">Planning</a>
+  <a href="#access-unclassified">Access</a>
+  <a href="#scanned">Scanned Manual</a>
+  <a href="#refusal">Refusal</a>
+  <a href="#follow-up">Follow-Up</a>
+  <a href="#implementation">Implementation Map</a>
+</nav>
+
+
+<section class="section" id="database">
+  <div class="section-head">
+    <p class="eyebrow">Step 1</p>
+    <h2>Database And Source Catalog</h2>
+    <p>This is the document universe the assistant searches. The important point is that source metadata travels with every retrieved page: document ID, access level, language, status, source type, and provenance.</p>
+  </div>
+  <div class="metric-row">
+    <div class="metric"><span>secret: 1, top_secret: 1, unclassified: 8</span><label>Access</label></div>
+    <div class="metric"><span>en: 7, fr: 3</span><label>Language</label></div>
+    <div class="metric"><span>docx: 1, official_public_pdf: 6, scanned_pdf: 1, synthetic_pdf: 2</span><label>Formats</label></div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Document ID</th>
+          <th>Title</th>
+          <th>Access</th>
+          <th>Language</th>
+          <th>Source Format</th>
+          <th>Owner</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr>
+          <td><code>CA-DEF-POL-2024-EN</code></td>
+          <td>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</td>
+          <td><span class="pill pill-unclassified">unclassified</span></td>
+          <td>en</td>
+          <td>official_public_pdf</td>
+          <td>Department of National Defence</td>
+        </tr>
+
+
+        <tr>
+          <td><code>CA-DEF-POL-2024-FR</code></td>
+          <td>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</td>
+          <td><span class="pill pill-unclassified">unclassified</span></td>
+          <td>fr</td>
+          <td>official_public_pdf</td>
+          <td>Department of National Defence</td>
+        </tr>
+
+
+        <tr>
+          <td><code>CA-AI-STRAT-2024-EN</code></td>
+          <td>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</td>
+          <td><span class="pill pill-unclassified">unclassified</span></td>
+          <td>en</td>
+          <td>official_public_pdf</td>
+          <td>Department of National Defence</td>
+        </tr>
+
+
+        <tr>
+          <td><code>CA-AI-STRAT-2024-FR</code></td>
+          <td>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</td>
+          <td><span class="pill pill-unclassified">unclassified</span></td>
+          <td>fr</td>
+          <td>official_public_pdf</td>
+          <td>Department of National Defence</td>
+        </tr>
+
+
+        <tr>
+          <td><code>NATO-STRAT-CONCEPT-2022-EN</code></td>
+          <td>NATO 2022 Strategic Concept</td>
+          <td><span class="pill pill-unclassified">unclassified</span></td>
+          <td>en</td>
+          <td>official_public_pdf</td>
+          <td>NATO</td>
+        </tr>
+
+
+        <tr>
+          <td><code>NATO-STRAT-CONCEPT-2022-FR</code></td>
+          <td>Concept stratégique 2022 de l&#x27;OTAN</td>
+          <td><span class="pill pill-unclassified">unclassified</span></td>
+          <td>fr</td>
+          <td>official_public_pdf</td>
+          <td>NATO</td>
+        </tr>
+
+
+        <tr>
+          <td><code>UK-MOD-ASOEM-2023-EN</code></td>
+          <td>Aviation Safe Operating Environment Manual</td>
+          <td><span class="pill pill-unclassified">unclassified</span></td>
+          <td>en</td>
+          <td>docx</td>
+          <td>Ministry of Defence and Military Aviation Authority</td>
+        </tr>
+
+
+        <tr>
+          <td><code>US-ARMY-FM30-16-1972-SCAN</code></td>
+          <td>FM 30-16 Technical Intelligence, 1972 - Scanned Excerpt</td>
+          <td><span class="pill pill-unclassified">unclassified</span></td>
+          <td>en</td>
+          <td>scanned_pdf</td>
+          <td>Headquarters, Department of the Army</td>
+        </tr>
+
+
+        <tr>
+          <td><code>SYN-FUSION-S-RELEASE-001</code></td>
+          <td>Fusion Model Release Control Procedure</td>
+          <td><span class="pill pill-secret">secret</span></td>
+          <td>en</td>
+          <td>synthetic_pdf</td>
+          <td>Synthetic Exercise Control</td>
+        </tr>
+
+
+        <tr>
+          <td><code>SYN-FUSION-TS-ANNEX-002</code></td>
+          <td>Fusion Model Restricted Routing Annex</td>
+          <td><span class="pill pill-top-secret">top_secret</span></td>
+          <td>en</td>
+          <td>synthetic_pdf</td>
+          <td>Synthetic Exercise Control</td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+<section class="section run run-primary" id="planning">
+  <div class="section-head">
+    <p class="eyebrow">Step 2</p>
+    <h2>Planning Brief Comparison</h2>
+    <p>One planning question becomes multiple ordered searches across defence policy and AI strategy sources.</p>
+  </div>
+  <div class="run-grid">
+    <article class="panel main-panel">
+      <div class="panel-top">
+        <h3>Question</h3>
+        <div class="badge-row"><span class="badge badge-neutral">clearance_unclassified</span><span class="badge badge-neutral">2 search call(s)</span><span class="badge badge-neutral">33 citation span(s)</span><span class="badge badge-neutral">16 evidence page(s)</span><span class="badge badge-good">verified pass</span></div>
+      </div>
+      <p class="query">Compare how Canada&#x27;s defence policy and the DND/CAF AI Strategy describe AI-enabled modernization for a planning brief, and cite the strongest source pages.</p>
+
+      <h3>Answer</h3>
+      <div class="answer">Canada&#x27;s defence policy, Our North, Strong and Free [C1, C2, C3, C4, C5, C6, C7, C8], outlines a plan to modernize the Canadian Armed Forces [C4, C6, C7, C8] by investing in advanced technologies [C4, C6, C7, C8] and enhancing capabilities [C2, C3, C4, C6, C8] to address evolving threats. [C1, C2, C3, C4, C5, C7, C8] This includes acquiring new equipment [C6], improving cyber capabilities [C2, C4], and strengthening partnerships [C4, C5, C6] to ensure Canada&#x27;s military remains ready, resilient, and relevant. [C2, C8] The policy emphasizes the need for a regular cycle of defence policy reviews [C4, C6] to adapt to global changes [C4] and engage Canadians [C4, C7] in defence investments.<br><br>The DND/CAF AI Strategy focuses on integrating artificial intelligence [C10, C11, C12, C13, C14, C15, C16, C9] to enhance military operations [C10, C11, C12, C13, C14, C15, C16, C9] and corporate functions. [C11, C14, C15, C16, C9] It aims to accelerate the adoption of responsible AI [C11, C12, C13, C14, C15, C16, C9] by establishing an AI Centre of Excellence [C12, C9], developing governance frameworks [C12, C13, C16, C9], and investing in AI enablers [C10, C11, C13, C15, C16] such as data infrastructure [C10, C11, C15, C9] and workforce training. [C10, C11, C13, C9] The strategy aligns with Canada&#x27;s defence policy by prioritizing AI as a tool for modernization [C11, C14, C9], aiming to improve operational efficiency [C10, C11, C13, C14, C15, C16, C9], decision-making [C10, C11, C13, C15, C16, C9], and resource management. [C10, C11, C13, C14, C15, C16, C9]<br><br>Both documents emphasize the importance of innovation [C10, C11, C13, C15, C6, C8, C9] and adaptation [C10, C13, C15, C4, C8, C9] in response to a rapidly changing security environment. [C1, C14, C2, C3, C4, C5, C7, C8, C9] While the defence policy provides a broader framework for military modernization [C1, C2, C3, C4, C5, C6, C7, C8], the AI Strategy specifically addresses AI as a transformative technology [C10, C11, C12, C13, C14, C15, C16, C9] to enhance Canada&#x27;s defence capabilities. [C10, C11, C12, C13, C14, C15, C16, C9]<br><br>**Strongest source pages:**<br>- Defence Policy: Pages 7, 11, 21, 33 [C2, C3, C8]<br>- AI Strategy: Pages 6, 7, 8, 12, 13 [C10, C11, C14, C15, C9]</div>
+    </article>
+    <aside class="panel presenter-panel">
+      <h3>Presenter Cue</h3>
+      <p>Use this as the main answer demo. It proves multi-document planning, citations, and traceability.</p>
+      <dl class="compact-dl">
+        <div><dt>Mode</dt><dd>cohere_native_accurate_default</dd></div>
+        <div><dt>Model</dt><dd>command-a-03-2025</dd></div>
+        <div><dt>Session</dt><dd>s_8b844f01b4f740e2a2f77b0db7d2f550</dd></div>
+        <div><dt>Cited docs</dt><dd>CA-AI-STRAT-2024-EN, CA-DEF-POL-2024-EN</dd></div>
+      </dl>
+
+      <div class="callout">
+        <strong>Citation coverage: passed</strong>
+        <span>10 covered claim(s) / 11 total. 1 uncited claim(s).</span>
+      </div>
+
+
+      <div class="callout">
+        <strong>Answerability: authorized_sources_available</strong>
+        <span>Reason: authorized_sources_available</span>
+      </div>
+
+    </aside>
+  </div>
+
+  <details class="details trace-details" open>
+    <summary>Trace timeline</summary>
+    <div class="trace">
+      <div class="trace-meta">
+        <div class="metric"><span>unclassified</span><label>Allowed access</label></div>
+        <div class="metric"><span>16</span><label>Documents to model</label></div>
+        <div class="metric"><span>cohere_native_accurate_default</span><label>Citation mode</label></div>
+      </div>
+      <ol class="trace-list">
+
+        <li>
+          <strong>Search 1: Canada&#x27;s defence policy</strong>
+          <span>filters: access_level=unclassified; language=en; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.5301</strong></span><span>top rerank: <strong>0.9825</strong></span></div>
+        </li>
+
+
+        <li>
+          <strong>Search 2: DND/CAF AI Strategy</strong>
+          <span>filters: access_level=unclassified; language=en; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.5098</strong></span><span>top rerank: <strong>0.9949</strong></span></div>
+        </li>
+
+        <li>
+          <strong>Generate cited answer</strong>
+          <span>Command A receives the selected authorized pages through the grounded answer path and returns answer text plus citation spans.</span>
+        </li>
+      </ol>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Evidence Sent To Answer (16)</summary>
+    <div class="table-wrap compact">
+      <table>
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Document</th>
+            <th>Page</th>
+            <th>Access</th>
+            <th>Scores</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>C1</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>11</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5301, rerank 0.9825</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C2</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>21</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5394, rerank 0.9814</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C3</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>33</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5262, rerank 0.9813</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>10</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5131, rerank 0.9796</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>7</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5090, rerank 0.9793</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>6</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5183, rerank 0.9780</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>46</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5253, rerank 0.9777</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>12</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4994, rerank 0.9775</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C1</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>7</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5098, rerank 0.9949</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C2</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>13</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4903, rerank 0.9946</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C3</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>6</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4811, rerank 0.9942</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>17</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4778, rerank 0.9940</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>20</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4777, rerank 0.9939</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>3</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4631, rerank 0.9939</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>12</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4888, rerank 0.9937</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>16</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4957, rerank 0.9936</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+
+  <details class="details">
+    <summary>All Citation Spans (33)</summary>
+    <div class="citation-grid">
+      <article class="citation-card">
+        <h4>Citation span 1</h4>
+        <p>Our North, Strong and Free</p>
+        <small>C1: CA-DEF-POL-2024-EN p.11; C2: CA-DEF-POL-2024-EN p.21; C3: CA-DEF-POL-2024-EN p.33; C4: CA-DEF-POL-2024-EN p.10; C5: CA-DEF-POL-2024-EN p.7; C6: CA-DEF-POL-2024-EN p.6; C7: CA-DEF-POL-2024-EN p.46; C8: CA-DEF-POL-2024-EN p.12</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 2</h4>
+        <p>modernize the Canadian Armed Forces</p>
+        <small>C4: CA-DEF-POL-2024-EN p.10; C6: CA-DEF-POL-2024-EN p.6; C7: CA-DEF-POL-2024-EN p.46; C8: CA-DEF-POL-2024-EN p.12</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 3</h4>
+        <p>investing in advanced technologies</p>
+        <small>C4: CA-DEF-POL-2024-EN p.10; C6: CA-DEF-POL-2024-EN p.6; C7: CA-DEF-POL-2024-EN p.46; C8: CA-DEF-POL-2024-EN p.12</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 4</h4>
+        <p>enhancing capabilities</p>
+        <small>C2: CA-DEF-POL-2024-EN p.21; C3: CA-DEF-POL-2024-EN p.33; C4: CA-DEF-POL-2024-EN p.10; C6: CA-DEF-POL-2024-EN p.6; C8: CA-DEF-POL-2024-EN p.12</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 5</h4>
+        <p>address evolving threats.</p>
+        <small>C1: CA-DEF-POL-2024-EN p.11; C2: CA-DEF-POL-2024-EN p.21; C3: CA-DEF-POL-2024-EN p.33; C4: CA-DEF-POL-2024-EN p.10; C5: CA-DEF-POL-2024-EN p.7; C7: CA-DEF-POL-2024-EN p.46; C8: CA-DEF-POL-2024-EN p.12</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 6</h4>
+        <p>acquiring new equipment</p>
+        <small>C6: CA-DEF-POL-2024-EN p.6</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 7</h4>
+        <p>improving cyber capabilities</p>
+        <small>C2: CA-DEF-POL-2024-EN p.21; C4: CA-DEF-POL-2024-EN p.10</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 8</h4>
+        <p>strengthening partnerships</p>
+        <small>C4: CA-DEF-POL-2024-EN p.10; C5: CA-DEF-POL-2024-EN p.7; C6: CA-DEF-POL-2024-EN p.6</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 9</h4>
+        <p>ready, resilient, and relevant.</p>
+        <small>C2: CA-DEF-POL-2024-EN p.21; C8: CA-DEF-POL-2024-EN p.12</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 10</h4>
+        <p>regular cycle of defence policy reviews</p>
+        <small>C4: CA-DEF-POL-2024-EN p.10; C6: CA-DEF-POL-2024-EN p.6</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 11</h4>
+        <p>adapt to global changes</p>
+        <small>C4: CA-DEF-POL-2024-EN p.10</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 12</h4>
+        <p>engage Canadians</p>
+        <small>C4: CA-DEF-POL-2024-EN p.10; C7: CA-DEF-POL-2024-EN p.46</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 13</h4>
+        <p>integrating artificial intelligence</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C10: CA-AI-STRAT-2024-EN p.13; C11: CA-AI-STRAT-2024-EN p.6; C12: CA-AI-STRAT-2024-EN p.17; C13: CA-AI-STRAT-2024-EN p.20; C14: CA-AI-STRAT-2024-EN p.3; C15: CA-AI-STRAT-2024-EN p.12; C16: CA-AI-STRAT-2024-EN p.16</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 14</h4>
+        <p>enhance military operations</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C10: CA-AI-STRAT-2024-EN p.13; C11: CA-AI-STRAT-2024-EN p.6; C12: CA-AI-STRAT-2024-EN p.17; C13: CA-AI-STRAT-2024-EN p.20; C14: CA-AI-STRAT-2024-EN p.3; C15: CA-AI-STRAT-2024-EN p.12; C16: CA-AI-STRAT-2024-EN p.16</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 15</h4>
+        <p>corporate functions.</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C11: CA-AI-STRAT-2024-EN p.6; C14: CA-AI-STRAT-2024-EN p.3; C15: CA-AI-STRAT-2024-EN p.12; C16: CA-AI-STRAT-2024-EN p.16</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 16</h4>
+        <p>accelerate the adoption of responsible AI</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C11: CA-AI-STRAT-2024-EN p.6; C12: CA-AI-STRAT-2024-EN p.17; C13: CA-AI-STRAT-2024-EN p.20; C14: CA-AI-STRAT-2024-EN p.3; C15: CA-AI-STRAT-2024-EN p.12; C16: CA-AI-STRAT-2024-EN p.16</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 17</h4>
+        <p>establishing an AI Centre of Excellence</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C12: CA-AI-STRAT-2024-EN p.17</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 18</h4>
+        <p>developing governance frameworks</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C12: CA-AI-STRAT-2024-EN p.17; C13: CA-AI-STRAT-2024-EN p.20; C16: CA-AI-STRAT-2024-EN p.16</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 19</h4>
+        <p>investing in AI enablers</p>
+        <small>C10: CA-AI-STRAT-2024-EN p.13; C11: CA-AI-STRAT-2024-EN p.6; C13: CA-AI-STRAT-2024-EN p.20; C15: CA-AI-STRAT-2024-EN p.12; C16: CA-AI-STRAT-2024-EN p.16</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 20</h4>
+        <p>data infrastructure</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C10: CA-AI-STRAT-2024-EN p.13; C11: CA-AI-STRAT-2024-EN p.6; C15: CA-AI-STRAT-2024-EN p.12</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 21</h4>
+        <p>workforce training.</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C10: CA-AI-STRAT-2024-EN p.13; C11: CA-AI-STRAT-2024-EN p.6; C13: CA-AI-STRAT-2024-EN p.20</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 22</h4>
+        <p>prioritizing AI as a tool for modernization</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C11: CA-AI-STRAT-2024-EN p.6; C14: CA-AI-STRAT-2024-EN p.3</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 23</h4>
+        <p>improve operational efficiency</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C10: CA-AI-STRAT-2024-EN p.13; C11: CA-AI-STRAT-2024-EN p.6; C13: CA-AI-STRAT-2024-EN p.20; C14: CA-AI-STRAT-2024-EN p.3; C15: CA-AI-STRAT-2024-EN p.12; C16: CA-AI-STRAT-2024-EN p.16</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 24</h4>
+        <p>decision-making</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C10: CA-AI-STRAT-2024-EN p.13; C11: CA-AI-STRAT-2024-EN p.6; C13: CA-AI-STRAT-2024-EN p.20; C15: CA-AI-STRAT-2024-EN p.12; C16: CA-AI-STRAT-2024-EN p.16</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 25</h4>
+        <p>resource management.</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C10: CA-AI-STRAT-2024-EN p.13; C11: CA-AI-STRAT-2024-EN p.6; C13: CA-AI-STRAT-2024-EN p.20; C14: CA-AI-STRAT-2024-EN p.3; C15: CA-AI-STRAT-2024-EN p.12; C16: CA-AI-STRAT-2024-EN p.16</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 26</h4>
+        <p>innovation</p>
+        <small>C6: CA-DEF-POL-2024-EN p.6; C8: CA-DEF-POL-2024-EN p.12; C9: CA-AI-STRAT-2024-EN p.7; C10: CA-AI-STRAT-2024-EN p.13; C11: CA-AI-STRAT-2024-EN p.6; C13: CA-AI-STRAT-2024-EN p.20; C15: CA-AI-STRAT-2024-EN p.12</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 27</h4>
+        <p>adaptation</p>
+        <small>C4: CA-DEF-POL-2024-EN p.10; C8: CA-DEF-POL-2024-EN p.12; C9: CA-AI-STRAT-2024-EN p.7; C10: CA-AI-STRAT-2024-EN p.13; C13: CA-AI-STRAT-2024-EN p.20; C15: CA-AI-STRAT-2024-EN p.12</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 28</h4>
+        <p>rapidly changing security environment.</p>
+        <small>C1: CA-DEF-POL-2024-EN p.11; C2: CA-DEF-POL-2024-EN p.21; C3: CA-DEF-POL-2024-EN p.33; C4: CA-DEF-POL-2024-EN p.10; C5: CA-DEF-POL-2024-EN p.7; C7: CA-DEF-POL-2024-EN p.46; C8: CA-DEF-POL-2024-EN p.12; C9: CA-AI-STRAT-2024-EN p.7; C14: CA-AI-STRAT-2024-EN p.3</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 29</h4>
+        <p>broader framework for military modernization</p>
+        <small>C1: CA-DEF-POL-2024-EN p.11; C2: CA-DEF-POL-2024-EN p.21; C3: CA-DEF-POL-2024-EN p.33; C4: CA-DEF-POL-2024-EN p.10; C5: CA-DEF-POL-2024-EN p.7; C6: CA-DEF-POL-2024-EN p.6; C7: CA-DEF-POL-2024-EN p.46; C8: CA-DEF-POL-2024-EN p.12</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 30</h4>
+        <p>specifically addresses AI as a transformative technology</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C10: CA-AI-STRAT-2024-EN p.13; C11: CA-AI-STRAT-2024-EN p.6; C12: CA-AI-STRAT-2024-EN p.17; C13: CA-AI-STRAT-2024-EN p.20; C14: CA-AI-STRAT-2024-EN p.3; C15: CA-AI-STRAT-2024-EN p.12; C16: CA-AI-STRAT-2024-EN p.16</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 31</h4>
+        <p>enhance Canada&#x27;s defence capabilities.</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C10: CA-AI-STRAT-2024-EN p.13; C11: CA-AI-STRAT-2024-EN p.6; C12: CA-AI-STRAT-2024-EN p.17; C13: CA-AI-STRAT-2024-EN p.20; C14: CA-AI-STRAT-2024-EN p.3; C15: CA-AI-STRAT-2024-EN p.12; C16: CA-AI-STRAT-2024-EN p.16</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 32</h4>
+        <p>Pages 7, 11, 21, 33</p>
+        <small>C2: CA-DEF-POL-2024-EN p.21; C3: CA-DEF-POL-2024-EN p.33; C8: CA-DEF-POL-2024-EN p.12</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 33</h4>
+        <p>Pages 6, 7, 8, 12, 13</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.7; C10: CA-AI-STRAT-2024-EN p.13; C11: CA-AI-STRAT-2024-EN p.6; C14: CA-AI-STRAT-2024-EN p.3; C15: CA-AI-STRAT-2024-EN p.12</small>
+      </article>
+</div>
+  </details>
+
+</section>
+
+
+<section class="section run run-warn" id="access-unclassified">
+  <div class="section-head">
+    <p class="eyebrow">Step 3</p>
+    <h2>Access Boundary: Unclassified User</h2>
+    <p>The same question refuses when the relevant source is outside the user&#x27;s access scope.</p>
+  </div>
+  <div class="run-grid">
+    <article class="panel main-panel">
+      <div class="panel-top">
+        <h3>Question</h3>
+        <div class="badge-row"><span class="badge badge-neutral">clearance_unclassified</span><span class="badge badge-neutral">1 search call(s)</span><span class="badge badge-neutral">0 citation span(s)</span><span class="badge badge-neutral">8 evidence page(s)</span><span class="badge badge-good">verified pass</span></div>
+      </div>
+      <p class="query">For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?</p>
+
+      <h3>Answer</h3>
+      <div class="answer">I do not have enough authorized evidence to answer.</div>
+    </article>
+    <aside class="panel presenter-panel">
+      <h3>Presenter Cue</h3>
+      <p>Show this before the secret-user version. The point is authorization before generation.</p>
+      <dl class="compact-dl">
+        <div><dt>Mode</dt><dd>none</dd></div>
+        <div><dt>Model</dt><dd>none</dd></div>
+        <div><dt>Session</dt><dd>s_231d5a7c0ef4462d99cab0ccfab2165c</dd></div>
+        <div><dt>Cited docs</dt><dd>CA-AI-STRAT-2024-FR</dd></div>
+      </dl>
+
+      <div class="callout">
+        <strong>Citation coverage: recorded</strong>
+        <span>not recorded covered claim(s) / not recorded total. not recorded uncited claim(s).</span>
+      </div>
+
+
+      <div class="callout">
+        <strong>Answerability: denied_source_matches_query</strong>
+        <span>Reason: denied_source_matches_query</span>
+      </div>
+
+    </aside>
+  </div>
+
+  <details class="details trace-details" open>
+    <summary>Trace timeline</summary>
+    <div class="trace">
+      <div class="trace-meta">
+        <div class="metric"><span>unclassified</span><label>Allowed access</label></div>
+        <div class="metric"><span>0</span><label>Documents to model</label></div>
+        <div class="metric"><span>none</span><label>Citation mode</label></div>
+      </div>
+      <ol class="trace-list">
+
+        <li>
+          <strong>Search 1: new sensor-fusion release workflow, rule for planning staff before sharing a candidate observation</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>refuse</span>
+          <div class="mini-metrics"></div>
+        </li>
+
+        <li>
+          <strong>Generate cited answer</strong>
+          <span>Command A receives the selected authorized pages through the grounded answer path and returns answer text plus citation spans.</span>
+        </li>
+      </ol>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Evidence Sent To Answer (8)</summary>
+    <div class="table-wrap compact">
+      <table>
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Document</th>
+            <th>Page</th>
+            <th>Access</th>
+            <th>Scores</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>C1</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>27</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3665, rerank 0.3360</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C2</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>15</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3690, rerank 0.3325</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C3</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>16</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3708, rerank 0.3021</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>24</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3706, rerank 0.3021</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>13</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3707, rerank 0.2955</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>10</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3643, rerank 0.2891</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>26</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3628, rerank 0.2891</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>11</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3783, rerank 0.2859</td>
+            <td>not recorded</td>
+          </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Excluded Source Summary (2)</summary>
+    <p class="muted">The backup shows denied-source metadata only. It does not expose restricted source text.</p>
+    <div class="table-wrap compact">
+      <table>
+        <thead><tr><th>Access</th><th>Reason</th><th>Document</th><th>Title</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>secret</td>
+          <td>access_denied</td>
+          <td>SYN-FUSION-S-RELEASE-001</td>
+          <td>Fusion Model Release Control Procedure</td>
+        </tr>
+
+
+        <tr>
+          <td>top_secret</td>
+          <td>access_denied</td>
+          <td>SYN-FUSION-TS-ANNEX-002</td>
+          <td>Fusion Model Restricted Routing Annex</td>
+        </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+  <details class="details">
+    <summary>Citations (0)</summary>
+    <p class="muted">This answer is an abstention or metadata lookup without generated citation spans.</p>
+  </details>
+
+</section>
+
+
+<section class="section run run-secure" id="access-secret">
+  <div class="section-head">
+    <p class="eyebrow">Step 4</p>
+    <h2>Access Boundary: Secret User</h2>
+    <p>A cleared user receives a cited answer because the restricted source is authorized for that persona.</p>
+  </div>
+  <div class="run-grid">
+    <article class="panel main-panel">
+      <div class="panel-top">
+        <h3>Question</h3>
+        <div class="badge-row"><span class="badge badge-neutral">clearance_secret</span><span class="badge badge-neutral">1 search call(s)</span><span class="badge badge-neutral">5 citation span(s)</span><span class="badge badge-neutral">8 evidence page(s)</span><span class="badge badge-good">verified pass</span></div>
+      </div>
+      <p class="query">For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?</p>
+
+      <h3>Answer</h3>
+      <div class="answer">- A candidate observation must meet or exceed a confidence threshold of 0.7342 [C1, C2] before it can be released into the shared planning workspace.<br>- The watch lead must check the input count, the named planning decision, the access label, the confidence score, and the caveat. [C2]<br>- The watch lead should read the underlying notes before approving release. [C2]<br>- A candidate observation can move to released status when the access label matches the receiving workspace and no source conflict remains unresolved. [C2]<br>- The watch lead must block a candidate observation even above 0.7342 when the access label is unclear, the receiving workspace is not allowed to see the item, the caveat is missing, or the underlying inputs describe different events. [C2]</div>
+    </article>
+    <aside class="panel presenter-panel">
+      <h3>Presenter Cue</h3>
+      <p>Pair this with the unclassified refusal to show that prompts are not the security boundary.</p>
+      <dl class="compact-dl">
+        <div><dt>Mode</dt><dd>cohere_native_accurate_default</dd></div>
+        <div><dt>Model</dt><dd>command-a-03-2025</dd></div>
+        <div><dt>Session</dt><dd>s_e7b24b8adea0489dbcf74bcd992ec062</dd></div>
+        <div><dt>Cited docs</dt><dd>CA-AI-STRAT-2024-EN, CA-AI-STRAT-2024-FR, SYN-FUSION-S-RELEASE-001</dd></div>
+      </dl>
+
+      <div class="callout">
+        <strong>Citation coverage: passed</strong>
+        <span>5 covered claim(s) / 5 total. 0 uncited claim(s).</span>
+      </div>
+
+
+      <div class="callout">
+        <strong>Answerability: authorized_sources_available</strong>
+        <span>Reason: authorized_sources_available</span>
+      </div>
+
+    </aside>
+  </div>
+
+  <details class="details trace-details" open>
+    <summary>Trace timeline</summary>
+    <div class="trace">
+      <div class="trace-meta">
+        <div class="metric"><span>unclassified, secret</span><label>Allowed access</label></div>
+        <div class="metric"><span>8</span><label>Documents to model</label></div>
+        <div class="metric"><span>cohere_native_accurate_default</span><label>Citation mode</label></div>
+      </div>
+      <ol class="trace-list">
+
+        <li>
+          <strong>Search 1: new sensor-fusion release workflow rule planning staff follow before sharing a candidate observation</strong>
+          <span>filters: access_level=unclassified, secret; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"></div>
+        </li>
+
+        <li>
+          <strong>Generate cited answer</strong>
+          <span>Command A receives the selected authorized pages through the grounded answer path and returns answer text plus citation spans.</span>
+        </li>
+      </ol>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Evidence Sent To Answer (8)</summary>
+    <div class="table-wrap compact">
+      <table>
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Document</th>
+            <th>Page</th>
+            <th>Access</th>
+            <th>Scores</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>C1</td>
+            <td><code>SYN-FUSION-S-RELEASE-001</code><br><span>Fusion Model Release Control Procedure</span></td>
+            <td>1</td>
+            <td><span class="pill pill-secret">secret</span></td>
+            <td>vector 0.5274, rerank 0.9711</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C2</td>
+            <td><code>SYN-FUSION-S-RELEASE-001</code><br><span>Fusion Model Release Control Procedure</span></td>
+            <td>2</td>
+            <td><span class="pill pill-secret">secret</span></td>
+            <td>vector 0.5330, rerank 0.9629</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C3</td>
+            <td><code>SYN-FUSION-S-RELEASE-001</code><br><span>Fusion Model Release Control Procedure</span></td>
+            <td>3</td>
+            <td><span class="pill pill-secret">secret</span></td>
+            <td>vector 0.4823, rerank 0.9170</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>15</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3666, rerank 0.2492</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>24</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3735, rerank 0.2462</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>16</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3703, rerank 0.2293</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>15</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3723, rerank 0.2238</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>27</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3675, rerank 0.2238</td>
+            <td>not recorded</td>
+          </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Excluded Source Summary (1)</summary>
+    <p class="muted">The backup shows denied-source metadata only. It does not expose restricted source text.</p>
+    <div class="table-wrap compact">
+      <table>
+        <thead><tr><th>Access</th><th>Reason</th><th>Document</th><th>Title</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>top_secret</td>
+          <td>access_denied</td>
+          <td>SYN-FUSION-TS-ANNEX-002</td>
+          <td>Fusion Model Restricted Routing Annex</td>
+        </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+  <details class="details">
+    <summary>All Citation Spans (5)</summary>
+    <div class="citation-grid">
+      <article class="citation-card">
+        <h4>Citation span 1</h4>
+        <p>must meet or exceed a confidence threshold of 0.7342</p>
+        <small>C1: SYN-FUSION-S-RELEASE-001 p.1; C2: SYN-FUSION-S-RELEASE-001 p.2</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 2</h4>
+        <p>must check the input count, the named planning decision, the access label, the confidence score, and the caveat.</p>
+        <small>C2: SYN-FUSION-S-RELEASE-001 p.2</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 3</h4>
+        <p>should read the underlying notes before approving release.</p>
+        <small>C2: SYN-FUSION-S-RELEASE-001 p.2</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 4</h4>
+        <p>can move to released status when the access label matches the receiving workspace and no source conflict remains unresolved.</p>
+        <small>C2: SYN-FUSION-S-RELEASE-001 p.2</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 5</h4>
+        <p>must block a candidate observation even above 0.7342 when the access label is unclear, the receiving workspace is not allowed to see the item, the caveat is missing, or the underlying inputs describe different events.</p>
+        <small>C2: SYN-FUSION-S-RELEASE-001 p.2</small>
+      </article>
+</div>
+  </details>
+
+</section>
+
+
+<section class="section run run-primary" id="scanned">
+  <div class="section-head">
+    <p class="eyebrow">Step 5</p>
+    <h2>Scanned Manual Retrieval</h2>
+    <p>Digitized physical-manual evidence enters the same retrieval, rerank, citation, and trace workflow.</p>
+  </div>
+  <div class="run-grid">
+    <article class="panel main-panel">
+      <div class="panel-top">
+        <h3>Question</h3>
+        <div class="badge-row"><span class="badge badge-neutral">clearance_unclassified</span><span class="badge badge-neutral">3 search call(s)</span><span class="badge badge-neutral">18 citation span(s)</span><span class="badge badge-neutral">9 evidence page(s)</span><span class="badge badge-good">verified pass</span></div>
+      </div>
+      <p class="query">In the scanned Technical Intelligence field manual, what is technical intelligence, what foreign materiel does it cover, and which objectives matter most for strategic and tactical planners?</p>
+
+      <h3>Answer</h3>
+      <div class="answer">Technical intelligence is intelligence concerning foreign technological developments and the performance and operational capabilities of foreign materiel [C1], which now or may eventually have a practical application for military purposes. [C1] It includes all technical aspects of foreign equipment, supplies, installations, facilities, communications, and captured or abandoned items [C1] which have a practical application in furthering military operations. [C1] It also includes technical data of foreign communications equipment [C1] which are derived through communication intelligence, electronic intelligence, and electronic warfare support measures. [C1]<br><br>Technical intelligence covers foreign military systems, weapons, weapons systems, and other materiel [C1]; production methods employed in their manufacture [C1]; and related technology pertaining to materiel operation, and logistic support. [C1]<br><br>The objectives of technical intelligence that matter most for strategic and tactical planners are to determine foreign technical materiel threats [C2] as they affect strategic and tactical planners and commanders [C2]; determine foreign technological capabilities and limitations [C2]; provide information from which military countermeasures are developed [C2]; provide information which will enable US Forces to use foreign materiel and facilities [C2]; exploit new developments for US military needs [C2]; obtain and exploit items in the DIA Registry, Foreign Materiel Requirements Listing [C2]; provide input on a continuous basis to the overall national integrated S&amp;T intelligence program in consonance with theater policies [C2]; and provide the technical intelligence aspects for tactical and strategic studies on characteristics, capabilities, and limitations of foreign facilities, installations, materiel, and resources. [C2]</div>
+    </article>
+    <aside class="panel presenter-panel">
+      <h3>Presenter Cue</h3>
+      <p>Use this if you want to prove the customer workflow is broader than clean PDFs.</p>
+      <dl class="compact-dl">
+        <div><dt>Mode</dt><dd>cohere_native_accurate_default</dd></div>
+        <div><dt>Model</dt><dd>command-a-03-2025</dd></div>
+        <div><dt>Session</dt><dd>s_53dca7bc110f4484bdbff59219c56c68</dd></div>
+        <div><dt>Cited docs</dt><dd>US-ARMY-FM30-16-1972-SCAN</dd></div>
+      </dl>
+
+      <div class="callout">
+        <strong>Citation coverage: passed</strong>
+        <span>5 covered claim(s) / 5 total. 0 uncited claim(s).</span>
+      </div>
+
+
+      <div class="callout">
+        <strong>Answerability: authorized_sources_available</strong>
+        <span>Reason: authorized_sources_available</span>
+      </div>
+
+    </aside>
+  </div>
+
+  <details class="details trace-details" open>
+    <summary>Trace timeline</summary>
+    <div class="trace">
+      <div class="trace-meta">
+        <div class="metric"><span>unclassified</span><label>Allowed access</label></div>
+        <div class="metric"><span>9</span><label>Documents to model</label></div>
+        <div class="metric"><span>cohere_native_accurate_default</span><label>Citation mode</label></div>
+      </div>
+      <ol class="trace-list">
+
+        <li>
+          <strong>Search 1: technical intelligence definition</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.4474</strong></span><span>top rerank: <strong>0.9345</strong></span></div>
+        </li>
+
+
+        <li>
+          <strong>Search 2: foreign materiel covered by technical intelligence</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>1</strong></span><span>top vector: <strong>0.4780</strong></span><span>top rerank: <strong>0.9744</strong></span></div>
+        </li>
+
+
+        <li>
+          <strong>Search 3: objectives of technical intelligence for strategic and tactical planners</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.5071</strong></span><span>top rerank: <strong>0.9894</strong></span></div>
+        </li>
+
+        <li>
+          <strong>Generate cited answer</strong>
+          <span>Command A receives the selected authorized pages through the grounded answer path and returns answer text plus citation spans.</span>
+        </li>
+      </ol>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Evidence Sent To Answer (9)</summary>
+    <div class="table-wrap compact">
+      <table>
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Document</th>
+            <th>Page</th>
+            <th>Access</th>
+            <th>Scores</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>C1</td>
+            <td><code>US-ARMY-FM30-16-1972-SCAN</code><br><span>FM 30-16 Technical Intelligence, 1972 - Scanned Excerpt</span></td>
+            <td>6</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4474, rerank 0.9345</td>
+            <td><a href="https://digitalcommons.unl.edu/dodmilintel/101" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C2</td>
+            <td><code>US-ARMY-FM30-16-1972-SCAN</code><br><span>FM 30-16 Technical Intelligence, 1972 - Scanned Excerpt</span></td>
+            <td>10</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4428, rerank 0.9006</td>
+            <td><a href="https://digitalcommons.unl.edu/dodmilintel/101" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C3</td>
+            <td><code>US-ARMY-FM30-16-1972-SCAN</code><br><span>FM 30-16 Technical Intelligence, 1972 - Scanned Excerpt</span></td>
+            <td>5</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4233, rerank 0.8829</td>
+            <td><a href="https://digitalcommons.unl.edu/dodmilintel/101" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>US-ARMY-FM30-16-1972-SCAN</code><br><span>FM 30-16 Technical Intelligence, 1972 - Scanned Excerpt</span></td>
+            <td>7</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4267, rerank 0.7916</td>
+            <td><a href="https://digitalcommons.unl.edu/dodmilintel/101" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>US-ARMY-FM30-16-1972-SCAN</code><br><span>FM 30-16 Technical Intelligence, 1972 - Scanned Excerpt</span></td>
+            <td>4</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4259, rerank 0.7916</td>
+            <td><a href="https://digitalcommons.unl.edu/dodmilintel/101" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>US-ARMY-FM30-16-1972-SCAN</code><br><span>FM 30-16 Technical Intelligence, 1972 - Scanned Excerpt</span></td>
+            <td>9</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4176, rerank 0.7784</td>
+            <td><a href="https://digitalcommons.unl.edu/dodmilintel/101" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>US-ARMY-FM30-16-1972-SCAN</code><br><span>FM 30-16 Technical Intelligence, 1972 - Scanned Excerpt</span></td>
+            <td>1</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4082, rerank 0.7246</td>
+            <td><a href="https://digitalcommons.unl.edu/dodmilintel/101" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>US-ARMY-FM30-16-1972-SCAN</code><br><span>FM 30-16 Technical Intelligence, 1972 - Scanned Excerpt</span></td>
+            <td>8</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4161, rerank 0.7055</td>
+            <td><a href="https://digitalcommons.unl.edu/dodmilintel/101" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>US-ARMY-FM30-16-1972-SCAN</code><br><span>FM 30-16 Technical Intelligence, 1972 - Scanned Excerpt</span></td>
+            <td>2</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4537, rerank 0.8156</td>
+            <td><a href="https://digitalcommons.unl.edu/dodmilintel/101" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Excluded Source Summary (1)</summary>
+    <p class="muted">The backup shows denied-source metadata only. It does not expose restricted source text.</p>
+    <div class="table-wrap compact">
+      <table>
+        <thead><tr><th>Access</th><th>Reason</th><th>Document</th><th>Title</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>top_secret</td>
+          <td>access_denied</td>
+          <td>SYN-FUSION-TS-ANNEX-002</td>
+          <td>Fusion Model Restricted Routing Annex</td>
+        </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+  <details class="details">
+    <summary>All Citation Spans (18)</summary>
+    <div class="citation-grid">
+      <article class="citation-card">
+        <h4>Citation span 1</h4>
+        <p>intelligence concerning foreign technological developments and the performance and operational capabilities of foreign materiel</p>
+        <small>C1: US-ARMY-FM30-16-1972-SCAN p.6</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 2</h4>
+        <p>now or may eventually have a practical application for military purposes.</p>
+        <small>C1: US-ARMY-FM30-16-1972-SCAN p.6</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 3</h4>
+        <p>all technical aspects of foreign equipment, supplies, installations, facilities, communications, and captured or abandoned items</p>
+        <small>C1: US-ARMY-FM30-16-1972-SCAN p.6</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 4</h4>
+        <p>furthering military operations.</p>
+        <small>C1: US-ARMY-FM30-16-1972-SCAN p.6</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 5</h4>
+        <p>technical data of foreign communications equipment</p>
+        <small>C1: US-ARMY-FM30-16-1972-SCAN p.6</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 6</h4>
+        <p>derived through communication intelligence, electronic intelligence, and electronic warfare support measures.</p>
+        <small>C1: US-ARMY-FM30-16-1972-SCAN p.6</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 7</h4>
+        <p>foreign military systems, weapons, weapons systems, and other materiel</p>
+        <small>C1: US-ARMY-FM30-16-1972-SCAN p.6</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 8</h4>
+        <p>production methods employed in their manufacture</p>
+        <small>C1: US-ARMY-FM30-16-1972-SCAN p.6</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 9</h4>
+        <p>related technology pertaining to materiel operation, and logistic support.</p>
+        <small>C1: US-ARMY-FM30-16-1972-SCAN p.6</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 10</h4>
+        <p>determine foreign technical materiel threats</p>
+        <small>C2: US-ARMY-FM30-16-1972-SCAN p.10</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 11</h4>
+        <p>commanders</p>
+        <small>C2: US-ARMY-FM30-16-1972-SCAN p.10</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 12</h4>
+        <p>determine foreign technological capabilities and limitations</p>
+        <small>C2: US-ARMY-FM30-16-1972-SCAN p.10</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 13</h4>
+        <p>provide information from which military countermeasures are developed</p>
+        <small>C2: US-ARMY-FM30-16-1972-SCAN p.10</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 14</h4>
+        <p>provide information which will enable US Forces to use foreign materiel and facilities</p>
+        <small>C2: US-ARMY-FM30-16-1972-SCAN p.10</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 15</h4>
+        <p>exploit new developments for US military needs</p>
+        <small>C2: US-ARMY-FM30-16-1972-SCAN p.10</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 16</h4>
+        <p>obtain and exploit items in the DIA Registry, Foreign Materiel Requirements Listing</p>
+        <small>C2: US-ARMY-FM30-16-1972-SCAN p.10</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 17</h4>
+        <p>provide input on a continuous basis to the overall national integrated S&amp;T intelligence program in consonance with theater policies</p>
+        <small>C2: US-ARMY-FM30-16-1972-SCAN p.10</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 18</h4>
+        <p>provide the technical intelligence aspects for tactical and strategic studies on characteristics, capabilities, and limitations of foreign facilities, installations, materiel, and resources.</p>
+        <small>C2: US-ARMY-FM30-16-1972-SCAN p.10</small>
+      </article>
+</div>
+  </details>
+
+</section>
+
+
+<section class="section run run-warn" id="refusal">
+  <div class="section-head">
+    <p class="eyebrow">Step 6</p>
+    <h2>Evidence Gap Refusal</h2>
+    <p>Related authorized pages are retrieved, but the answer refuses when the exact claim is unsupported.</p>
+  </div>
+  <div class="run-grid">
+    <article class="panel main-panel">
+      <div class="panel-top">
+        <h3>Question</h3>
+        <div class="badge-row"><span class="badge badge-neutral">clearance_unclassified</span><span class="badge badge-neutral">1 search call(s)</span><span class="badge badge-neutral">0 citation span(s)</span><span class="badge badge-neutral">8 evidence page(s)</span><span class="badge badge-good">verified pass</span></div>
+      </div>
+      <p class="query">What does the corpus say about the approved Arctic submarine basing schedule for 2031?</p>
+
+      <h3>Answer</h3>
+      <div class="answer">Evidence is insufficient.</div>
+    </article>
+    <aside class="panel presenter-panel">
+      <h3>Presenter Cue</h3>
+      <p>This is the accuracy story. Rerank finds related sources; grounded generation still abstains.</p>
+      <dl class="compact-dl">
+        <div><dt>Mode</dt><dd>cohere_native_accurate_default</dd></div>
+        <div><dt>Model</dt><dd>command-a-03-2025</dd></div>
+        <div><dt>Session</dt><dd>s_c83f578dcbe84939b331adba631524a0</dd></div>
+        <div><dt>Cited docs</dt><dd>CA-DEF-POL-2024-EN, CA-DEF-POL-2024-FR</dd></div>
+      </dl>
+
+      <div class="callout">
+        <strong>Citation coverage: passed</strong>
+        <span>0 covered claim(s) / 0 total. 0 uncited claim(s).</span>
+      </div>
+
+
+      <div class="callout">
+        <strong>Answerability: insufficient_authorized_evidence</strong>
+        <span>Reason: insufficient_authorized_evidence</span>
+      </div>
+
+    </aside>
+  </div>
+
+  <details class="details trace-details" open>
+    <summary>Trace timeline</summary>
+    <div class="trace">
+      <div class="trace-meta">
+        <div class="metric"><span>unclassified</span><label>Allowed access</label></div>
+        <div class="metric"><span>8</span><label>Documents to model</label></div>
+        <div class="metric"><span>cohere_native_accurate_default</span><label>Citation mode</label></div>
+      </div>
+      <ol class="trace-list">
+
+        <li>
+          <strong>Search 1: approved Arctic submarine basing schedule for 2031</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>1</strong></span><span>top vector: <strong>0.4155</strong></span><span>top rerank: <strong>0.7338</strong></span></div>
+        </li>
+
+        <li>
+          <strong>Generate cited answer</strong>
+          <span>Command A receives the selected authorized pages through the grounded answer path and returns answer text plus citation spans.</span>
+        </li>
+      </ol>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Evidence Sent To Answer (8)</summary>
+    <div class="table-wrap compact">
+      <table>
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Document</th>
+            <th>Page</th>
+            <th>Access</th>
+            <th>Scores</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>C1</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>34</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4155, rerank 0.7338</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C2</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>40</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3947, rerank 0.7308</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C3</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>39</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4171, rerank 0.7087</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>9</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4141, rerank 0.7022</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>14</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4160, rerank 0.6940</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>35</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4327, rerank 0.6822</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>16</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4109, rerank 0.6754</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>10</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3945, rerank 0.6737</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Excluded Source Summary (1)</summary>
+    <p class="muted">The backup shows denied-source metadata only. It does not expose restricted source text.</p>
+    <div class="table-wrap compact">
+      <table>
+        <thead><tr><th>Access</th><th>Reason</th><th>Document</th><th>Title</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>top_secret</td>
+          <td>access_denied</td>
+          <td>SYN-FUSION-TS-ANNEX-002</td>
+          <td>Fusion Model Restricted Routing Annex</td>
+        </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+  <details class="details">
+    <summary>Citations (0)</summary>
+    <p class="muted">This answer is an abstention or metadata lookup without generated citation spans.</p>
+  </details>
+
+</section>
+
+
+<section class="section run run-secure" id="follow-up">
+  <div class="section-head">
+    <p class="eyebrow">Step 7</p>
+    <h2>Source And Access Follow-Up</h2>
+    <p>A follow-up question can cite the source page and access level behind the prior answer.</p>
+  </div>
+  <div class="run-grid">
+    <article class="panel main-panel">
+      <div class="panel-top">
+        <h3>Question</h3>
+        <div class="badge-row"><span class="badge badge-neutral">clearance_secret</span><span class="badge badge-neutral">1 search call(s)</span><span class="badge badge-neutral">2 citation span(s)</span><span class="badge badge-neutral">2 evidence page(s)</span><span class="badge badge-good">verified pass</span></div>
+      </div>
+      <p class="query">For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?</p>
+
+      <h3>Answer</h3>
+      <div class="answer">The previous answer was supported by:<br>- SYN-FUSION-S-RELEASE-001 page 1, access level secret, source id SYN-FUSION-S-RELEASE-001_page_001 (Fusion Model Release Control Procedure) [C1]<br>- SYN-FUSION-S-RELEASE-001 page 2, access level secret, source id SYN-FUSION-S-RELEASE-001_page_002 (Fusion Model Release Control Procedure) [C2]</div>
+    </article>
+    <aside class="panel presenter-panel">
+      <h3>Presenter Cue</h3>
+      <p>Use this to show interrogation over a session, not disconnected one-off searches.</p>
+      <dl class="compact-dl">
+        <div><dt>Mode</dt><dd>answer_audit_lookup</dd></div>
+        <div><dt>Model</dt><dd>answer_audit_lookup</dd></div>
+        <div><dt>Session</dt><dd>s_a7afd56e66f64b41891255198cdfce2e</dd></div>
+        <div><dt>Cited docs</dt><dd>SYN-FUSION-S-RELEASE-001</dd></div>
+      </dl>
+
+      <div class="callout">
+        <strong>Citation coverage: passed</strong>
+        <span>not recorded covered claim(s) / not recorded total. not recorded uncited claim(s).</span>
+      </div>
+
+
+    </aside>
+  </div>
+
+  <details class="details trace-details" open>
+    <summary>Trace timeline</summary>
+    <div class="trace">
+      <div class="trace-meta">
+        <div class="metric"><span>unclassified, secret</span><label>Allowed access</label></div>
+        <div class="metric"><span>0</span><label>Documents to model</label></div>
+        <div class="metric"><span>answer_audit_lookup</span><label>Citation mode</label></div>
+      </div>
+      <ol class="trace-list">
+
+        <li>
+          <strong>Search 1: For the new sensor-fusion release workflow, what rule should planning staff follow before sharing a candidate observation?</strong>
+          <span>filters not recorded</span>
+          <span>audit_lookup</span>
+          <div class="mini-metrics"></div>
+        </li>
+
+        <li>
+          <strong>Generate cited answer</strong>
+          <span>Command A receives the selected authorized pages through the grounded answer path and returns answer text plus citation spans.</span>
+        </li>
+      </ol>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Evidence Sent To Answer (2)</summary>
+    <div class="table-wrap compact">
+      <table>
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Document</th>
+            <th>Page</th>
+            <th>Access</th>
+            <th>Scores</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>C1</td>
+            <td><code>SYN-FUSION-S-RELEASE-001</code><br><span>Fusion Model Release Control Procedure</span></td>
+            <td>1</td>
+            <td><span class="pill pill-secret">secret</span></td>
+            <td>vector 0.4697, rerank 0.8775</td>
+            <td>not recorded</td>
+          </tr>
+
+
+          <tr>
+            <td>C2</td>
+            <td><code>SYN-FUSION-S-RELEASE-001</code><br><span>Fusion Model Release Control Procedure</span></td>
+            <td>2</td>
+            <td><span class="pill pill-secret">secret</span></td>
+            <td>vector 0.4460, rerank 0.7890</td>
+            <td>not recorded</td>
+          </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Excluded Source Summary (1)</summary>
+    <p class="muted">The backup shows denied-source metadata only. It does not expose restricted source text.</p>
+    <div class="table-wrap compact">
+      <table>
+        <thead><tr><th>Access</th><th>Reason</th><th>Document</th><th>Title</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>top_secret</td>
+          <td>access_denied</td>
+          <td>SYN-FUSION-TS-ANNEX-002</td>
+          <td>Fusion Model Restricted Routing Annex</td>
+        </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+  <details class="details">
+    <summary>All Citation Spans (2)</summary>
+    <div class="citation-grid">
+      <article class="citation-card">
+        <h4>Citation span 1</h4>
+        <p>SYN-FUSION-S-RELEASE-001</p>
+        <small>C1: SYN-FUSION-S-RELEASE-001 p.1</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 2</h4>
+        <p>SYN-FUSION-S-RELEASE-001</p>
+        <small>C2: SYN-FUSION-S-RELEASE-001 p.2</small>
+      </article>
+</div>
+  </details>
+
+</section>
+
+
+<section class="section run run-neutral" id="french-nato-doctrine-answer">
+  <div class="section-head">
+    <p class="eyebrow">Step 8</p>
+    <h2>French NATO Doctrine Answer</h2>
+    <p>The same evidence workflow preserves citations for a French answer over NATO doctrine sources.</p>
+  </div>
+  <div class="run-grid">
+    <article class="panel main-panel">
+      <div class="panel-top">
+        <h3>Question</h3>
+        <div class="badge-row"><span class="badge badge-neutral">clearance_unclassified</span><span class="badge badge-neutral">1 search call(s)</span><span class="badge badge-neutral">18 citation span(s)</span><span class="badge badge-neutral">8 evidence page(s)</span><span class="badge badge-good">verified pass</span></div>
+      </div>
+      <p class="query">Quelles taches fondamentales l&#x27;OTAN attribue-t-elle a l&#x27;Alliance dans son Concept strategique, et pourquoi sont-elles importantes pour un brief de planification canadien?</p>
+
+      <h3>Answer</h3>
+      <div class="answer">L&#x27;OTAN attribue trois tâches fondamentales à l&#x27;Alliance dans son Concept stratégique 2022 [C1, C2, C3, C4, C5] : la dissuasion et la défense [C1, C2, C3, C5, C6, C7, C8], la prévention et la gestion des crises [C1, C2, C5, C6, C7], et la sécurité coopérative. [C1, C2, C6, C7] Ces tâches sont complémentaires [C1, C7] et vise toutes à assurer la défense et la sécurité collectives de tous les Alliés. [C1, C7]<br><br>La dissuasion et la défense sont essentielles pour priver tout adversaire potentiel de toute occasion d&#x27;agression. [C3, C8] L&#x27;OTAN maintiendra une présence importante sur terre, en mer et dans les airs [C3, C8], et renforcera sa défense aérienne et antimissile intégrée. [C3, C8] La prévention et la gestion des crises sont nécessaires pour contribuer à la stabilité et gérer les conflits ensemble. [C5] L&#x27;OTAN développera ses compétences et son expertise dans le domaine de la gestion des crises [C5] et améliorera sa préparation aux crises ainsi que sa faculté d&#x27;y répondre et de les gérer. [C5] La sécurité coopérative est importante pour renforcer la coopération avec les partenaires et les organisations internationales [C2, C6], telles que l&#x27;Union européenne et l&#x27;Organisation des Nations Unies [C2, C6], afin de contribuer à la paix et à la sécurité au niveau mondial. [C2, C6]<br><br>Ces tâches fondamentales sont essentielles pour la planification canadienne [C4], car elles permettent au Canada de contribuer à la défense et à la sécurité collectives de l&#x27;Alliance [C4], tout en renforçant sa propre résilience et sa capacité à faire face aux menaces et aux défis de sécurité. [C4]</div>
+    </article>
+    <aside class="panel presenter-panel">
+      <h3>Presenter Cue</h3>
+      <p>Keep this as optional backup if the panel asks about bilingual retrieval or multilingual users.</p>
+      <dl class="compact-dl">
+        <div><dt>Mode</dt><dd>cohere_native_accurate_default</dd></div>
+        <div><dt>Model</dt><dd>command-a-03-2025</dd></div>
+        <div><dt>Session</dt><dd>s_e4f84a773e514aff95ea3f460d1ad32d</dd></div>
+        <div><dt>Cited docs</dt><dd>NATO-STRAT-CONCEPT-2022-EN, NATO-STRAT-CONCEPT-2022-FR</dd></div>
+      </dl>
+
+      <div class="callout">
+        <strong>Citation coverage: passed</strong>
+        <span>8 covered claim(s) / 8 total. 0 uncited claim(s).</span>
+      </div>
+
+
+      <div class="callout">
+        <strong>Answerability: authorized_sources_available</strong>
+        <span>Reason: authorized_sources_available</span>
+      </div>
+
+    </aside>
+  </div>
+
+  <details class="details trace-details" open>
+    <summary>Trace timeline</summary>
+    <div class="trace">
+      <div class="trace-meta">
+        <div class="metric"><span>unclassified</span><label>Allowed access</label></div>
+        <div class="metric"><span>8</span><label>Documents to model</label></div>
+        <div class="metric"><span>cohere_native_accurate_default</span><label>Citation mode</label></div>
+      </div>
+      <ol class="trace-list">
+
+        <li>
+          <strong>Search 1: Quelles taches fondamentales l&#x27;OTAN attribue-t-elle a l&#x27;Alliance dans son Concept strategique, et pourquoi sont-elles importantes pour un brief de planification canadien?</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.4962</strong></span><span>top rerank: <strong>0.9711</strong></span></div>
+        </li>
+
+        <li>
+          <strong>Generate cited answer</strong>
+          <span>Command A receives the selected authorized pages through the grounded answer path and returns answer text plus citation spans.</span>
+        </li>
+      </ol>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Evidence Sent To Answer (8)</summary>
+    <div class="table-wrap compact">
+      <table>
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Document</th>
+            <th>Page</th>
+            <th>Access</th>
+            <th>Scores</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>C1</td>
+            <td><code>NATO-STRAT-CONCEPT-2022-FR</code><br><span>Concept stratégique 2022 de l&#x27;OTAN</span></td>
+            <td>4</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4962, rerank 0.9711</td>
+            <td><a href="https://www.nato.int/fr/about-us/official-texts-and-resources/official-texts/2023/03/03/nato-2022-strategic-concept" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C2</td>
+            <td><code>NATO-STRAT-CONCEPT-2022-FR</code><br><span>Concept stratégique 2022 de l&#x27;OTAN</span></td>
+            <td>2</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4872, rerank 0.9702</td>
+            <td><a href="https://www.nato.int/fr/about-us/official-texts-and-resources/official-texts/2023/03/03/nato-2022-strategic-concept" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C3</td>
+            <td><code>NATO-STRAT-CONCEPT-2022-FR</code><br><span>Concept stratégique 2022 de l&#x27;OTAN</span></td>
+            <td>7</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4783, rerank 0.9621</td>
+            <td><a href="https://www.nato.int/fr/about-us/official-texts-and-resources/official-texts/2023/03/03/nato-2022-strategic-concept" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>NATO-STRAT-CONCEPT-2022-FR</code><br><span>Concept stratégique 2022 de l&#x27;OTAN</span></td>
+            <td>3</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4756, rerank 0.9554</td>
+            <td><a href="https://www.nato.int/fr/about-us/official-texts-and-resources/official-texts/2023/03/03/nato-2022-strategic-concept" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>NATO-STRAT-CONCEPT-2022-FR</code><br><span>Concept stratégique 2022 de l&#x27;OTAN</span></td>
+            <td>10</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4681, rerank 0.9516</td>
+            <td><a href="https://www.nato.int/fr/about-us/official-texts-and-resources/official-texts/2023/03/03/nato-2022-strategic-concept" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>NATO-STRAT-CONCEPT-2022-EN</code><br><span>NATO 2022 Strategic Concept</span></td>
+            <td>2</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4621, rerank 0.9368</td>
+            <td><a href="https://www.nato.int/fr/about-us/official-texts-and-resources/official-texts/2023/03/03/nato-2022-strategic-concept" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>NATO-STRAT-CONCEPT-2022-EN</code><br><span>NATO 2022 Strategic Concept</span></td>
+            <td>4</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4527, rerank 0.9322</td>
+            <td><a href="https://www.nato.int/fr/about-us/official-texts-and-resources/official-texts/2023/03/03/nato-2022-strategic-concept" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>NATO-STRAT-CONCEPT-2022-EN</code><br><span>NATO 2022 Strategic Concept</span></td>
+            <td>7</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4404, rerank 0.9277</td>
+            <td><a href="https://www.nato.int/fr/about-us/official-texts-and-resources/official-texts/2023/03/03/nato-2022-strategic-concept" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+
+  <details class="details">
+    <summary>All Citation Spans (18)</summary>
+    <div class="citation-grid">
+      <article class="citation-card">
+        <h4>Citation span 1</h4>
+        <p>Concept stratégique 2022</p>
+        <small>C1: NATO-STRAT-CONCEPT-2022-FR p.4; C2: NATO-STRAT-CONCEPT-2022-FR p.2; C3: NATO-STRAT-CONCEPT-2022-FR p.7; C4: NATO-STRAT-CONCEPT-2022-FR p.3; C5: NATO-STRAT-CONCEPT-2022-FR p.10</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 2</h4>
+        <p>la dissuasion et la défense</p>
+        <small>C1: NATO-STRAT-CONCEPT-2022-FR p.4; C2: NATO-STRAT-CONCEPT-2022-FR p.2; C3: NATO-STRAT-CONCEPT-2022-FR p.7; C5: NATO-STRAT-CONCEPT-2022-FR p.10; C6: NATO-STRAT-CONCEPT-2022-EN p.2; C7: NATO-STRAT-CONCEPT-2022-EN p.4; C8: NATO-STRAT-CONCEPT-2022-EN p.7</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 3</h4>
+        <p>la prévention et la gestion des crises</p>
+        <small>C1: NATO-STRAT-CONCEPT-2022-FR p.4; C2: NATO-STRAT-CONCEPT-2022-FR p.2; C5: NATO-STRAT-CONCEPT-2022-FR p.10; C6: NATO-STRAT-CONCEPT-2022-EN p.2; C7: NATO-STRAT-CONCEPT-2022-EN p.4</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 4</h4>
+        <p>la sécurité coopérative.</p>
+        <small>C1: NATO-STRAT-CONCEPT-2022-FR p.4; C2: NATO-STRAT-CONCEPT-2022-FR p.2; C6: NATO-STRAT-CONCEPT-2022-EN p.2; C7: NATO-STRAT-CONCEPT-2022-EN p.4</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 5</h4>
+        <p>complémentaires</p>
+        <small>C1: NATO-STRAT-CONCEPT-2022-FR p.4; C7: NATO-STRAT-CONCEPT-2022-EN p.4</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 6</h4>
+        <p>vise toutes à assurer la défense et la sécurité collectives de tous les Alliés.</p>
+        <small>C1: NATO-STRAT-CONCEPT-2022-FR p.4; C7: NATO-STRAT-CONCEPT-2022-EN p.4</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 7</h4>
+        <p>essentielles pour priver tout adversaire potentiel de toute occasion d&#x27;agression.</p>
+        <small>C3: NATO-STRAT-CONCEPT-2022-FR p.7; C8: NATO-STRAT-CONCEPT-2022-EN p.7</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 8</h4>
+        <p>maintiendra une présence importante sur terre, en mer et dans les airs</p>
+        <small>C3: NATO-STRAT-CONCEPT-2022-FR p.7; C8: NATO-STRAT-CONCEPT-2022-EN p.7</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 9</h4>
+        <p>renforcera sa défense aérienne et antimissile intégrée.</p>
+        <small>C3: NATO-STRAT-CONCEPT-2022-FR p.7; C8: NATO-STRAT-CONCEPT-2022-EN p.7</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 10</h4>
+        <p>nécessaires pour contribuer à la stabilité et gérer les conflits ensemble.</p>
+        <small>C5: NATO-STRAT-CONCEPT-2022-FR p.10</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 11</h4>
+        <p>développera ses compétences et son expertise dans le domaine de la gestion des crises</p>
+        <small>C5: NATO-STRAT-CONCEPT-2022-FR p.10</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 12</h4>
+        <p>améliorera sa préparation aux crises ainsi que sa faculté d&#x27;y répondre et de les gérer.</p>
+        <small>C5: NATO-STRAT-CONCEPT-2022-FR p.10</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 13</h4>
+        <p>importante pour renforcer la coopération avec les partenaires et les organisations internationales</p>
+        <small>C2: NATO-STRAT-CONCEPT-2022-FR p.2; C6: NATO-STRAT-CONCEPT-2022-EN p.2</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 14</h4>
+        <p>l&#x27;Union européenne et l&#x27;Organisation des Nations Unies</p>
+        <small>C2: NATO-STRAT-CONCEPT-2022-FR p.2; C6: NATO-STRAT-CONCEPT-2022-EN p.2</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 15</h4>
+        <p>contribuer à la paix et à la sécurité au niveau mondial.</p>
+        <small>C2: NATO-STRAT-CONCEPT-2022-FR p.2; C6: NATO-STRAT-CONCEPT-2022-EN p.2</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 16</h4>
+        <p>essentielles pour la planification canadienne</p>
+        <small>C4: NATO-STRAT-CONCEPT-2022-FR p.3</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 17</h4>
+        <p>permettent au Canada de contribuer à la défense et à la sécurité collectives de l&#x27;Alliance</p>
+        <small>C4: NATO-STRAT-CONCEPT-2022-FR p.3</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 18</h4>
+        <p>renforçant sa propre résilience et sa capacité à faire face aux menaces et aux défis de sécurité.</p>
+        <small>C4: NATO-STRAT-CONCEPT-2022-FR p.3</small>
+      </article>
+</div>
+  </details>
+
+</section>
+
+
+<section class="section" id="implementation">
+  <div class="section-head">
+    <p class="eyebrow">Technical walkthrough</p>
+    <h2>Implementation Map</h2>
+    <p>Use this if the live app is unavailable and you still need to explain how the visible behavior maps to code.</p>
+  </div>
+  <div class="map-grid">
+    <article class="panel"><h3>1. Agent Loop</h3><p><code>defence_agent/agent.py</code> and <code>defence_agent/tools.py</code> let the runtime call <code>search_documents</code> once or multiple times for a planning task.</p></article>
+    <article class="panel"><h3>2. Retrieval</h3><p><code>defence_agent/retrieval/chroma_index.py</code> embeds the query, applies metadata filters, searches Chroma, and sends candidates to Cohere Rerank.</p></article>
+    <article class="panel"><h3>3. Authorization</h3><p>Persona access is applied before evidence is sent to generation. Restricted source text is not used for unauthorized answers.</p></article>
+    <article class="panel"><h3>4. Grounded Answer</h3><p><code>defence_agent/grounding.py</code> sends selected documents to Cohere Chat and reads native citation spans back into the audit object.</p></article>
+    <article class="panel"><h3>5. Trace</h3><p><code>defence_agent/session.py</code> and the UI view model turn tool calls, retrieval audits, sources, exclusions, and citations into the trace shown above.</p></article>
+    <article class="panel"><h3>6. Evaluation</h3><p><code>defence_agent/data/evals/demo_query_registry.yaml</code> and the eval reports check expected sources, refusals, citation resolution, and search behavior.</p></article>
+  </div>
+</section>
+
+  </div>
+</body>
+</html>
