@@ -7,7 +7,7 @@ dependencies = [
     "aiosqlite>=0.20.0",
     "chromadb>=0.5.0",
     "cohere>=5.13.0",
-    "google-adk>=1.0.0",
+    "google-adk[extensions]>=1.0.0",
     "pydantic>=2.8.0",
     "pydantic-settings>=2.4.0",
     "pymupdf>=1.24.0",
@@ -31,7 +31,7 @@ dev = [
     "streamlit[pdf]>=1.50.0",
 ]
 adk = [
-    "google-adk>=1.0.0",
+    "google-adk[extensions]>=1.0.0",
 ]
 ui = [
     "streamlit[pdf]>=1.50.0",
