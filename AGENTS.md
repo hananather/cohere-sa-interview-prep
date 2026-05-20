@@ -25,7 +25,15 @@
 - Treat the user as the core thinker and decision owner.
 - Do not treat old notes as stable truth.
 - Treat `source-materials/presentation-interview-instructions.md` as the repo's source-of-truth brief.
-- When strategy, demo scope, architecture, or docs conflict, resolve the conflict by tracing back to that brief.
+- Treat `source-materials/cohere-public-sector-sa-job-description.md` as the local job-description source.
+- The goal is to win the final-round Cohere Public Sector Solutions Architect interview.
+- Treat the fictional scenario as an interview vehicle for proving competencies, not as a real customer deployment plan.
+- The final presentation has two primary artifacts: the Jupyter notebook and the live demo.
+- Optimize for making those two artifacts demonstrate technical Solution Architect competence.
+- Remove context bloat that does not strengthen the notebook or demo.
+- Use the other PDF scenarios as assessment signals, not as separate stories.
+- Do not over-police the story into a timid prototype report. Be ambitious, then place each claim in the right surface: live demo, notebook architecture, eval artifact, or Q&A.
+- Actively push toward ideas that demonstrate higher competency, as long as they map to the PDF or job description.
 - Ask follow-up questions when a choice changes the business problem, user workflow, demo scope, or technical architecture.
 - In problem-definition work, ask at least one high-signal follow-up before locking a direction.
 - Break complex tasks into small todo lists before executing.
@@ -47,6 +55,20 @@
 
 ## The core strategy
 
+The primary context is simple: this is the final round for a technical Cohere Public Sector Solutions Architect role, and the goal is to get the job.
+
+The Defence Agent scenario is fictional. Use it to prove the competencies Cohere is evaluating: technical expertise, applied solutioning, live demo execution, implementation depth, scalability, security, adaptability, accuracy, traceability, and stakeholder communication.
+
+The presentation should have only two main surfaces: the Jupyter notebook and the live demo. Everything else should support those two surfaces.
+
+Only two sources define competencies:
+
+1. The presentation PDF.
+2. The job description.
+
+Everything else is hypothesis, inspiration, implementation support, or tactical
+advice. Use it only when it maps back to those two sources.
+
 For this interview, I would frame the solution as DefTech Defence Agent: a secure, traceable, evidence-grounded assistant that helps authorized central planning staff interrogate approved manuals, procedures, and doctrine; compare guidance across versions; verify claims against source material; summarize long documents; and produce cited planning-support outputs while preserving human accountability.
 
 That framing maps directly to the assignment: the interview is a role-play where you are acting as a Cohere Solution Architect, expected to present a Cohere-based solution, outline the problem, walk through the technical architecture, handle technical and business questions, and show a live demo. The Defence Agent scenario specifically says the customer has PDFs and DOCX files in a central database and wants to increase the efficiency and output of central planning staff while making accuracy and traceability key.
@@ -57,6 +79,11 @@ The strategic move is to avoid presenting this as “chat with PDFs.” Present 
 
 - Anchor all project docs in the Cohere assignment brief:
   `source-materials/presentation-interview-instructions.md`.
+- Anchor role competencies in the job description:
+  `source-materials/cohere-public-sector-sa-job-description.md`.
+- Use `defence_agent/docs/role_competency_frame.md` as the local rubric for what the notebook and demo must prove.
+- Use `defence_agent/docs/trust_layer_eval_story.md` as the local anchor for eval and Reviewer Agent trust-layer framing.
+- Use `defence_agent/docs/defensible_eval_set.md` before presenting eval numbers to clients or interviewers.
 - Treat `project-notes.md` as the canonical inferred strategy, with the exact core strategy mirrored here and in `README.md` for visibility.
 - Preserve the distinction between the PDF's explicit requirements and our inferred strategy.
 - For Cohere strategy, architecture, capability, or implementation answers, check
@@ -81,9 +108,15 @@ The strategic move is to avoid presenting this as “chat with PDFs.” Present 
   the "right" answer should be.
 - Do not use this protocol for tiny tactical questions unless the answer could
   change the business problem, user workflow, demo scope, or technical architecture.
-- First, work backward from `source-materials/presentation-interview-instructions.md`.
-  Ask how the answer helps deliver the strongest possible presentation under the
-  explicit Cohere assignment.
+- First, work backward from the interview goal: get the job by demonstrating the
+  competencies in the PDF and job description.
+- Ask how the answer improves the Jupyter notebook or live demo.
+- Use all PDF scenarios as assessment signals, especially scalability, security,
+  adaptability, privacy/confidentiality, transparency, accuracy, and traceability.
+- Treat all other competency lists as hypotheses until mapped back to the PDF or
+  job description.
+- Prefer ambitious, high-signal ideas over conservative completeness. If a better
+  demo or notebook idea would more clearly prove a competency, recommend it.
 - Then gather the relevant local context before answering:
   - `defence_agent/docs/cohere_capability_matrix.md`
   - relevant repo files that show what is actually implemented
@@ -92,17 +125,38 @@ The strategic move is to avoid presenting this as “chat with PDFs.” Present 
 - Do not rely on internal memory for Cohere product behavior when a source can be
   checked.
 - When sources conflict, prioritize in this order:
-  1. The Cohere assignment brief.
-  2. Official Cohere product documentation.
-  3. Cohere product pages, research, and blog articles.
-  4. Local strategy notes and previous conversation summaries.
+  1. The Cohere assignment brief for presentation criteria and scenario facts.
+  2. The job description for role competencies.
+  3. Official Cohere product documentation for product behavior.
+  4. Cohere product pages, research, and blog articles for framing.
+  5. Local strategy notes and previous conversation summaries.
 - In the answer, separate:
   - source-backed facts
   - current repo reality
+  - competency demonstrated
   - recommendation
   - assumptions, risks, and open questions
 - Keep the synthesis concise. The goal is not to summarize every source. The goal
-  is to make the decision better and keep it aligned with the presentation brief.
+  is to make the notebook and demo stronger.
+- Be source-grounded without being rigid. The brief defines the test; the other
+  scenarios and role signals reveal what will impress the panel.
+
+## Active Ambition Protocol
+
+- Default to pushing the presentation toward stronger competency proof.
+- For every demo or notebook idea, name the PDF or job-description competency it strengthens.
+- Rank ideas by interview impact, not implementation novelty.
+- Prefer ideas that make the panel see build ability, architecture judgment, security judgment, evaluation maturity, adaptability, or production thinking.
+- Cut lower-signal context to make room for higher-signal proof.
+
+## Interview Competency Reads
+
+- This is a technical interview demo.
+- The live app should prove implementation: Cohere calls, tool execution, retrieval, rerank, citations, Trace, reviewer output, and eval hooks.
+- The Jupyter notebook should prove architecture: system boundaries, policy layer, data model, scalability, deployment path, evaluation, and pilot plan.
+- The PDF criteria to hit are technical expertise, real customer problem solving, live demo, implementation walkthrough, how it works, uniqueness, Cohere use, scalability, security, assumptions, accuracy, and traceability.
+- The other scenarios add useful signals: relevance, personalization, confidentiality, integration, transparency, compliance, adaptability, and privacy.
+- Cut context that does not help the notebook or demo prove those competencies.
 
 ## Cohere Brief Strategic Reads
 

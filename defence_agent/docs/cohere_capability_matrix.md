@@ -2,13 +2,17 @@
 
 Living artifact for the Defence Agent SA presentation. Use this file to decide what to add, what to mention in Q&A, and what to ignore.
 
-Last updated: 2026-05-12
+Last updated: 2026-05-14
 
 ## Source Inventory
 
 These are the primary Cohere sources checked so far. Re-check them before the interview because Cohere ships quickly.
-The 2026-05-12 spot check reconfirmed the active prototype's use of Chat `documents=`,
+The 2026-05-14 spot check reconfirmed the active prototype's use of Chat `documents=`,
 native citation objects, Embed v4, Rerank v4, and Command A `command-a-03-2025`.
+Command A remains the default demo model because Cohere's agentic RAG tool-use
+tutorials use it for tool planning and tool calls. Command A Reasoning is
+supported as an optional comparison path for returned `thinking` content blocks,
+but thinking blocks are not the same thing as application audit trace.
 
 Use the source inventory before answering Cohere product, architecture, or Q&A questions. Prefer primary Cohere docs, product pages, research reports, and status pages over memory or generic web summaries.
 
@@ -33,7 +37,7 @@ are used for customer framing and Q&A language.
 | Embed API reference | https://docs.cohere.com/v2/reference/embed | Input limits, `inputs`, image data URI support, `output_dimension`. |
 | Command A | https://docs.cohere.com/v1/docs/command-a | Current generation model for RAG, agents, tool use, multilingual tasks. |
 | Command A technical report | https://cohere.com/research/papers/command-a-technical-report.pdf | Deep source for Command A enterprise, RAG, grounding, tool-use, and benchmark claims. |
-| Command A Reasoning | https://docs.cohere.com/changelog/2025-08-21-command-a-reasoning | Reasoning option for harder agentic tasks, not default for this prototype. |
+| Command A Reasoning | https://docs.cohere.com/v2/docs/reasoning | Reasoning model with returned `thinking` content blocks. Useful for comparison and harder reasoning-heavy tasks, not the default demo backend. |
 | Aya Expanse docs | https://docs.cohere.com/v2/docs/aya-expanse | Multilingual generation option for benchmarking. |
 | Aya research | https://cohere.com/research/aya | Cohere's broader multilingual research story. |
 | Aya Expanse blog | https://cohere.com/blog/aya-expanse-connecting-our-world | Launch narrative for multilingual AI. |
@@ -119,7 +123,7 @@ Sorted by triage first, then by demo value.
 | 1 | Trace-rich citation display | FULL | S | SHOW-LIVE | MENTION-ONLY | `run_agent_session.py --show-audit` and the registry runner expose cited answer spans, source IDs, doc IDs, page, language, access level, source title, vector score, rerank score, and citation validation. | https://docs.cohere.com/docs/rag-citations |
 | 2 | Interrogate-style follow-up demo | FULL | S | SHOW-LIVE | MENTION-ONLY | The demo script and registry include a source/access follow-up that answers from prior audit metadata instead of doing an unrelated search. | https://docs.cohere.com/v2/docs/agentic-rag |
 | 3 | Live bilingual retrieval transcript | FULL | S | SHOW-LIVE | MENTION-ONLY | Saved live readiness transcripts include the natural multilingual NATO case with Embed v4 and Rerank v4. Re-run before the interview if model behavior or the corpus changes. | https://docs.cohere.com/changelog/embed-multimodal-v4 |
-| 3a | Insufficient-evidence refusal gate | FULL | S | SHOW-LIVE | MENTION-ONLY | Retrieval now refuses unsupported dated or scheduled claims before final generation, sends zero documents to the answer model, and records the answerability decision in `answer_audit`. | https://docs.cohere.com/page/rag-evaluation-deep-dive |
+| 3a | Model-grounded insufficiency refusal | FULL | S | SHOW-LIVE | MENTION-ONLY | Retrieval returns related authorized pages for unsupported dated or scheduled claims, sends those pages to Command A through `documents=`, and records the model-grounded abstention in `answer_audit`. | https://docs.cohere.com/page/rag-evaluation-deep-dive |
 | 4 | Lightweight eval runner | FULL | S | SHOW-LIVE | MENTION-ONLY | `run_demo_query_registry.py` runs the demo cases through the ADK harness, checks expected docs, expected refusals, source metadata, facet coverage, search counts, and citation source resolution. | https://docs.cohere.com/page/rag-evaluation-deep-dive |
 | 5 | Native Cohere citations | FULL | S | SHOW-LIVE | MENTION-ONLY | Current `grounding.py` uses direct non-streaming Cohere Chat with `documents=` and reads native post-response citation spans. Live testing showed Command A document RAG rejected explicit `citation_options`, so the demo relies on Cohere's default accurate document-RAG citation behavior. | https://docs.cohere.com/docs/rag-citations |
 | 6 | Custom citation document IDs | FULL | S | SHOW-LIVE | MENTION-ONLY | Current final answer documents include stable IDs, which lets citations point back to repo source metadata instead of anonymous auto IDs. Keep this as a technical walkthrough point. | https://docs.cohere.com/docs/rag-citations |
@@ -133,7 +137,7 @@ Sorted by triage first, then by demo value.
 | 14 | Chat API compatibility details | FULL | S | MENTION-VERBAL | MENTION-ONLY | The final-answer path depends on Chat `documents`, citation objects, and safety-mode compatibility. Use the Chat API reference when answering implementation details. | https://docs.cohere.com/reference/chat |
 | 15 | Agentic RAG for mixed PDFs | PARTIAL | S | MENTION-VERBAL | MENTION-ONLY | The repo uses page-level multimodal PDF retrieval. It does not yet implement table-aware parsing, multi-vector retrieval, or query augmentation from the mixed-PDF cookbook. Mention as a future accuracy path, not current behavior. | https://docs.cohere.com/page/agentic-rag-mixed-data |
 | 16 | Enterprise document parsing and DOCX strategy | PARTIAL | S | MENTION-VERBAL | MENTION-ONLY | The corpus includes one official DOCX-origin source normalized through the publisher's PDF pair and tracked in manifest metadata. Do not claim native `.docx` parsing. Production options are Compass or a manifest-compatible parser and normalization adapter for mixed enterprise documents. | https://docs.cohere.com/page/document-parsing-for-enterprises |
-| 17 | Command A Reasoning | NONE | M | MENTION-VERBAL | MENTION-ONLY | Do not swap now. Use it as a future benchmark for multi-hop reasoning or complex comparison. The current demo needs reliable cited RAG more than visible chain-of-thought style reasoning. | https://docs.cohere.com/changelog/2025-08-21-command-a-reasoning |
+| 17 | Command A Reasoning thinking blocks | PARTIAL | S | MENTION-VERBAL | MENTION-ONLY | Do not swap the live demo backend by default. The backend can now preserve native Cohere `thinking` blocks when a reasoning-capable Chat model returns them, and the UI can display those blocks when present. Use this as a notebook/demo comparison, while keeping Command A as the stable tool-loop model. | https://docs.cohere.com/v2/docs/reasoning |
 | 18 | Aya Expanse | NONE | M | MENTION-VERBAL | MENTION-ONLY | Do not swap now. The bilingual retrieval proof mainly depends on Embed v4 and Rerank v4. Aya is a credible follow-up benchmark if the panel asks about multilingual generation. | https://docs.cohere.com/v2/docs/aya-expanse |
 | 19 | Structured outputs JSON mode | NONE | S | MENTION-VERBAL | MENTION-ONLY | Useful for downstream doctrine extraction, but Cohere docs say JSON mode is not supported in RAG mode. For trace output, serialize deterministic metadata from the retrieval and citation objects instead of asking the RAG answer call for JSON. | https://docs.cohere.com/v2/docs/structured-outputs |
 | 20 | `strict_tools` | NONE | M | MENTION-VERBAL | MENTION-ONLY | Cohere-native tool calls can enforce tool schemas with `strict_tools`, but this repo uses Google ADK for orchestration. Justify ADK as the runtime layer and Cohere as the model/retrieval/citation layer. | https://docs.cohere.com/v2/docs/structured-outputs |

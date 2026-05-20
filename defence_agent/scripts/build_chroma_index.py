@@ -31,9 +31,11 @@ def main() -> None:
         print(f"Chroma collection: {result['collection']}")
         print(f"Embedding backend: {result['embedding_backend']}")
         print(f"Embedding dimension: {result['embedding_dimension']}")
-        print(f"Indexed pages: {result['indexed_chunks']}")
-        print(f"Embedded pages this run: {result['embedded_pages']}")
-        print(f"Deleted orphan pages: {result['orphaned_pages_deleted']}")
+        print(f"Chunk strategy: {result.get('chunk_strategy', 'page')}")
+        print(f"Indexed chunks: {result['indexed_chunks']}")
+        print(f"Retrieval chunks: {result.get('retrieval_chunks', result['indexed_chunks'])}")
+        print(f"Embedded chunks this run: {result.get('embedded_chunks', result['embedded_pages'])}")
+        print(f"Deleted orphan chunks: {result.get('orphaned_chunks_deleted', result['orphaned_pages_deleted'])}")
         print(f"Skipped: {result['skipped']}")
 
 

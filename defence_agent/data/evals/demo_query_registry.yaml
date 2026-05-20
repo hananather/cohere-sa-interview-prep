@@ -7,7 +7,7 @@ notes:
 cases:
   - id: flagship_planning_brief_modernization
     persona_id: clearance_unclassified
-    query: I am preparing a planning brief. First search Canada's defence policy for AI-enabled modernization. Then search the DND/CAF AI Strategy for AI-enabled modernization. Compare both and cite the strongest source pages.
+    query: Compare how Canada's defence policy and the DND/CAF AI Strategy describe AI-enabled modernization for a planning brief, and cite the strongest source pages.
     expected_doc_ids:
       - CA-DEF-POL-2024-EN
       - CA-AI-STRAT-2024-EN
@@ -84,6 +84,37 @@ cases:
       - Summarize NATO's core tasks and Canada's AI Strategy priorities with the strongest cited pages.
       - For planners, retrieve the current evidence for NATO core tasks and DND/CAF AI priorities.
       - Gather the source pages for NATO alliance tasks and Canadian defence AI priorities.
+
+  - id: scanned_manual_technical_intelligence
+    persona_id: clearance_unclassified
+    query: In the scanned Technical Intelligence field manual, what is technical intelligence, what foreign materiel does it cover, and which objectives matter most for strategic and tactical planners?
+    expected_doc_ids:
+      - US-ARMY-FM30-16-1972-SCAN
+    expected_source_types:
+      - official_public_scanned_manual_excerpt
+    expected_facets:
+      - id: scanned_manual_definition_and_scope
+        expected_doc_ids:
+          - US-ARMY-FM30-16-1972-SCAN
+        min_sources: 1
+        min_citations: 1
+        expected_pages:
+          - doc_id: US-ARMY-FM30-16-1972-SCAN
+            pages: [5, 6, 10]
+        search_terms_any:
+          - technical intelligence
+          - foreign materiel
+          - strategic tactical planners
+    expected_answer_facts:
+      - foreign materiel
+    min_search_calls: 1
+    min_citations: 1
+    demo_point: Physical-manual digitization example using a scanned public defence manual page as cited evidence.
+    query_variants:
+      - What does the scanned FM 30-16 manual say technical intelligence means for planners?
+      - Use the scanned Technical Intelligence manual to explain the scope of foreign materiel intelligence.
+      - Which scanned source pages define technical intelligence and its objectives for strategic and tactical commanders?
+      - For a digitized-manual demo, summarize FM 30-16's definition and objectives of technical intelligence.
 
   - id: natural_multilingual_nato_core_tasks
     persona_id: clearance_unclassified
@@ -197,10 +228,10 @@ cases:
     persona_id: clearance_unclassified
     query: What does the corpus say about the approved Arctic submarine basing schedule for 2031?
     expected_refusal: true
-    expected_documents_sent_to_model: 0
+    expected_documents_sent_to_model: 8
     min_search_calls: 1
     min_citations: 0
-    demo_point: The assistant should refuse when authorized evidence does not support the requested planning claim.
+    demo_point: Command A should review authorized retrieved evidence and refuse when it does not support the requested planning claim.
     query_variants:
       - What is the approved 2031 submarine basing schedule in the planning corpus?
       - Which source page gives the Arctic submarine basing date for 2031?

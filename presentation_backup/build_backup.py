@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_PATH = ROOT / "presentation_backup" / "index.html"
 MANIFEST_PATH = ROOT / "defence_agent" / "data" / "corpus" / "manifest.yaml"
 TRANSCRIPT_ROOT = ROOT / "defence_agent" / "data" / "transcripts"
+EVAL_ROOT = ROOT / "defence_agent" / "data" / "evals"
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,26 @@ DEMO_RUNS = [
         / "flagship_planning_brief_modernization.json",
         presenter_note="Use this as the main answer demo. It proves multi-document planning, citations, and traceability.",
         accent="primary",
+    ),
+    DemoRun(
+        title="Reviewer Catches Unsupported Claims",
+        purpose="The reviewer agent catches weak named-program citations that a normal generated answer would otherwise expose.",
+        transcript=EVAL_ROOT
+        / "reviewer_challenge_runs"
+        / "reviewed_answer_challenges_20260520_040245"
+        / "level_8_forced_specific_program_overreach.json",
+        presenter_note="Use this as the trust-layer proof. The value is that unsupported citations are visible, scored, and gated for human review.",
+        accent="warn",
+    ),
+    DemoRun(
+        title="Reviewer Improves Weak Answer",
+        purpose="Reviewer feedback triggers another research and generation pass, then releases an improved answer with caveats.",
+        transcript=EVAL_ROOT
+        / "reviewer_challenge_runs"
+        / "reviewed_answer_feedback_loop_20260520"
+        / "level_2_cross_document_modernization_comparison.json",
+        presenter_note="Use this to show the bounded loop: research, review, feedback, improved retrieval, final trust check.",
+        accent="secure",
     ),
     DemoRun(
         title="Access Boundary: Unclassified User",
@@ -150,7 +171,7 @@ def _hero(
   <div>
     <p class="eyebrow">Static backup page</p>
     <h1>Defence Agent Presentation Backup</h1>
-    <p class="lead">A deterministic walkthrough of the same evidence workflow: database, planning answer, trace, citations, access boundary, scanned manual retrieval, refusal, and follow-up.</p>
+    <p class="lead">A deterministic walkthrough of the same evidence workflow: database, planning answer, reviewer trust layer, trace, citations, access boundary, scanned manual retrieval, refusal, and follow-up.</p>
   </div>
   <div class="hero-panel">
     <div class="stat"><span>{total_sources}</span><label>catalog sources</label></div>
@@ -164,6 +185,8 @@ def _hero(
 <nav class="quick-nav" aria-label="Page sections">
   <a href="#database">Database</a>
   <a href="#planning">Planning</a>
+  <a href="#reviewer-catches-unsupported-claims">Reviewer Gate</a>
+  <a href="#reviewer-improves-weak-answer">Reviewer Loop</a>
   <a href="#access-unclassified">Access</a>
   <a href="#scanned">Scanned Manual</a>
   <a href="#refusal">Refusal</a>
@@ -278,6 +301,7 @@ def _run_section(index: int, anchor: str, run: DemoRun, data: dict[str, Any]) ->
     </aside>
   </div>
   {_trace_block(searches, retrieval, generation)}
+  {_reviewer_block(data, audit)}
   {_source_block("Evidence Sent To Answer", source_rows)}
   {_excluded_block(excluded_sources)}
   {_citation_block(citations)}
@@ -340,6 +364,72 @@ def _trace_item(index: int, item: dict[str, Any]) -> str:
           <div class="mini-metrics">{metric_html}</div>
         </li>
 """
+
+
+def _reviewer_block(data: dict[str, Any], audit: dict[str, Any]) -> str:
+    reviewer = audit.get("reviewer") or audit.get("critic") or data.get("reviewer")
+    if not isinstance(reviewer, dict) or not reviewer:
+        return ""
+    review_control = audit.get("review_control") if isinstance(audit.get("review_control"), dict) else {}
+    score = reviewer.get("credibility_score")
+    threshold = reviewer.get("threshold")
+    release_gate = reviewer.get("release_gate") or "not recorded"
+    status = reviewer.get("status") or "not recorded"
+    summary = reviewer.get("summary") or reviewer.get("overall_reason") or "No reviewer summary was recorded."
+    feedback = reviewer.get("generator_feedback") or ""
+    metrics = [
+        _metric_card("Trust score", _percent_or_value(score)),
+        _metric_card("Threshold", _percent_or_value(threshold)),
+        _metric_card("Gate", str(release_gate)),
+        _metric_card("Status", str(status)),
+        _metric_card("Verified", str(reviewer.get("verified_citation_count", "not recorded"))),
+        _metric_card("Weak or unverified", str(reviewer.get("unverified_citation_count", "not recorded"))),
+        _metric_card("Outside reviewer pass", str(reviewer.get("unreviewed_citation_count", "not recorded"))),
+        _metric_card("Human review", "required" if reviewer.get("requires_human_decision") else "not required"),
+    ]
+    cycle_cards = _review_cycle_cards(review_control.get("cycles") or [])
+    feedback_block = (
+        f"""
+        <div class="review-feedback">
+          <strong>Feedback sent back to generator</strong>
+          <p>{escape(feedback)}</p>
+        </div>
+"""
+        if feedback
+        else ""
+    )
+    return f"""
+  <details class="details reviewer-details" open>
+    <summary>Reviewer Trust Layer</summary>
+    <div class="reviewer-panel">
+      <div class="review-grid">{''.join(metrics)}</div>
+      <p class="review-summary">{escape(str(summary))}</p>
+      {feedback_block}
+      {cycle_cards}
+    </div>
+  </details>
+"""
+
+
+def _review_cycle_cards(cycles: list[Any]) -> str:
+    if not cycles:
+        return ""
+    cards = []
+    for cycle in cycles:
+        if not isinstance(cycle, dict):
+            continue
+        cards.append(
+            f"""
+        <article class="review-cycle">
+          <strong>Iteration {escape(str(cycle.get("cycle", "?")))}: {escape(str(cycle.get("reviewer_status") or cycle.get("critic_status") or "recorded"))}</strong>
+          <span>Score {escape(_percent_or_value(cycle.get("credibility_score")))} | gate {escape(str(cycle.get("release_gate", "not recorded")))} | feedback {escape("yes" if cycle.get("feedback_sent_to_generator") or cycle.get("feedback_sent_to_research_agent") else "no")} | searches {escape(str(cycle.get("search_count", "not recorded")))}</span>
+          <p>{escape(str(cycle.get("feedback_preview") or cycle.get("response_impact") or ""))}</p>
+        </article>
+"""
+        )
+    if not cards:
+        return ""
+    return f'<div class="review-cycles">{"".join(cards)}</div>'
 
 
 def _source_block(title: str, sources: list[dict[str, Any]]) -> str:
@@ -651,6 +741,16 @@ def _filters_label(filters: Any) -> str:
 def _short_value(value: Any) -> str:
     if isinstance(value, float):
         return f"{value:.4f}"
+    return str(value)
+
+
+def _percent_or_value(value: Any) -> str:
+    if isinstance(value, (int, float)):
+        if 0 <= float(value) <= 1:
+            return f"{float(value) * 100:.0f}%"
+        return f"{float(value):.0f}"
+    if value in (None, ""):
+        return "not recorded"
     return str(value)
 
 
@@ -1056,6 +1156,51 @@ td span {
   font-size: 12px;
 }
 
+.reviewer-panel {
+  padding: 0 0 16px;
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.review-summary,
+.review-feedback,
+.review-cycle {
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #fbfcfa;
+}
+
+.review-summary {
+  margin: 0 0 10px;
+}
+
+.review-feedback {
+  border-left: 4px solid var(--amber);
+}
+
+.review-feedback p,
+.review-cycle p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.review-cycles {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.review-cycle span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
 .compact th,
 .compact td {
   font-size: 13px;
@@ -1109,6 +1254,7 @@ td span {
   .run-grid,
   .metric-row,
   .trace-meta,
+  .review-grid,
   .map-grid {
     grid-template-columns: 1fr;
   }

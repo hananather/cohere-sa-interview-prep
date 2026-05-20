@@ -3,10 +3,16 @@
 ## Position
 
 Defence Agent is an ADK-first controlled evidence workflow over a mixed
-English/French normalized page corpus. It searches approved sources, applies access control
-before retrieval results reach generation, reranks evidence, validates whether
-authorized evidence is strong enough to answer, generates cited outputs, and
-logs the trace for audit.
+English/French normalized page corpus. It has two named agent roles:
+
+- Research Agent: searches approved sources, applies access control before
+  retrieval results reach generation, reranks evidence, and produces a cited
+  answer from authorized pages.
+- Reviewer Agent: checks whether the answer's cited evidence supports the
+  claims and returns a citation credibility score.
+
+The answer is always visible in the demo. The reviewer score is the quality
+signal used for retry, human review, or pilot go/no-go decisions.
 
 ## Runtime
 
@@ -19,6 +25,8 @@ logs the trace for audit.
 - Cohere Rerank v4 orders authorized evidence.
 - Cohere Command A is used through ADK/LiteLLM for retrieval orchestration.
 - Direct Cohere Chat produces the final grounded answer with native citations.
+- The Reviewer Agent reviews citation support only. It does not answer the
+  user, search new sources, or act as a truth oracle.
 - Local SQLite stores ADK session state only.
 
 ## Request Path
@@ -31,12 +39,16 @@ logs the trace for audit.
    `status`, and `language` filters.
 5. A second policy check verifies authorized pages.
 6. Rerank orders the remaining evidence.
-7. The answerability gate refuses denied evidence and unsupported dated or
-   scheduled claims before final generation.
+7. Access failures and no-authorized-source cases are blocked before final
+   generation.
 8. The after-tool cache callback stores the successful search output in session state.
-9. `grounding.py` sends only answerable authorized sources to the direct Cohere Chat API.
+9. `grounding.py` sends authorized sources to the direct Cohere Chat API. For
+   unsupported but authorized evidence gaps, Command A reviews the pages and
+   returns an insufficiency refusal instead of inventing facts.
 10. The final answer returns with source citations.
-11. `answer_audit` records persona, filters, cache events, source IDs, rerank
+11. The Reviewer Agent scores whether cited evidence supports the answer's
+    claim spans.
+12. `answer_audit` records persona, filters, cache events, source IDs, rerank
     scores, and citation spans for inspection.
 
 ## Data Path
@@ -57,11 +69,12 @@ Current manifest inventory:
 | Category | Count | Pages | Access |
 |---|---:|---:|---|
 | Public official PDF-origin docs | 6 | 187 | `unclassified` |
+| Public scanned manual excerpt | 1 | 10 | `unclassified` |
 | Public DOCX-origin normalized PDF | 1 | 14 | `unclassified` |
 | Synthetic restricted PDFs | 2 | 6 | `secret`, `top_secret` |
-| Total | 9 | 207 | mixed |
+| Total | 10 | 217 | mixed |
 
-Language distribution is 111 English pages and 96 French pages.
+Language distribution is 121 English pages and 96 French pages.
 
 ## Ingestion Flow
 

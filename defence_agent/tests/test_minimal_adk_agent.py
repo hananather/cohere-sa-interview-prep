@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib.util
 import asyncio
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -43,6 +45,7 @@ def test_minimal_adk_agent_imports() -> None:
     from defence_agent.agent import root_agent
 
     assert root_agent.name == "defence_agent"
+    assert root_agent.model._additional_args["timeout"] == 45.0
 
 
 def test_settings_require_real_cohere_key(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -66,6 +69,35 @@ def test_settings_expose_no_mock_cohere_switch() -> None:
     assert "vector_size" not in fields
 
 
+def test_settings_allow_disabling_local_cohere_pacing() -> None:
+    from defence_agent.config import Settings
+
+    settings = Settings(_env_file=None, COHERE_API_KEY="test-key", COHERE_REQUESTS_PER_MINUTE=0)
+
+    assert settings.cohere_requests_per_minute == 0
+
+
+def test_cohere_gateway_import_is_lazy_without_api_key(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("COHERE_API_KEY", None)
+    env["PYTHONPATH"] = f"{ROOT}{os.pathsep}{env.get('PYTHONPATH', '')}"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import defence_agent.cohere_gateway as m; print(type(m.cohere_gateway).__name__)",
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "_LazyCohereGateway" in completed.stdout
+
+
 @pytest.mark.live
 def test_live_index_reuses_existing_pages(live_index_ready: None) -> None:
     from defence_agent.config import get_settings
@@ -75,7 +107,7 @@ def test_live_index_reuses_existing_pages(live_index_ready: None) -> None:
 
     assert result["embedding_backend"] == "embed-v4.0"
     assert result["embedding_dimension"] == get_settings().cohere_embed_output_dimension
-    assert result["parsed_pages"] == 207
+    assert result["parsed_pages"] == 217
     assert result["embedded_pages"] == 0
     assert result["skipped"] is True
 
@@ -97,7 +129,7 @@ def test_stale_page_hash_requires_reembedding() -> None:
 def test_agent_prompt_defaults_english_questions_to_language_any() -> None:
     from defence_agent.prompts import AGENT_INSTRUCTION
 
-    assert "primarily a search and retrieval agent" in AGENT_INSTRUCTION
+    assert "primarily a research agent" in AGENT_INSTRUCTION
     assert "answer it completely" in AGENT_INSTRUCTION
     assert 'Use language="any" for doctrine questions' in AGENT_INSTRUCTION
     assert 'Use language="en" for English questions unless the user asks for French.' not in AGENT_INSTRUCTION
@@ -114,7 +146,7 @@ def test_search_documents_tool_description_is_session_controlled_and_bounded() -
     assert "ADK session state" in doc
     assert "not from model-controlled" in doc
     assert "Excluded source text is never returned" in doc
-    assert "1..24" in doc
+    assert "8..24" in doc
     assert '"approved", "draft", "superseded", or "any"' in doc
     assert '"any", "en", or "fr"' in doc
 
@@ -126,9 +158,10 @@ def test_manifest_loader_parses_public_and_synthetic_pdfs() -> None:
     pages = parse_only()
     doc_ids = {page.doc_id for page in pages}
 
-    assert len(pages) == 207
+    assert len(pages) == 217
     assert {"CA-AI-STRAT-2024-EN", "NATO-STRAT-CONCEPT-2022-FR"}.issubset(doc_ids)
     assert {"SYN-FUSION-S-RELEASE-001", "SYN-FUSION-TS-ANNEX-002"}.issubset(doc_ids)
+    assert "US-ARMY-FM30-16-1972-SCAN" in doc_ids
 
 
 @pytest.mark.slow_offline
@@ -147,6 +180,22 @@ def test_manifest_loader_preserves_docx_origin_normalization_metadata() -> None:
     assert metadata["source_docx_url"].endswith("ASOEM_Issue_2.docx")
     assert metadata["source_pdf_url"].endswith("ASOEM_Issue_2.pdf")
     assert "PDF pair" in metadata["provenance_note"]
+
+
+@pytest.mark.slow_offline
+def test_manifest_loader_preserves_scanned_manual_metadata() -> None:
+    from defence_agent.retrieval.chroma_index import parse_only
+
+    pages = parse_only()
+    scanned_pages = [page for page in pages if page.doc_id == "US-ARMY-FM30-16-1972-SCAN"]
+
+    assert len(scanned_pages) == 10
+    assert all(page.metadata["source_type"] == "official_public_scanned_manual_excerpt" for page in scanned_pages)
+    assert all(page.metadata["source_format"] == "scanned_pdf" for page in scanned_pages)
+    assert all(page.metadata["normalization_method"] == "digitized_scan_with_ocr_text_layer" for page in scanned_pages)
+    assert all(page.metadata["page_image_sha256"] for page in scanned_pages)
+    assert scanned_pages[4].text
+    assert "Technical intelligence" in scanned_pages[5].text
 
 
 @pytest.mark.live
@@ -395,7 +444,7 @@ def test_source_selection_does_not_force_weak_multilingual_evidence() -> None:
     ]
 
 
-def test_dated_schedule_query_without_specific_support_is_hard_refusal() -> None:
+def test_dated_schedule_query_without_specific_support_is_model_grounded_abstention_signal() -> None:
     from defence_agent.retrieval.chroma_index import _answerability
 
     answerability = _answerability(
@@ -416,12 +465,15 @@ def test_dated_schedule_query_without_specific_support_is_hard_refusal() -> None
     assert answerability["answerable"] is False
     assert answerability["reason"] == "insufficient_authorized_evidence"
     assert answerability["best_authorized_overlap"] == 0
+    assert answerability["unsupported_specificity"]["evidence_gap"] is True
+    assert answerability["unsupported_specificity"]["hard_refusal"] is False
     assert answerability["unsupported_specificity"]["missing_year_terms"] == ["2031"]
     assert sorted(answerability["unsupported_specificity"]["missing_scheduled_fact_terms"]) == [
         "basing",
         "schedule",
     ]
-    assert answerability["evidence_quality"]["hard_refusal"] is True
+    assert answerability["evidence_quality"]["hard_refusal"] is False
+    assert answerability["evidence_quality"]["threshold_policy"] == "model_grounded_abstention"
 
 
 def test_low_lexical_overlap_without_specific_schedule_is_audit_signal() -> None:
@@ -605,6 +657,70 @@ def test_grounding_refuses_without_authorized_sources() -> None:
     assert "no_authorized_sources" in result.citation_validation["errors"]
 
 
+def test_grounding_validation_accepts_uncited_refusal_without_claims() -> None:
+    from defence_agent.grounding import _validate_native_citations
+
+    validation = _validate_native_citations(
+        [],
+        {"DOC_page_001": {"doc_id": "DOC"}},
+        answer="Evidence is insufficient.",
+        query="What is the approved Arctic submarine basing schedule for 2031?",
+    )
+
+    assert validation["passed"] is True
+    assert validation["errors"] == []
+    assert validation["coverage"]["claim_count"] == 0
+
+
+def test_grounding_validation_rejects_uncited_factual_claims() -> None:
+    from defence_agent.grounding import _validate_native_citations
+
+    validation = _validate_native_citations(
+        [],
+        {"DOC_page_001": {"doc_id": "DOC"}},
+        answer="The approved schedule starts in 2031.",
+        query="What is the approved Arctic submarine basing schedule for 2031?",
+    )
+
+    assert validation["passed"] is False
+    assert "cohere_returned_no_native_citations" in validation["errors"]
+
+
+def test_grounding_extracts_native_thinking_content_blocks() -> None:
+    from defence_agent.grounding import _message_content_blocks
+
+    response = SimpleNamespace(
+        message=SimpleNamespace(
+            content=[
+                SimpleNamespace(type="thinking", thinking="Search first, then cite the answer."),
+                SimpleNamespace(type="text", text="The answer is supported by the cited page."),
+            ]
+        )
+    )
+
+    blocks = _message_content_blocks(response)
+
+    assert blocks == [
+        {"index": 1, "type": "thinking", "thinking": "Search first, then cite the answer."},
+        {"index": 2, "type": "text", "text": "The answer is supported by the cited page."},
+    ]
+
+
+def test_grounding_thinking_budget_expands_max_tokens(monkeypatch: pytest.MonkeyPatch) -> None:
+    from defence_agent import grounding
+
+    monkeypatch.setattr(
+        grounding,
+        "get_settings",
+        lambda: SimpleNamespace(cohere_thinking_token_budget=1200),
+    )
+
+    assert grounding._thinking_config("command-a-03-2025") is None
+    assert grounding._cohere_chat_max_tokens("command-a-03-2025") == 1000
+    assert grounding._thinking_config("command-a-reasoning-08-2025") == {"token_budget": 1200}
+    assert grounding._cohere_chat_max_tokens("command-a-reasoning-08-2025") == 2200
+
+
 def test_answer_audit_includes_traceability_metadata() -> None:
     from defence_agent.grounding import GroundedAnswer
     from defence_agent.grounding import COHERE_CITATION_MODE
@@ -694,6 +810,11 @@ def test_answer_audit_includes_traceability_metadata() -> None:
         documents_sent=1,
         document_ids=["SYN-FUSION-S-RELEASE-001_p2"],
         model="command-a-03-2025",
+        content_blocks=[
+            {"index": 1, "type": "thinking", "thinking": "Use the retrieved secret page."},
+            {"index": 2, "type": "text", "text": "The threshold is 0.7342."},
+        ],
+        thinking_blocks=[{"index": 1, "type": "thinking", "thinking": "Use the retrieved secret page."}],
     )
 
     audit = _answer_audit(
@@ -714,6 +835,8 @@ def test_answer_audit_includes_traceability_metadata() -> None:
     assert audit["generation"]["citation_quality"]["citation_recall_proxy"] == 1.0
     assert audit["generation"]["citation_quality"]["citation_precision"] == "manual_or_llm_judge_required"
     assert audit["generation"]["cohere_document_ids"] == ["SYN-FUSION-S-RELEASE-001_p2"]
+    assert audit["generation"]["thinking_block_count"] == 1
+    assert audit["generation"]["thinking_blocks"][0]["thinking"] == "Use the retrieved secret page."
     assert audit["retrieval"]["search_queries"] == ["What is the threshold?"]
     assert audit["retrieval"]["excluded_sources"][0]["doc_id"] == "SYN-FUSION-TS-ANNEX-002"
     assert "text" not in audit["retrieval"]["excluded_sources"][0]
@@ -794,6 +917,265 @@ def test_native_citations_resolve_source_metadata_in_answer_audit() -> None:
     assert source["doc_id"] == "CA-AI-STRAT-2024-EN"
     assert source["page"] == 14
     assert source["rerank_score"] == 0.8
+
+
+def test_review_control_runs_revision_only_within_cycle_limit() -> None:
+    from defence_agent.critic import NEEDS_REVISION
+    from defence_agent.session import _should_run_revision
+
+    report = {"status": NEEDS_REVISION, "generator_feedback": "Search again for exact support."}
+
+    assert _should_run_revision(report, cycle_index=1, max_review_cycles=2) is True
+    assert _should_run_revision(report, cycle_index=2, max_review_cycles=2) is False
+    assert _should_run_revision({"status": "approved"}, cycle_index=1, max_review_cycles=2) is False
+
+
+def test_generator_feedback_message_compacts_tool_context() -> None:
+    from defence_agent.grounding import GroundedAnswer
+    from defence_agent.session import _generator_feedback_message
+
+    long_source_text = "sensitive authorized page text " * 400
+    audit = {
+        "retrieval": {
+            "search_queries": ["original query"],
+            "sources_sent_to_answer": [
+                {
+                    "chunk_id": "DOC1_page_001",
+                    "doc_id": "DOC1",
+                    "title": "Large Source",
+                    "page": 1,
+                    "access_level": "unclassified",
+                    "text": long_source_text,
+                    "rerank_score": 0.91,
+                }
+            ],
+            "excluded_sources": [{"doc_id": "DOC_SECRET", "access_level": "secret", "reason": "access_denied"}],
+        }
+    }
+    grounded = GroundedAnswer(
+        answer="Unsupported answer. " * 200,
+        raw_answer="Unsupported answer.",
+        citations=[],
+    )
+    critic_report = {
+        "status": "needs_revision",
+        "credibility_score": 0.5,
+        "threshold": 0.8,
+        "summary": "Citation support is weak.",
+        "overall_reason": "The source did not support the span.",
+        "generator_feedback": "Search again for direct support.",
+        "suggested_search_queries": ["direct support query"],
+        "citation_reviews": [
+            {
+                "citation_index": 1,
+                "verdict": "unverified",
+                "answer_span": "Unsupported answer.",
+                "source_ids": ["DOC1_page_001"],
+                "reason": "No direct support.",
+            }
+        ],
+    }
+
+    message = _generator_feedback_message(
+        query="original query",
+        grounded=grounded,
+        answer_audit=audit,
+        critic_report=critic_report,
+        cycle_index=1,
+        max_review_cycles=2,
+    )
+
+    assert "Reviewer Agent feedback for the Research Agent" in message
+    assert "Search again for direct support" in message
+    assert "metadata_only_source_lookup" in message
+    assert '"applied": true' in message
+    assert "sensitive authorized page text sensitive authorized page text" not in message
+    assert "DOC_SECRET" not in message
+
+
+def test_run_turn_uses_critic_feedback_for_second_generator_cycle(monkeypatch: pytest.MonkeyPatch) -> None:
+    from defence_agent import session as session_module
+    from defence_agent.critic import APPROVED, NEEDS_REVISION
+    from defence_agent.grounding import GroundedAnswer
+
+    state = {"cycle": 0, "finalize": 0}
+
+    class FakeRunner:
+        def __init__(self, **_: Any) -> None:
+            pass
+
+    async def fake_run_generator_agent_cycle(**_: Any) -> tuple[int, list[str], list[dict[str, Any]], list[str], str]:
+        state["cycle"] += 1
+        return (
+            1,
+            ["search_documents"],
+            [{"tool_name": "search_documents", "args": {"query": f"query {state['cycle']}"}}],
+            ["search_documents"],
+            f"retrieval_complete_{state['cycle']}",
+        )
+
+    async def fake_session_state(*_: Any, **__: Any) -> dict[str, Any]:
+        audits = []
+        sources = []
+        for index in range(1, state["cycle"] + 1):
+            source = {
+                "chunk_id": f"DOC_page_00{index}",
+                "doc_id": "DOC",
+                "title": "Authorized Source",
+                "page": index,
+                "access_level": "unclassified",
+                "text": f"authorized text {index}",
+            }
+            sources.append(source)
+            audits.append(
+                {
+                    "query": f"query {index}",
+                    "allowed_access": ["unclassified"],
+                    "policy_decision": "allow",
+                    "answerability": {"answerable": True, "reason": "authorized_sources_available"},
+                    "authorized_sources": [source],
+                    "sources_sent_to_answer": [source],
+                    "excluded_sources": [],
+                }
+            )
+        return {"search_history_audits": audits, "search_history_sources": sources}
+
+    def fake_finalize_answer(**_: Any) -> GroundedAnswer:
+        state["finalize"] += 1
+        return GroundedAnswer(
+            answer=f"answer cycle {state['finalize']}",
+            raw_answer=f"answer cycle {state['finalize']}",
+            citations=[
+                {
+                    "text": f"answer cycle {state['finalize']}",
+                    "sources": [{"source_id": f"DOC_page_00{state['finalize']}", "doc_id": "DOC"}],
+                }
+            ],
+            citation_mode="cohere_native_accurate_default",
+            citation_validation={"passed": True, "citation_count": 1},
+            documents_sent=state["cycle"],
+            document_ids=[f"DOC_page_00{index}" for index in range(1, state["cycle"] + 1)],
+            model="command-a-03-2025",
+        )
+
+    async def fake_critic_report(**_: Any) -> dict[str, Any]:
+        if state["finalize"] == 1:
+            return {
+                "status": NEEDS_REVISION,
+                "credibility_score": 0.0,
+                "threshold": 0.8,
+                "release_gate": "revise",
+                "generator_feedback": "Search again for direct support.",
+                "suggested_search_queries": ["direct support query"],
+                "citation_reviews": [{"citation_index": 1, "verdict": "unverified"}],
+            }
+        return {
+            "status": APPROVED,
+            "credibility_score": 1.0,
+            "threshold": 0.8,
+            "release_gate": "release",
+            "generator_feedback": "",
+            "suggested_search_queries": [],
+            "citation_reviews": [{"citation_index": 1, "verdict": "verified"}],
+        }
+
+    monkeypatch.setattr(session_module, "Runner", FakeRunner)
+    monkeypatch.setattr(session_module, "_run_generator_agent_cycle", fake_run_generator_agent_cycle)
+    monkeypatch.setattr(session_module, "_session_state", fake_session_state)
+    monkeypatch.setattr(session_module, "_safe_finalize_answer", fake_finalize_answer)
+    monkeypatch.setattr(session_module, "_critic_report", fake_critic_report)
+
+    result = asyncio.run(
+        session_module.run_turn(
+            "Question that needs review.",
+            session_service=session_module.create_session_service(persistent=False),
+            run_mode="reviewed_agent",
+            max_review_cycles=2,
+        )
+    )
+
+    assert result.answer == "answer cycle 2"
+    assert state["cycle"] == 2
+    assert result.answer_audit["critic"]["status"] == APPROVED
+    assert result.answer_audit["review_control"]["completed_review_cycles"] == 2
+    assert result.answer_audit["review_control"]["cycles"][0]["feedback_sent_to_generator"] is True
+    assert len(result.answer_audit["tool_call_records"]) == 2
+
+
+def test_simple_rag_follow_up_uses_prior_answer(monkeypatch: pytest.MonkeyPatch) -> None:
+    from defence_agent import session as session_module
+    from defence_agent.grounding import GroundedAnswer
+
+    source = {
+        "chunk_id": "DOC_page_001",
+        "doc_id": "DOC",
+        "title": "Authorized Source",
+        "page": 1,
+        "access_level": "unclassified",
+        "text": "Authorized source text.",
+    }
+    captured_prior_answers: list[str] = []
+
+    def fake_search_pages(**_: Any) -> dict[str, Any]:
+        return {
+            "policy_decision": "allow",
+            "authorized_sources": [source],
+            "answerability": {"answerable": True, "reason": "authorized_sources_available"},
+            "excluded_sources": [],
+        }
+
+    def fake_record_search_documents_state(**_: Any) -> dict[str, Any]:
+        return {
+            "query": "query",
+            "allowed_access": ["unclassified"],
+            "policy_decision": "allow",
+            "answerability": {"answerable": True, "reason": "authorized_sources_available"},
+            "authorized_sources": [source],
+            "sources_sent_to_answer": [source],
+            "excluded_sources": [],
+        }
+
+    def fake_finalize_answer(**kwargs: Any) -> GroundedAnswer:
+        captured_prior_answers.append(str(kwargs.get("prior_answer", "")))
+        answer = f"answer {len(captured_prior_answers)}"
+        return GroundedAnswer(
+            answer=answer,
+            raw_answer=answer,
+            citations=[
+                {
+                    "text": answer,
+                    "sources": [{"source_id": "DOC_page_001", "doc_id": "DOC", "page": 1}],
+                }
+            ],
+            citation_mode="test",
+            citation_validation={"passed": True, "citation_count": 1},
+            documents_sent=1,
+            document_ids=["DOC_page_001"],
+            model="command-a-03-2025",
+        )
+
+    monkeypatch.setattr(session_module, "search_pages", fake_search_pages)
+    monkeypatch.setattr(session_module, "record_search_documents_state", fake_record_search_documents_state)
+    monkeypatch.setattr(session_module, "_safe_finalize_answer", fake_finalize_answer)
+
+    service = session_module.create_session_service(persistent=False)
+    first = asyncio.run(
+        session_module.run_turn(
+            "Initial question.",
+            session_service=service,
+            run_mode="simple_rag",
+        )
+    )
+    asyncio.run(
+        session_module.run_turn(
+            "Follow-up question.",
+            session_service=service,
+            session_id=first.session_id,
+            run_mode="simple_rag",
+        )
+    )
+
+    assert captured_prior_answers == ["", "answer 1"]
 
 
 def test_registry_citation_source_resolution_accepts_sources_sent_to_answer() -> None:
@@ -962,6 +1344,12 @@ def test_demo_query_registry_contains_natural_demo_cases() -> None:
     assert sum(len(case.get("query_variants", [])) for case in registry["cases"]) >= 30
     assert cases["flagship_planning_brief_modernization"]["expected_facets"]
     assert cases["multi_query_nato_and_ai_priorities"]["expected_facets"]
+    assert cases["scanned_manual_technical_intelligence"]["expected_doc_ids"] == [
+        "US-ARMY-FM30-16-1972-SCAN"
+    ]
+    assert cases["scanned_manual_technical_intelligence"]["expected_source_types"] == [
+        "official_public_scanned_manual_excerpt"
+    ]
 
 
 def test_demo_registry_facet_validation_checks_expected_sources() -> None:

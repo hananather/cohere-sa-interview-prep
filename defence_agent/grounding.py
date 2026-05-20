@@ -37,6 +37,8 @@ class GroundedAnswer:
     model: str = ""
     content_blocks: list[dict[str, Any]] = field(default_factory=list)
     thinking_blocks: list[dict[str, Any]] = field(default_factory=list)
+    usage: dict[str, Any] = field(default_factory=dict)
+    billed_units: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -47,6 +49,8 @@ class CohereChatResult:
     citations: list[Any] = field(default_factory=list)
     content_blocks: list[dict[str, Any]] = field(default_factory=list)
     thinking_blocks: list[dict[str, Any]] = field(default_factory=list)
+    usage: dict[str, Any] = field(default_factory=dict)
+    billed_units: dict[str, Any] = field(default_factory=dict)
 
 
 def finalize_answer(
@@ -160,6 +164,8 @@ def _cohere_native_answer(
         model=chat_model,
         content_blocks=chat_result.content_blocks,
         thinking_blocks=chat_result.thinking_blocks,
+        usage=chat_result.usage,
+        billed_units=chat_result.billed_units,
     )
 
 
@@ -198,7 +204,69 @@ def _cohere_chat(
         citations=_response_citations(response),
         content_blocks=content_blocks,
         thinking_blocks=[block for block in content_blocks if block.get("type") == "thinking"],
+        usage=_response_usage(response),
+        billed_units=_response_billed_units(response),
     )
+
+
+def _response_usage(response: Any) -> dict[str, Any]:
+    meta = getattr(response, "meta", None)
+    usage = (
+        getattr(response, "usage", None)
+        or getattr(meta, "usage", None)
+        or getattr(meta, "tokens", None)
+    )
+    return _response_mapping(usage)
+
+
+def _response_billed_units(response: Any) -> dict[str, Any]:
+    meta = getattr(response, "meta", None)
+    billed_units = getattr(response, "billed_units", None) or getattr(meta, "billed_units", None)
+    return _response_mapping(billed_units)
+
+
+def _response_mapping(value: Any) -> dict[str, Any]:
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return {str(key): _response_mapping_value(item) for key, item in value.items()}
+    if hasattr(value, "model_dump"):
+        dumped = value.model_dump()
+        return _response_mapping(dumped) if isinstance(dumped, dict) else {}
+    if hasattr(value, "dict"):
+        dumped = value.dict()
+        return _response_mapping(dumped) if isinstance(dumped, dict) else {}
+    result = {}
+    for key in (
+        "input_tokens",
+        "output_tokens",
+        "tokens",
+        "search_units",
+        "classifications",
+        "input_tokens_sum",
+        "output_tokens_sum",
+        "billed_units",
+    ):
+        item = getattr(value, key, None)
+        if item is not None:
+            result[key] = _response_mapping_value(item)
+    return result
+
+
+def _response_mapping_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _response_mapping_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_response_mapping_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_response_mapping_value(item) for item in value]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if hasattr(value, "model_dump"):
+        return _response_mapping_value(value.model_dump())
+    if hasattr(value, "dict"):
+        return _response_mapping_value(value.dict())
+    return str(value)
 
 
 def _thinking_config(chat_model: str) -> dict[str, int] | None:
@@ -376,6 +444,7 @@ def _normalize_citations(
                     "source_organization": evidence.get("source_organization", ""),
                     "provenance_note": evidence.get("provenance_note", ""),
                     "vector_score": evidence.get("vector_score"),
+                    "bm25_score": evidence.get("bm25_score"),
                     "rerank_score": evidence.get("rerank_score"),
                 }
             )

@@ -16,8 +16,20 @@ from defence_agent.auth.context import DEFAULT_PERSONA_ID, DEMO_USERS
 from defence_agent.auth.policy import policy_engine
 from defence_agent.cohere_gateway import cohere_gateway
 from defence_agent.config import get_settings
+from defence_agent.retrieval.bm25_index import bm25_search
+from defence_agent.retrieval.chunks import (
+    RetrievalChunk,
+    chunk_text_sha256,
+    pages_by_id,
+    retrieval_chunks_for_pages,
+)
 from defence_agent.retrieval.document_pages import DocumentPage, load_document_pages, metadata_for_vector_store
-from defence_agent.retrieval.embeddings import embed_page_batches, embed_query, embedding_backend_name, embedding_dimension
+from defence_agent.retrieval.embeddings import (
+    embed_query,
+    embed_retrieval_chunk_batches,
+    embedding_backend_name,
+    embedding_dimension,
+)
 from defence_agent.retrieval.index_metadata import COLLECTION_PREFIX, INDEX_VERSION
 
 
@@ -61,21 +73,23 @@ def _build_index_locked(force: bool = False) -> dict[str, Any]:
     client = _client()
     collection_name = _collection_name()
     pages = load_document_pages()
-    collection_metadata = _collection_metadata(pages)
+    chunks = retrieval_chunks_for_pages(pages, get_settings().chunk_strategy)
+    page_lookup = pages_by_id(pages)
+    collection_metadata = _collection_metadata(pages, chunks)
 
     if force:
         _delete_collection_if_exists(client, collection_name)
 
     collection = client.get_or_create_collection(collection_name, metadata=collection_metadata)
     existing_by_id = _existing_metadata_by_id(collection)
-    page_ids = {page.page_id for page in pages}
-    orphan_ids = sorted(set(existing_by_id) - page_ids)
+    chunk_ids = {chunk.chunk_id for chunk in chunks}
+    orphan_ids = sorted(set(existing_by_id) - chunk_ids)
     if orphan_ids:
         collection.delete(ids=orphan_ids)
         existing_by_id = {key: value for key, value in existing_by_id.items() if key not in orphan_ids}
 
-    pages_to_embed = [page for page in pages if _page_needs_embedding(page, existing_by_id.get(page.page_id))]
-    if not pages_to_embed:
+    chunks_to_embed = [chunk for chunk in chunks if _chunk_needs_embedding(chunk, existing_by_id.get(chunk.chunk_id))]
+    if not chunks_to_embed:
         _update_collection_metadata(collection, collection_metadata)
         return {
             "collection": collection_name,
@@ -83,21 +97,24 @@ def _build_index_locked(force: bool = False) -> dict[str, Any]:
             "embedding_dimension": embedding_dimension(),
             "indexed_chunks": collection.count(),
             "parsed_pages": len(pages),
+            "retrieval_chunks": len(chunks),
+            "chunk_strategy": get_settings().chunk_strategy,
             "embedded_pages": 0,
+            "embedded_chunks": 0,
             "orphaned_pages_deleted": len(orphan_ids),
+            "orphaned_chunks_deleted": len(orphan_ids),
             "skipped": True,
         }
 
-    embedded_pages = 0
-    for page in pages_to_embed:
-        [(page_batch, embeddings)] = list(embed_page_batches([page]))
+    embedded_chunks = 0
+    for chunk_batch, embeddings in embed_retrieval_chunk_batches(chunks_to_embed, page_lookup):
         collection.upsert(
-            ids=[page.page_id for page in page_batch],
-            documents=[page.text for page in page_batch],
+            ids=[chunk.chunk_id for chunk in chunk_batch],
+            documents=[chunk.text for chunk in chunk_batch],
             embeddings=embeddings,
-            metadatas=[_metadata_for_index(page) for page in page_batch],
+            metadatas=[_metadata_for_index(chunk) for chunk in chunk_batch],
         )
-        embedded_pages += len(page_batch)
+        embedded_chunks += len(chunk_batch)
     _update_collection_metadata(collection, collection_metadata)
     return {
         "collection": collection_name,
@@ -105,8 +122,12 @@ def _build_index_locked(force: bool = False) -> dict[str, Any]:
         "embedding_dimension": embedding_dimension(),
         "indexed_chunks": collection.count(),
         "parsed_pages": len(pages),
-        "embedded_pages": embedded_pages,
+        "retrieval_chunks": len(chunks),
+        "chunk_strategy": get_settings().chunk_strategy,
+        "embedded_pages": embedded_chunks,
+        "embedded_chunks": embedded_chunks,
         "orphaned_pages_deleted": len(orphan_ids),
+        "orphaned_chunks_deleted": len(orphan_ids),
         "skipped": False,
     }
 
@@ -120,47 +141,61 @@ def search_index(
 ) -> dict[str, Any]:
     """Search local Chroma, then enforce persona, status, and language filters."""
 
-    build_index(force=False)
+    settings = get_settings()
+    retrieval_mode = settings.retrieval_mode
+    if retrieval_mode in {"vector", "hybrid"}:
+        build_index(force=False)
     auth = DEMO_USERS.get(persona_id, DEMO_USERS[DEFAULT_PERSONA_ID])
-    collection = _client().get_collection(_collection_name())
-    query_embedding = embed_query(query)
     allowed_access = list(policy_engine.acl_filter(auth).allowed_classifications)
     normalized_status = _normalize_status_filter(status_filter)
     normalized_language = _normalize_language_filter(language)
-    where = _where_filter(allowed_access, normalized_status, normalized_language)
-    candidate_count = min(collection.count(), max(top_k * 8, 80))
-    raw = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=candidate_count,
-        include=["documents", "metadatas", "distances"],
-        where=where,
-    )
-    raw_for_exclusions = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=candidate_count,
-        include=["metadatas", "distances"],
-    )
+    pages = load_document_pages()
+    page_lookup = pages_by_id(pages)
+    chunks = retrieval_chunks_for_pages(pages, settings.chunk_strategy)
 
-    candidates: list[dict[str, Any]] = []
-    excluded_sources = _excluded_sources(raw_for_exclusions, auth)
+    vector_candidates: list[dict[str, Any]] = []
+    bm25_candidates: list[dict[str, Any]] = []
+    excluded_sources: list[dict[str, Any]]
 
-    ids = raw.get("ids", [[]])[0]
-    documents = raw.get("documents", [[]])[0]
-    metadatas = raw.get("metadatas", [[]])[0]
-    distances = raw.get("distances", [[]])[0]
-    for chunk_id, text, metadata, distance in zip(ids, documents, metadatas, distances):
-        candidates.append(_authorized_source(chunk_id, text, metadata, distance, len(candidates) + 1))
+    if retrieval_mode in {"vector", "hybrid"}:
+        collection = _client().get_collection(_collection_name())
+        vector_candidates, excluded_sources = _vector_candidates(
+            query=query,
+            auth=auth,
+            collection=collection,
+            top_k=top_k,
+            allowed_access=allowed_access,
+            status_filter=normalized_status,
+            language=normalized_language,
+        )
+    else:
+        excluded_sources = _excluded_sources_from_pages(query, pages, auth)
 
-    authorized_sources = _select_sources(_rerank(query, candidates), top_k, language=normalized_language)
+    if retrieval_mode in {"bm25", "hybrid"}:
+        bm25_candidates = _bm25_candidates(
+            query=query,
+            chunks=chunks,
+            auth=auth,
+            top_k=top_k,
+            status_filter=normalized_status,
+            language=normalized_language,
+        )
+
+    merged_candidates = _merge_retrieval_candidates(vector_candidates + bm25_candidates)
+    reranked = _rerank(query, merged_candidates)
+    selected_chunks = _select_sources(reranked, top_k, language=normalized_language)
+    authorized_sources = _promote_sources_to_parent_pages(selected_chunks, page_lookup)
     for index, source in enumerate(authorized_sources, start=1):
         source["citation_id"] = f"C{index}"
         source["citation"] = f"[C{index}]"
     answerability = _answerability(query, authorized_sources, excluded_sources)
 
     return {
-        "index": "chroma",
+        "index": _index_label(retrieval_mode),
         "collection": _collection_name(),
         "embedding_backend": embedding_backend_name(),
+        "retrieval_mode": retrieval_mode,
+        "chunk_strategy": settings.chunk_strategy,
         "rerank_backend": get_settings().cohere_rerank_model,
         "persona_id": auth.user_id,
         "allowed_access": allowed_access,
@@ -168,6 +203,13 @@ def search_index(
             "access_level": allowed_access,
             "status": normalized_status,
             "language": normalized_language,
+        },
+        "retrieval_metrics": {
+            "vector_candidate_count": len(vector_candidates),
+            "bm25_candidate_count": len(bm25_candidates),
+            "merged_candidate_count": len(merged_candidates),
+            "reranked_candidate_count": len(reranked),
+            "selected_parent_page_count": len(authorized_sources),
         },
         "policy_decision": _policy_decision(answerability),
         "answerability": answerability,
@@ -196,7 +238,10 @@ def _client() -> chromadb.PersistentClient:
 
 
 def _collection_name() -> str:
-    return f"{COLLECTION_PREFIX}_{embedding_dimension()}"
+    strategy = get_settings().chunk_strategy
+    if strategy == "page":
+        return f"{COLLECTION_PREFIX}_{embedding_dimension()}"
+    return f"{COLLECTION_PREFIX}_{strategy}_{embedding_dimension()}"
 
 
 @contextmanager
@@ -215,28 +260,37 @@ def _index_build_lock() -> Any:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
-def _collection_metadata(pages: list[DocumentPage]) -> dict[str, str | int | float]:
+def _collection_metadata(
+    pages: list[DocumentPage],
+    chunks: list[RetrievalChunk],
+) -> dict[str, str | int | float]:
     settings = get_settings()
     return {
         "index_version": INDEX_VERSION,
         "embedding_model": settings.cohere_embed_model,
         "embedding_dimension": settings.cohere_embed_output_dimension,
+        "parser_backend": settings.parser_backend,
+        "retrieval_mode": settings.retrieval_mode,
+        "chunk_strategy": settings.chunk_strategy,
         "corpus_manifest_sha256": _manifest_sha256(settings.corpus_dir / "manifest.yaml"),
         "page_count": len(pages),
+        "chunk_count": len(chunks),
         "page_hash_manifest_sha256": _page_hash_manifest_sha256(pages),
+        "chunk_hash_manifest_sha256": _chunk_hash_manifest_sha256(chunks),
         "updated_at_epoch": time(),
     }
 
 
-def _metadata_for_index(page: DocumentPage) -> dict[str, str | int | float | bool]:
-    metadata = dict(page.metadata)
+def _metadata_for_index(chunk: RetrievalChunk) -> dict[str, str | int | float | bool]:
+    metadata = dict(chunk.metadata)
     metadata.update(
         {
-            "page_id": page.page_id,
+            "chunk_id": chunk.chunk_id,
+            "parent_page_id": chunk.parent_page_id,
             "index_version": INDEX_VERSION,
             "embedding_model": get_settings().cohere_embed_model,
             "embedding_dimension": embedding_dimension(),
-            "page_text_sha256": _sha256_text(page.text),
+            "chunk_text_sha256": chunk_text_sha256(chunk),
             "indexed_at_epoch": time(),
         }
     )
@@ -254,7 +308,7 @@ def _existing_metadata_by_id(collection: Any) -> dict[str, dict[str, Any]]:
     }
 
 
-def _page_needs_embedding(page: DocumentPage, existing: dict[str, Any] | None) -> bool:
+def _chunk_needs_embedding(chunk: RetrievalChunk, existing: dict[str, Any] | None) -> bool:
     if not existing:
         return True
     return any(
@@ -262,8 +316,9 @@ def _page_needs_embedding(page: DocumentPage, existing: dict[str, Any] | None) -
             str(existing.get("index_version", "")) != INDEX_VERSION,
             str(existing.get("embedding_model", "")) != get_settings().cohere_embed_model,
             int(existing.get("embedding_dimension") or 0) != embedding_dimension(),
-            str(existing.get("page_image_sha256", "")) != str(page.metadata.get("page_image_sha256", "")),
-            str(existing.get("page_text_sha256", "")) != _sha256_text(page.text),
+            str(existing.get("page_image_sha256", "")) != str(chunk.metadata.get("page_image_sha256", "")),
+            str(existing.get("chunk_text_sha256") or existing.get("page_text_sha256", ""))
+            != chunk_text_sha256(chunk),
         ]
     )
 
@@ -283,6 +338,14 @@ def _page_hash_manifest_sha256(pages: list[DocumentPage]) -> str:
     payload = "\n".join(
         f"{page.page_id}:{page.metadata.get('page_image_sha256', '')}:{_sha256_text(page.text)}"
         for page in pages
+    )
+    return _sha256_text(payload)
+
+
+def _chunk_hash_manifest_sha256(chunks: list[RetrievalChunk]) -> str:
+    payload = "\n".join(
+        f"{chunk.chunk_id}:{chunk.parent_page_id}:{chunk_text_sha256(chunk)}"
+        for chunk in chunks
     )
     return _sha256_text(payload)
 
@@ -342,6 +405,199 @@ def _where_filter(allowed_access: list[str], status_filter: str, language: str) 
     return {"$and": filters}
 
 
+def _vector_candidates(
+    *,
+    query: str,
+    auth: Any,
+    collection: Any,
+    top_k: int,
+    allowed_access: list[str],
+    status_filter: str,
+    language: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    query_embedding = embed_query(query)
+    where = _where_filter(allowed_access, status_filter, language)
+    candidate_count = min(collection.count(), max(top_k * 8, 80))
+    raw = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=candidate_count,
+        include=["documents", "metadatas", "distances"],
+        where=where,
+    )
+    raw_for_exclusions = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=candidate_count,
+        include=["metadatas", "distances"],
+    )
+    candidates: list[dict[str, Any]] = []
+    ids = raw.get("ids", [[]])[0]
+    documents = raw.get("documents", [[]])[0]
+    metadatas = raw.get("metadatas", [[]])[0]
+    distances = raw.get("distances", [[]])[0]
+    for chunk_id, text, metadata, distance in zip(ids, documents, metadatas, distances):
+        source = _authorized_source(chunk_id, text, metadata, distance, len(candidates) + 1)
+        source["retrieval_modes"] = ["vector"]
+        source["pre_rerank_score"] = source.get("vector_score")
+        candidates.append(source)
+    return candidates, _excluded_sources(raw_for_exclusions, auth)
+
+
+def _bm25_candidates(
+    *,
+    query: str,
+    chunks: list[RetrievalChunk],
+    auth: Any,
+    top_k: int,
+    status_filter: str,
+    language: str,
+) -> list[dict[str, Any]]:
+    hits = bm25_search(
+        query=query,
+        chunks=chunks,
+        auth=auth,
+        top_n=max(top_k * 8, 80),
+        status_filter=status_filter,
+        language=language,
+    )
+    max_score = max((hit.score for hit in hits), default=0.0)
+    candidates: list[dict[str, Any]] = []
+    for hit in hits:
+        score = round(hit.score / max_score, 4) if max_score > 0 else 0.0
+        metadata = dict(hit.chunk.metadata)
+        source = _authorized_source(
+            hit.chunk.chunk_id,
+            hit.chunk.text,
+            metadata,
+            distance=(1.0 / max(score, 0.0001)) - 1.0,
+            citation_index=hit.rank,
+        )
+        source["vector_score"] = None
+        source["bm25_score"] = score
+        source["bm25_raw_score"] = round(hit.score, 4)
+        source["bm25_rank"] = hit.rank
+        source["retrieval_modes"] = ["bm25"]
+        source["pre_rerank_score"] = score
+        candidates.append(source)
+    return candidates
+
+
+def _merge_retrieval_candidates(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged: dict[str, dict[str, Any]] = {}
+    for candidate in candidates:
+        key = _source_selection_key(candidate)
+        if not key:
+            continue
+        existing = merged.get(key)
+        if existing is None:
+            merged[key] = dict(candidate)
+            continue
+        existing_modes = set(existing.get("retrieval_modes", []) or [])
+        existing_modes.update(candidate.get("retrieval_modes", []) or [])
+        existing["retrieval_modes"] = sorted(existing_modes)
+        existing_pre_score = _candidate_pre_score(existing)
+        candidate_pre_score = _candidate_pre_score(candidate)
+        for field in ("vector_score", "bm25_score", "bm25_raw_score"):
+            existing[field] = _max_numeric(existing.get(field), candidate.get(field))
+        existing["pre_rerank_score"] = _max_numeric(
+            existing.get("pre_rerank_score"),
+            candidate.get("pre_rerank_score"),
+        )
+        if candidate_pre_score > existing_pre_score:
+            existing["text"] = candidate.get("text", existing.get("text", ""))
+            existing["retrieval_chunk_id"] = candidate.get("retrieval_chunk_id", candidate.get("chunk_id", ""))
+            existing["retrieval_chunk_text"] = candidate.get("retrieval_chunk_text", candidate.get("text", ""))
+    return sorted(merged.values(), key=_candidate_pre_score, reverse=True)
+
+
+def _promote_sources_to_parent_pages(
+    sources: list[dict[str, Any]],
+    page_lookup: dict[str, DocumentPage],
+) -> list[dict[str, Any]]:
+    promoted: list[dict[str, Any]] = []
+    for source in sources:
+        parent_id = str(source.get("parent_page_id") or source.get("chunk_id") or "")
+        page = page_lookup.get(parent_id)
+        if page is None:
+            promoted.append(source)
+            continue
+        merged = dict(source)
+        retrieval_chunk_id = str(source.get("retrieval_chunk_id") or source.get("chunk_id") or "")
+        retrieval_chunk_text = str(source.get("retrieval_chunk_text") or source.get("text") or "")
+        merged.update(page.metadata)
+        merged.update(
+            {
+                "chunk_id": page.page_id,
+                "parent_page_id": page.page_id,
+                "retrieval_chunk_id": retrieval_chunk_id,
+                "retrieval_chunk_text": retrieval_chunk_text,
+                "text": page.text,
+                "page": page.page_number,
+                "doc_id": page.doc_id,
+            }
+        )
+        for field in (
+            "vector_score",
+            "bm25_score",
+            "bm25_raw_score",
+            "bm25_rank",
+            "pre_rerank_score",
+            "rerank_score",
+            "retrieval_modes",
+        ):
+            if field in source:
+                merged[field] = source[field]
+        promoted.append(merged)
+    return promoted
+
+
+def _excluded_sources_from_pages(
+    query: str,
+    pages: list[DocumentPage],
+    auth: Any,
+    *,
+    limit: int = 12,
+) -> list[dict[str, Any]]:
+    excluded: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for page in pages:
+        metadata = page.metadata
+        doc_id = str(metadata.get("doc_id", ""))
+        if not doc_id or doc_id in seen:
+            continue
+        if policy_engine.can_access_chunk(auth, _ChunkForPolicy(metadata)):
+            continue
+        source = _excluded_source(metadata, "access_denied")
+        source["metadata_overlap"] = _metadata_overlap(query, source)
+        excluded.append(source)
+        seen.add(doc_id)
+    return sorted(excluded, key=lambda item: int(item.get("metadata_overlap", 0) or 0), reverse=True)[:limit]
+
+
+def _index_label(retrieval_mode: str) -> str:
+    if retrieval_mode == "hybrid":
+        return "chroma+bm25"
+    if retrieval_mode == "bm25":
+        return "bm25"
+    return "chroma"
+
+
+def _max_numeric(left: Any, right: Any) -> float | None:
+    values = []
+    for value in (left, right):
+        try:
+            values.append(float(value))
+        except (TypeError, ValueError):
+            continue
+    return round(max(values), 4) if values else None
+
+
+def _candidate_pre_score(candidate: dict[str, Any]) -> float:
+    try:
+        return float(candidate.get("pre_rerank_score") or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _authorized_source(
     chunk_id: str,
     text: str,
@@ -352,6 +608,10 @@ def _authorized_source(
     return {
         "citation_id": f"C{citation_index}",
         "chunk_id": chunk_id,
+        "parent_page_id": metadata.get("parent_page_id", chunk_id),
+        "retrieval_chunk_id": metadata.get("chunk_id", chunk_id),
+        "retrieval_chunk_text": text,
+        "chunk_strategy": metadata.get("chunk_strategy", "page"),
         "doc_id": metadata.get("doc_id", ""),
         "title": metadata.get("title", ""),
         "section": metadata.get("section", ""),
@@ -677,7 +937,7 @@ def _select_sources(
     for source in ranked:
         if len(selected) >= top_k:
             break
-        key = str(source.get("chunk_id") or source.get("doc_id", ""))
+        key = _source_selection_key(source)
         if key in selected_keys:
             continue
         selected.append(source)
@@ -743,7 +1003,7 @@ def _replacement_source_key(selected: Any) -> str | None:
 
 
 def _source_selection_key(source: dict[str, Any]) -> str:
-    return str(source.get("chunk_id") or source.get("doc_id", ""))
+    return str(source.get("parent_page_id") or source.get("chunk_id") or source.get("doc_id", ""))
 
 
 def _source_language(source: dict[str, Any]) -> str:
@@ -772,6 +1032,8 @@ def _rerank_document(candidate: dict[str, Any]) -> str:
         "access_level": str(candidate.get("access_level", "")),
         "source_format": str(candidate.get("source_format", "")),
         "normalized_format": str(candidate.get("normalized_format", "")),
-        "content": str(candidate.get("text", "")),
+        "retrieval_chunk_id": str(candidate.get("retrieval_chunk_id", "")),
+        "retrieval_modes": ", ".join(str(mode) for mode in candidate.get("retrieval_modes", []) or []),
+        "content": str(candidate.get("retrieval_chunk_text") or candidate.get("text", "")),
     }
     return yaml.safe_dump(record, sort_keys=False, allow_unicode=True, width=4096)

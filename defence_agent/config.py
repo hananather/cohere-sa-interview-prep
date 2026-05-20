@@ -21,11 +21,17 @@ class Settings(BaseSettings):
     cohere_embed_output_dimension: int = Field(default=1536, alias="COHERE_EMBED_OUTPUT_DIMENSION")
     cohere_embed_page_batch_size: int = Field(default=1, alias="COHERE_EMBED_PAGE_BATCH_SIZE")
     cohere_embed_page_batch_max_bytes: int = Field(default=6_000_000, alias="COHERE_EMBED_PAGE_BATCH_MAX_BYTES")
-    cohere_requests_per_minute: float = Field(default=20.0, alias="COHERE_REQUESTS_PER_MINUTE")
+    cohere_requests_per_minute: float = Field(default=0.0, alias="COHERE_REQUESTS_PER_MINUTE")
     cohere_max_retries: int = Field(default=6, alias="COHERE_MAX_RETRIES")
     cohere_retry_max_wait_seconds: float = Field(default=90.0, alias="COHERE_RETRY_MAX_WAIT_SECONDS")
     cohere_timeout_seconds: float = Field(default=60.0, alias="COHERE_TIMEOUT_SECONDS")
     cohere_thinking_token_budget: int | None = Field(default=None, alias="COHERE_THINKING_TOKEN_BUDGET")
+    parser_backend: str = Field(default="local", alias="DEFENCE_AGENT_PARSER_BACKEND")
+    compass_parser_url: str = Field(default="", alias="COMPASS_PARSER_URL")
+    compass_index_url: str = Field(default="", alias="COMPASS_INDEX_URL")
+    compass_bearer_token: str = Field(default="", alias="COMPASS_BEARER_TOKEN")
+    retrieval_mode: str = Field(default="hybrid", alias="DEFENCE_AGENT_RETRIEVAL_MODE")
+    chunk_strategy: str = Field(default="page", alias="DEFENCE_AGENT_CHUNK_STRATEGY")
     tool_cache_enabled: bool = Field(default=True, alias="DEFENCE_AGENT_TOOL_CACHE_ENABLED")
     tool_cache_max_entries: int = Field(default=24, alias="DEFENCE_AGENT_TOOL_CACHE_MAX_ENTRIES")
 
@@ -44,6 +50,11 @@ class Settings(BaseSettings):
             return None
         return value
 
+    @field_validator("parser_backend", "retrieval_mode", "chunk_strategy", mode="before")
+    @classmethod
+    def normalize_strategy_name(cls, value: object) -> object:
+        return str(value or "").strip().lower()
+
     @field_validator("cohere_api_key")
     @classmethod
     def require_api_key(cls, value: str) -> str:
@@ -59,8 +70,8 @@ class Settings(BaseSettings):
             raise ValueError("COHERE_EMBED_PAGE_BATCH_SIZE must be at least 1")
         if self.cohere_embed_page_batch_max_bytes < 1:
             raise ValueError("COHERE_EMBED_PAGE_BATCH_MAX_BYTES must be positive")
-        if self.cohere_requests_per_minute <= 0:
-            raise ValueError("COHERE_REQUESTS_PER_MINUTE must be positive")
+        if self.cohere_requests_per_minute < 0:
+            raise ValueError("COHERE_REQUESTS_PER_MINUTE must be non-negative; use 0 to disable local pacing")
         if self.cohere_max_retries < 1:
             raise ValueError("COHERE_MAX_RETRIES must be at least 1")
         if self.cohere_retry_max_wait_seconds <= 0:
@@ -69,6 +80,14 @@ class Settings(BaseSettings):
             raise ValueError("COHERE_TIMEOUT_SECONDS must be positive")
         if self.cohere_thinking_token_budget is not None and self.cohere_thinking_token_budget <= 0:
             raise ValueError("COHERE_THINKING_TOKEN_BUDGET must be positive when set")
+        if self.parser_backend not in {"local", "compass"}:
+            raise ValueError("DEFENCE_AGENT_PARSER_BACKEND must be one of: local, compass")
+        if self.parser_backend == "compass" and not self.compass_parser_url.strip():
+            raise ValueError("COMPASS_PARSER_URL is required when DEFENCE_AGENT_PARSER_BACKEND=compass")
+        if self.retrieval_mode not in {"vector", "bm25", "hybrid"}:
+            raise ValueError("DEFENCE_AGENT_RETRIEVAL_MODE must be one of: vector, bm25, hybrid")
+        if self.chunk_strategy not in {"page", "windowed"}:
+            raise ValueError("DEFENCE_AGENT_CHUNK_STRATEGY must be one of: page, windowed")
         if self.tool_cache_max_entries < 1:
             raise ValueError("DEFENCE_AGENT_TOOL_CACHE_MAX_ENTRIES must be at least 1")
         return self

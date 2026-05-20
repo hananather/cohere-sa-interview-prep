@@ -374,6 +374,51 @@ td span {
   font-size: 12px;
 }
 
+.reviewer-panel {
+  padding: 0 0 16px;
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.review-summary,
+.review-feedback,
+.review-cycle {
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #fbfcfa;
+}
+
+.review-summary {
+  margin: 0 0 10px;
+}
+
+.review-feedback {
+  border-left: 4px solid var(--amber);
+}
+
+.review-feedback p,
+.review-cycle p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.review-cycles {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.review-cycle span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
 .compact th,
 .compact td {
   font-size: 13px;
@@ -427,6 +472,7 @@ td span {
   .run-grid,
   .metric-row,
   .trace-meta,
+  .review-grid,
   .map-grid {
     grid-template-columns: 1fr;
   }
@@ -474,20 +520,22 @@ td span {
   <div>
     <p class="eyebrow">Static backup page</p>
     <h1>Defence Agent Presentation Backup</h1>
-    <p class="lead">A deterministic walkthrough of the same evidence workflow: database, planning answer, trace, citations, access boundary, scanned manual retrieval, refusal, and follow-up.</p>
+    <p class="lead">A deterministic walkthrough of the same evidence workflow: database, planning answer, reviewer trust layer, trace, citations, access boundary, scanned manual retrieval, refusal, and follow-up.</p>
   </div>
   <div class="hero-panel">
     <div class="stat"><span>10</span><label>catalog sources</label></div>
-    <div class="stat"><span>7</span><label>demo runs</label></div>
-    <div class="stat"><span>76</span><label>citation spans</label></div>
+    <div class="stat"><span>9</span><label>demo runs</label></div>
+    <div class="stat"><span>109</span><label>citation spans</label></div>
     <div class="stat"><span>docx: 1, official_public_pdf: 6, scanned_pdf: 1, synthetic_pdf: 2</span><label>source formats</label></div>
     <div class="stat"><span>secret: 1, top_secret: 1, unclassified: 8</span><label>access levels</label></div>
-    <div class="stat"><span>2026-05-15 14:46 UTC</span><label>page build time</label></div>
+    <div class="stat"><span>2026-05-20 16:48 UTC</span><label>page build time</label></div>
   </div>
 </header>
 <nav class="quick-nav" aria-label="Page sections">
   <a href="#database">Database</a>
   <a href="#planning">Planning</a>
+  <a href="#reviewer-catches-unsupported-claims">Reviewer Gate</a>
+  <a href="#reviewer-improves-weak-answer">Reviewer Loop</a>
   <a href="#access-unclassified">Access</a>
   <a href="#scanned">Scanned Manual</a>
   <a href="#refusal">Refusal</a>
@@ -699,6 +747,7 @@ td span {
       </ol>
     </div>
   </details>
+
 
 
   <details class="details" open>
@@ -1119,9 +1168,1203 @@ td span {
 </section>
 
 
-<section class="section run run-warn" id="access-unclassified">
+<section class="section run run-warn" id="reviewer-catches-unsupported-claims">
   <div class="section-head">
     <p class="eyebrow">Step 3</p>
+    <h2>Reviewer Catches Unsupported Claims</h2>
+    <p>The reviewer agent catches weak named-program citations that a normal generated answer would otherwise expose.</p>
+  </div>
+  <div class="run-grid">
+    <article class="panel main-panel">
+      <div class="panel-top">
+        <h3>Question</h3>
+        <div class="badge-row"><span class="badge badge-neutral">clearance_unclassified</span><span class="badge badge-neutral">9 search call(s)</span><span class="badge badge-neutral">16 citation span(s)</span><span class="badge badge-neutral">40 evidence page(s)</span></div>
+      </div>
+      <p class="query">The Chief of Staff wants a document-backed list of named Canadian modernization programs that will use AI. Include NORAD modernization, NDOIC, JISR, C5ISR, and any AI-specific roadmap details only if the cited documents directly support each item.</p>
+
+      <h3>Answer</h3>
+      <div class="answer">The Department of National Defence and Canadian Armed Forces [C12, C13, C14, C15, C16, C17, C2, C3, C5] (DND/CAF) [C14, C15, C16, C17, C2, C3, C5] Artificial Intelligence Strategy [C12, C13, C14, C15, C16, C17, C18, C2, C20, C21, C22, C23, C25, C26, C27, C28, C3, C5] (AI Strategy) [C14, C15, C18, C2, C20, C21, C22, C25, C26, C27, C28, C3, C5] commits the Defence Team to becoming AI-enabled by 2030. [C15, C21] AI will be foundational to Defence modernization. [C5, C8] Defence priority areas such as NORAD modernization, National Defence Operations and Intelligence Centre (NDOIC), and Joint Intelligence, Surveillance, and Reconnaissance (JISR) envisage the incorporation of AI and related technologies in the development of a modernized Command, Control, Communications, Computers, Cyber, Intelligence, Surveillance and Reconnaissance (C5ISR) spine. [C3, C6] Canada’s research and development investments under our NORAD modernization plan correspond directly to the advanced capabilities sought by our allies. [C10, C4] These initiatives, supported by defence procurement and industry partnership transformations, will ensure a defence innovation pipeline that is rapid and essential, and makes valuable contributions to the Five Eyes defence partnership. [C10, C4] The speed of technological change requires a shift in organizational mindset—a willingness to embrace innovation and experimentation, and to continuously adopt emerging technologies. [C10, C4] The digitalization of defence is central to this objective. [C10, C4] The Canadian Armed Forces is updating its tools and processes to better suit them to the modern world. [C10, C4] We will make full use of our digital technologies by overhauling outdated and analog processes to improve our ability to hire people, conduct security screening, and share information in a timely way. [C10, C4] This includes expanding the use of artificial intelligence-driven data management tools, as well as initiatives to advance big data management, acquire analytical tools, and expand cloud-based computing on open and secure networks. [C10, C4] These digital initiatives will build a data-driven organization capable of transforming data into actionable information that will allow for rapid decision-making and near real-time responses. [C10, C4] It will also ensure the Canadian Armed Forces can remain interoperable with our most important allies and partners well into the future. [C10, C4]</div>
+    </article>
+    <aside class="panel presenter-panel">
+      <h3>Presenter Cue</h3>
+      <p>Use this as the trust-layer proof. The value is that unsupported citations are visible, scored, and gated for human review.</p>
+      <dl class="compact-dl">
+        <div><dt>Mode</dt><dd>not recorded</dd></div>
+        <div><dt>Model</dt><dd>command-a-03-2025</dd></div>
+        <div><dt>Session</dt><dd>s_d2fa15a272164162b833569ef7707699</dd></div>
+        <div><dt>Cited docs</dt><dd>CA-AI-STRAT-2024-EN, CA-AI-STRAT-2024-FR, CA-DEF-POL-2024-EN, CA-DEF-POL-2024-FR, NATO-STRAT-CONCEPT-2022-FR</dd></div>
+      </dl>
+
+      <div class="callout">
+        <strong>Citation coverage: passed</strong>
+        <span>11 covered claim(s) / 11 total. 0 uncited claim(s).</span>
+      </div>
+
+
+      <div class="callout">
+        <strong>Answerability: authorized_sources_available</strong>
+        <span>Reason: authorized_sources_available</span>
+      </div>
+
+    </aside>
+  </div>
+
+  <details class="details trace-details" open>
+    <summary>Trace timeline</summary>
+    <div class="trace">
+      <div class="trace-meta">
+        <div class="metric"><span>unclassified</span><label>Allowed access</label></div>
+        <div class="metric"><span>32</span><label>Documents to model</label></div>
+        <div class="metric"><span>cohere_native_accurate_default</span><label>Citation mode</label></div>
+      </div>
+      <ol class="trace-list">
+
+        <li>
+          <strong>Search 1: Canadian modernization programs that will use AI</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.4507</strong></span><span>top rerank: <strong>0.9278</strong></span></div>
+        </li>
+
+
+        <li>
+          <strong>Search 2: NORAD modernization and AI</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.4689</strong></span><span>top rerank: <strong>0.9600</strong></span></div>
+        </li>
+
+
+        <li>
+          <strong>Search 3: NDOIC and AI</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.4188</strong></span><span>top rerank: <strong>0.9669</strong></span></div>
+        </li>
+
+
+        <li>
+          <strong>Search 4: JISR and AI</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.4160</strong></span><span>top rerank: <strong>0.9259</strong></span></div>
+        </li>
+
+
+        <li>
+          <strong>Search 5: C5ISR and AI</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.4421</strong></span><span>top rerank: <strong>0.9406</strong></span></div>
+        </li>
+
+
+        <li>
+          <strong>Search 6: AI-specific roadmap details</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>1</strong></span><span>top vector: <strong>0.3934</strong></span><span>top rerank: <strong>0.8951</strong></span></div>
+        </li>
+
+
+        <li>
+          <strong>Search 7: NDOIC</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.3903</strong></span><span>top rerank: <strong>0.9488</strong></span></div>
+        </li>
+
+
+        <li>
+          <strong>Search 8: JISR</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>2</strong></span><span>top vector: <strong>0.3836</strong></span><span>top rerank: <strong>0.9086</strong></span></div>
+        </li>
+
+
+        <li>
+          <strong>Search 9: C5ISR</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>1</strong></span><span>top vector: <strong>0.4022</strong></span><span>top rerank: <strong>0.8623</strong></span></div>
+        </li>
+
+        <li>
+          <strong>Generate cited answer</strong>
+          <span>Command A receives the selected authorized pages through the grounded answer path and returns answer text plus citation spans.</span>
+        </li>
+      </ol>
+    </div>
+  </details>
+
+
+  <details class="details reviewer-details" open>
+    <summary>Reviewer Trust Layer</summary>
+    <div class="reviewer-panel">
+      <div class="review-grid"><div class="metric"><span>50%</span><label>Trust score</label></div><div class="metric"><span>80%</span><label>Threshold</label></div><div class="metric"><span>human_continue_or_stop_required</span><label>Gate</label></div><div class="metric"><span>needs_human_review</span><label>Status</label></div><div class="metric"><span>4</span><label>Verified</label></div><div class="metric"><span>4</span><label>Weak or unverified</label></div><div class="metric"><span>8</span><label>Outside reviewer pass</label></div><div class="metric"><span>required</span><label>Human review</label></div></div>
+      <p class="review-summary">Reviewer Agent still requested revision after 2 research cycle(s). The review verifies that Canada&#x27;s Department of National Defence and Canadian Armed Forces (DND/CAF) has an Artificial Intelligence Strategy aiming for AI enablement by 2030. However, specific claims about AI integration into NORAD modernization, NDOIC, JISR, and C5ISR modernization lack direct document support. Citations often reference general AI strategy documents without explicit mentions of these specific programs.</p>
+
+        <div class="review-feedback">
+          <strong>Feedback sent back to generator</strong>
+          <p>Revise the answer so every factual claim is directly supported by authorized cited evidence. Search again if the current evidence does not support the claim. Weak or unsupported citations: citation 7: While CA-AI-STRAT-2024-EN_page_007 discusses AI&#x27;s role in defence priorities, it does not explicitly mention NORAD modernization, NDOIC, JISR, or C5ISR modernization. The French ve; citation 12: CA-DEF-POL-2024-EN_page_032 mentions updating tools/processes but does not specifically link this to the named programs (NORAD, NDOIC, JISR, C5ISR). The French version (page 36) al; citation 14: Neither CA-DEF-POL-2024-EN_page_032 nor its French counterpart (page 36) mention AI-driven data management tools in the context of the named modernization programs.; citation 16: While interoperability is mentioned in CA-DEF-POL-2024-EN_page_032, it is not explicitly tied to AI initiatives in the named programs. The French version (page 36) also lacks this </p>
+        </div>
+
+      <div class="review-cycles">
+        <article class="review-cycle">
+          <strong>Iteration 1: needs_revision</strong>
+          <span>Score 75% | gate revise | feedback yes | searches 6</span>
+          <p></p>
+        </article>
+
+        <article class="review-cycle">
+          <strong>Iteration 2: needs_human_review</strong>
+          <span>Score 50% | gate human_continue_or_stop_required | feedback no | searches 9</span>
+          <p></p>
+        </article>
+</div>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Evidence Sent To Answer (40)</summary>
+    <div class="table-wrap compact">
+      <table>
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Document</th>
+            <th>Page</th>
+            <th>Access</th>
+            <th>Scores</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>C1</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>48</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4507, rerank 0.9278</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C2</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>6</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4465, rerank 0.9251</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C3</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>7</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4638, rerank 0.9209</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>32</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4812, rerank 0.9181</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>15</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4766, rerank 0.9179</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>7</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4529, rerank 0.9165</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>49</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4508, rerank 0.9159</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>15</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4696, rerank 0.9132</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>26</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4830, rerank 0.9393</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>36</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4498, rerank 0.9375</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>45</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4961, rerank 0.9290</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C3</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>2</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3890, rerank 0.8609</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>1</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3991, rerank 0.8498</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>16</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3979, rerank 0.8437</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>3</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3993, rerank 0.8432</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>9</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4051, rerank 0.8276</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C2</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>11</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4206, rerank 0.7811</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>10</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4012, rerank 0.4548</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>22</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3779, rerank 0.4548</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>22</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3878, rerank 0.4471</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>3</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3947, rerank 0.4355</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>32</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4070, rerank 0.6720</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>11</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4384, rerank 0.6598</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>44</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4005, rerank 0.6492</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C1</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>4</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3934, rerank 0.8951</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C2</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>17</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3916, rerank 0.8880</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>30</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3862, rerank 0.8800</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>20</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3882, rerank 0.8733</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C2</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>10</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3642, rerank 0.8048</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C3</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>14</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3653, rerank 0.7903</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>35</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3636, rerank 0.7903</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>20</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3659, rerank 0.7850</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>6</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3655, rerank 0.7837</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>4</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3634, rerank 0.7811</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>2</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3689, rerank 0.7797</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C3</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>21</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3711, rerank 0.5444</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>18</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3634, rerank 0.5250</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>NATO-STRAT-CONCEPT-2022-FR</code><br><span>Concept stratégique 2022 de l&#x27;OTAN</span></td>
+            <td>6</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3612, rerank 0.4977</td>
+            <td><a href="https://www.nato.int/fr/about-us/official-texts-and-resources/official-texts/2023/03/03/nato-2022-strategic-concept" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-DEF-POL-2024-FR</code><br><span>Notre Nord, fort et libre : Une vision renouvelée pour la défense du Canada</span></td>
+            <td>23</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3643, rerank 0.4626</td>
+            <td><a href="https://www.canada.ca/fr/ministere-defense-nationale/organisation/rapports-publications/nord-fort-libre-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>CA-DEF-POL-2024-EN</code><br><span>Our North, Strong and Free: A Renewed Vision for Canada&#x27;s Defence</span></td>
+            <td>35</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.3884, rerank 0.4665</td>
+            <td><a href="https://www.canada.ca/en/department-national-defence/corporate/reports-publications/north-strong-free-2024.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Excluded Source Summary (2)</summary>
+    <p class="muted">The backup shows denied-source metadata only. It does not expose restricted source text.</p>
+    <div class="table-wrap compact">
+      <table>
+        <thead><tr><th>Access</th><th>Reason</th><th>Document</th><th>Title</th></tr></thead>
+        <tbody>
+        <tr>
+          <td>top_secret</td>
+          <td>access_denied</td>
+          <td>SYN-FUSION-TS-ANNEX-002</td>
+          <td>Fusion Model Restricted Routing Annex</td>
+        </tr>
+
+
+        <tr>
+          <td>secret</td>
+          <td>access_denied</td>
+          <td>SYN-FUSION-S-RELEASE-001</td>
+          <td>Fusion Model Release Control Procedure</td>
+        </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+  <details class="details">
+    <summary>All Citation Spans (16)</summary>
+    <div class="citation-grid">
+      <article class="citation-card">
+        <h4>Citation span 1</h4>
+        <p>Department of National Defence and Canadian Armed Forces</p>
+        <small>C2: CA-AI-STRAT-2024-EN p.6; C3: CA-AI-STRAT-2024-EN p.7; C5: CA-AI-STRAT-2024-EN p.15; C12: CA-AI-STRAT-2024-EN p.2; C13: CA-AI-STRAT-2024-EN p.1; C14: CA-AI-STRAT-2024-EN p.16; C15: CA-AI-STRAT-2024-EN p.3; C16: CA-AI-STRAT-2024-EN p.9; C17: CA-AI-STRAT-2024-EN p.11</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 2</h4>
+        <p>(DND/CAF)</p>
+        <small>C2: CA-AI-STRAT-2024-EN p.6; C3: CA-AI-STRAT-2024-EN p.7; C5: CA-AI-STRAT-2024-EN p.15; C14: CA-AI-STRAT-2024-EN p.16; C15: CA-AI-STRAT-2024-EN p.3; C16: CA-AI-STRAT-2024-EN p.9; C17: CA-AI-STRAT-2024-EN p.11</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 3</h4>
+        <p>Artificial Intelligence Strategy</p>
+        <small>C2: CA-AI-STRAT-2024-EN p.6; C3: CA-AI-STRAT-2024-EN p.7; C5: CA-AI-STRAT-2024-EN p.15; C12: CA-AI-STRAT-2024-EN p.2; C13: CA-AI-STRAT-2024-EN p.1; C14: CA-AI-STRAT-2024-EN p.16; C15: CA-AI-STRAT-2024-EN p.3; C16: CA-AI-STRAT-2024-EN p.9; C17: CA-AI-STRAT-2024-EN p.11; C18: CA-AI-STRAT-2024-FR p.10; C20: CA-AI-STRAT-2024-FR p.22; C21: CA-AI-STRAT-2024-FR p.3; C22: CA-AI-STRAT-2024-FR p.32; C23: CA-AI-STRAT-2024-FR p.11; C25: CA-AI-STRAT-2024-FR p.4; C26: CA-AI-STRAT-2024-FR p.17; C27: CA-AI-STRAT-2024-FR p.30; C28: CA-AI-STRAT-2024-FR p.20</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 4</h4>
+        <p>(AI Strategy)</p>
+        <small>C2: CA-AI-STRAT-2024-EN p.6; C3: CA-AI-STRAT-2024-EN p.7; C5: CA-AI-STRAT-2024-EN p.15; C14: CA-AI-STRAT-2024-EN p.16; C15: CA-AI-STRAT-2024-EN p.3; C18: CA-AI-STRAT-2024-FR p.10; C20: CA-AI-STRAT-2024-FR p.22; C21: CA-AI-STRAT-2024-FR p.3; C22: CA-AI-STRAT-2024-FR p.32; C25: CA-AI-STRAT-2024-FR p.4; C26: CA-AI-STRAT-2024-FR p.17; C27: CA-AI-STRAT-2024-FR p.30; C28: CA-AI-STRAT-2024-FR p.20</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 5</h4>
+        <p>commits the Defence Team to becoming AI-enabled by 2030.</p>
+        <small>C15: CA-AI-STRAT-2024-EN p.3; C21: CA-AI-STRAT-2024-FR p.3</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 6</h4>
+        <p>AI will be foundational to Defence modernization.</p>
+        <small>C5: CA-AI-STRAT-2024-EN p.15; C8: CA-AI-STRAT-2024-FR p.15</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 7</h4>
+        <p>Defence priority areas such as NORAD modernization, National Defence Operations and Intelligence Centre (NDOIC), and Joint Intelligence, Surveillance, and Reconnaissance (JISR) envisage the incorporation of AI and related technologies in the development of a modernized Command, Control, Communications, Computers, Cyber, Intelligence, Surveillance and Reconnaissance (C5ISR) spine.</p>
+        <small>C3: CA-AI-STRAT-2024-EN p.7; C6: CA-AI-STRAT-2024-FR p.7</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 8</h4>
+        <p>Canada’s research and development investments under our NORAD modernization plan correspond directly to the advanced capabilities sought by our allies.</p>
+        <small>C4: CA-DEF-POL-2024-EN p.32; C10: CA-DEF-POL-2024-FR p.36</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 9</h4>
+        <p>These initiatives, supported by defence procurement and industry partnership transformations, will ensure a defence innovation pipeline that is rapid and essential, and makes valuable contributions to the Five Eyes defence partnership.</p>
+        <small>C4: CA-DEF-POL-2024-EN p.32; C10: CA-DEF-POL-2024-FR p.36</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 10</h4>
+        <p>The speed of technological change requires a shift in organizational mindset—a willingness to embrace innovation and experimentation, and to continuously adopt emerging technologies.</p>
+        <small>C4: CA-DEF-POL-2024-EN p.32; C10: CA-DEF-POL-2024-FR p.36</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 11</h4>
+        <p>The digitalization of defence is central to this objective.</p>
+        <small>C4: CA-DEF-POL-2024-EN p.32; C10: CA-DEF-POL-2024-FR p.36</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 12</h4>
+        <p>The Canadian Armed Forces is updating its tools and processes to better suit them to the modern world.</p>
+        <small>C4: CA-DEF-POL-2024-EN p.32; C10: CA-DEF-POL-2024-FR p.36</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 13</h4>
+        <p>We will make full use of our digital technologies by overhauling outdated and analog processes to improve our ability to hire people, conduct security screening, and share information in a timely way.</p>
+        <small>C4: CA-DEF-POL-2024-EN p.32; C10: CA-DEF-POL-2024-FR p.36</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 14</h4>
+        <p>This includes expanding the use of artificial intelligence-driven data management tools, as well as initiatives to advance big data management, acquire analytical tools, and expand cloud-based computing on open and secure networks.</p>
+        <small>C4: CA-DEF-POL-2024-EN p.32; C10: CA-DEF-POL-2024-FR p.36</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 15</h4>
+        <p>These digital initiatives will build a data-driven organization capable of transforming data into actionable information that will allow for rapid decision-making and near real-time responses.</p>
+        <small>C4: CA-DEF-POL-2024-EN p.32; C10: CA-DEF-POL-2024-FR p.36</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 16</h4>
+        <p>It will also ensure the Canadian Armed Forces can remain interoperable with our most important allies and partners well into the future.</p>
+        <small>C4: CA-DEF-POL-2024-EN p.32; C10: CA-DEF-POL-2024-FR p.36</small>
+      </article>
+</div>
+  </details>
+
+</section>
+
+
+<section class="section run run-secure" id="reviewer-improves-weak-answer">
+  <div class="section-head">
+    <p class="eyebrow">Step 4</p>
+    <h2>Reviewer Improves Weak Answer</h2>
+    <p>Reviewer feedback triggers another research and generation pass, then releases an improved answer with caveats.</p>
+  </div>
+  <div class="run-grid">
+    <article class="panel main-panel">
+      <div class="panel-top">
+        <h3>Question</h3>
+        <div class="badge-row"><span class="badge badge-neutral">clearance_unclassified</span><span class="badge badge-neutral">4 search call(s)</span><span class="badge badge-neutral">17 citation span(s)</span><span class="badge badge-neutral">21 evidence page(s)</span></div>
+      </div>
+      <p class="query">Compare Canada&#x27;s defence policy and the DND CAF AI Strategy on AI-enabled modernization. Separate direct evidence from planning interpretation.</p>
+
+      <h3>Answer</h3>
+      <div class="answer">Canada&#x27;s defence policy, Strong, Secure, Engaged [C1, C3, C7], and the DND/CAF Data Strategy [C1, C3, C7] describe a desired end state [C1, C2] in which data is leveraged to provide increased efficiency and an information advantage in military operations and corporate applications. [C1, C2] Achieving this end state will require assistance from AI and other automated decision systems. [C1, C2] Defence priority areas [C1, C2] such as NORAD modernization, National Defence Operations and Intelligence Centre (NDOIC), and Joint Intelligence, Surveillance, and Reconnaissance (JISR) [C1, C2] envisage the incorporation of AI and related technologies in the development of a modernized Command, Control, Communications, Computers, Cyber, Intelligence, Surveillance and Reconnaissance (C5ISR) spine. [C1, C2]<br><br>The DND/CAF AI Strategy commits the Defence Team to becoming AI-enabled by 2030 [C4, C6], in line with its goals for an overall digital transformation by that date. [C4, C6] Becoming AI-enabled also offers the opportunity to meet the call for modernization and reconstitution. [C4, C6] AI will be foundational to defence modernization. [C5, C8] The fusion of AI, networking, predictive and prescriptive analytics, ML, and robotics will be critical to equip DND/CAF and digitally transform defence. [C5, C8] This will provide the capabilities needed to ensure operational superiority over adversaries and technological parity and interoperability with allies. [C5, C8] To reach its AI goals, DND/CAF needs an AI Centre of its own. [C10, C9] The Centre would serve as a hub of AI expertise for the Defence Team. [C10, C9] It would identify and support the integration of capabilities developed by industry, academia, or allies. [C10, C9]</div>
+    </article>
+    <aside class="panel presenter-panel">
+      <h3>Presenter Cue</h3>
+      <p>Use this to show the bounded loop: research, review, feedback, improved retrieval, final trust check.</p>
+      <dl class="compact-dl">
+        <div><dt>Mode</dt><dd>not recorded</dd></div>
+        <div><dt>Model</dt><dd>command-a-03-2025</dd></div>
+        <div><dt>Session</dt><dd>s_0e87be7add364075a6b7d18a8c25d19f</dd></div>
+        <div><dt>Cited docs</dt><dd>CA-AI-STRAT-2024-EN, CA-AI-STRAT-2024-FR</dd></div>
+      </dl>
+
+      <div class="callout">
+        <strong>Citation coverage: passed</strong>
+        <span>11 covered claim(s) / 11 total. 0 uncited claim(s).</span>
+      </div>
+
+
+      <div class="callout">
+        <strong>Answerability: authorized_sources_available</strong>
+        <span>Reason: authorized_sources_available</span>
+      </div>
+
+    </aside>
+  </div>
+
+  <details class="details trace-details" open>
+    <summary>Trace timeline</summary>
+    <div class="trace">
+      <div class="trace-meta">
+        <div class="metric"><span>unclassified</span><label>Allowed access</label></div>
+        <div class="metric"><span>21</span><label>Documents to model</label></div>
+        <div class="metric"><span>cohere_native_accurate_default</span><label>Citation mode</label></div>
+      </div>
+      <ol class="trace-list">
+
+        <li>
+          <strong>Search 1: Canada&#x27;s defence policy and the DND CAF AI Strategy on AI-enabled modernization</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.5584</strong></span><span>top rerank: <strong>0.9896</strong></span></div>
+        </li>
+
+
+        <li>
+          <strong>Search 2: AI initiatives within DND/CAF are fragmented, with each command and environment addressing AI independently.</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.5232</strong></span><span>top rerank: <strong>0.9946</strong></span></div>
+        </li>
+
+
+        <li>
+          <strong>Search 3: No roadmap exists to move the organization towards leveraging AI effectively to ensure that investments are coordinated and appropriately governed.</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.4435</strong></span><span>top rerank: <strong>0.9919</strong></span></div>
+        </li>
+
+
+        <li>
+          <strong>Search 4: five lines of effort</strong>
+          <span>filters: access_level=unclassified; language=any; status=approved</span>
+          <span>allow</span>
+          <div class="mini-metrics"><span>authorized: <strong>8</strong></span><span>sent: <strong>8</strong></span><span>excluded: <strong>0</strong></span><span>top vector: <strong>0.4522</strong></span><span>top rerank: <strong>0.9018</strong></span></div>
+        </li>
+
+        <li>
+          <strong>Generate cited answer</strong>
+          <span>Command A receives the selected authorized pages through the grounded answer path and returns answer text plus citation spans.</span>
+        </li>
+      </ol>
+    </div>
+  </details>
+
+
+  <details class="details reviewer-details" open>
+    <summary>Reviewer Trust Layer</summary>
+    <div class="reviewer-panel">
+      <div class="review-grid"><div class="metric"><span>88%</span><label>Trust score</label></div><div class="metric"><span>80%</span><label>Threshold</label></div><div class="metric"><span>release</span><label>Gate</label></div><div class="metric"><span>approved</span><label>Status</label></div><div class="metric"><span>7</span><label>Verified</label></div><div class="metric"><span>1</span><label>Weak or unverified</label></div><div class="metric"><span>9</span><label>Outside reviewer pass</label></div><div class="metric"><span>not required</span><label>Human review</label></div></div>
+      <p class="review-summary">The review verified 7 out of 8 citations. The unverified citation (index 8) lacked direct evidence for C5ISR modernization claims, while others were well-supported by the DND/CAF AI Strategy documents.</p>
+
+      <div class="review-cycles">
+        <article class="review-cycle">
+          <strong>Iteration 1: needs_revision</strong>
+          <span>Score 62% | gate revise | feedback yes | searches 1</span>
+          <p>Revise the answer so every factual claim is directly supported by authorized cited evidence. Search again if the current evidence does not support the claim. Weak or unsupported citations: citation 11: CA-AI-STRAT-2024-EN_page_007 and FR_page_007 describe AI&#x27;s potential but do not explicitly state fragmentation of DND/CAF AI initiatives. This is interpretive.; citation 13: CA-AI-STRAT-2024-EN_page_007 and FR_page_007 highlight challenges but do not explicitly confirm a missing roadmap. This is interpretive planning commentary.; citation 15: CA-AI-STRAT-2024-EN_page_007 and FR_page_007 mention accelerating AI adoption but do not specify &#x27;five lines of effort&#x27;. No evidence clarifies this claim.</p>
+        </article>
+
+        <article class="review-cycle">
+          <strong>Iteration 2: approved</strong>
+          <span>Score 88% | gate release | feedback no | searches 4</span>
+          <p></p>
+        </article>
+</div>
+    </div>
+  </details>
+
+
+  <details class="details" open>
+    <summary>Evidence Sent To Answer (21)</summary>
+    <div class="table-wrap compact">
+      <table>
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Document</th>
+            <th>Page</th>
+            <th>Access</th>
+            <th>Scores</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>C1</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>7</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5584, rerank 0.9896</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C2</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>7</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5109, rerank 0.9843</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C3</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>6</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5409, rerank 0.9827</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>3</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5388, rerank 0.9799</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>15</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5600, rerank 0.9761</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>3</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4983, rerank 0.9757</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>6</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4950, rerank 0.9744</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>15</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5130, rerank 0.9740</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>18</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4958, rerank 0.9291</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>18</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4562, rerank 0.9131</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>20</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4659, rerank 0.9073</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>19</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.5087, rerank 0.9020</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C3</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>19</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4115, rerank 0.8552</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C4</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>16</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4188, rerank 0.8542</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C5</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>16</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4325, rerank 0.8452</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C7</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>32</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4158, rerank 0.7960</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>13</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4247, rerank 0.7916</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C1</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>4</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4522, rerank 0.9018</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C2</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>32</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4158, rerank 0.8980</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C6</td>
+            <td><code>CA-AI-STRAT-2024-FR</code><br><span>La stratégie d&#x27;intelligence artificielle du ministère de la Défense nationale et des Forces armées canadiennes</span></td>
+            <td>4</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4342, rerank 0.8248</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+
+
+          <tr>
+            <td>C8</td>
+            <td><code>CA-AI-STRAT-2024-EN</code><br><span>The Department of National Defence and Canadian Armed Forces Artificial Intelligence Strategy</span></td>
+            <td>28</td>
+            <td><span class="pill pill-unclassified">unclassified</span></td>
+            <td>vector 0.4106, rerank 0.7135</td>
+            <td><a href="https://publications.gc.ca/site/eng/9.914595/publication.html" target="_blank" rel="noreferrer">source</a></td>
+          </tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+
+
+  <details class="details">
+    <summary>All Citation Spans (17)</summary>
+    <div class="citation-grid">
+      <article class="citation-card">
+        <h4>Citation span 1</h4>
+        <p>Strong, Secure, Engaged</p>
+        <small>C1: CA-AI-STRAT-2024-EN p.7; C3: CA-AI-STRAT-2024-EN p.6; C7: CA-AI-STRAT-2024-FR p.6</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 2</h4>
+        <p>DND/CAF Data Strategy</p>
+        <small>C1: CA-AI-STRAT-2024-EN p.7; C3: CA-AI-STRAT-2024-EN p.6; C7: CA-AI-STRAT-2024-FR p.6</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 3</h4>
+        <p>desired end state</p>
+        <small>C1: CA-AI-STRAT-2024-EN p.7; C2: CA-AI-STRAT-2024-FR p.7</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 4</h4>
+        <p>data is leveraged to provide increased efficiency and an information advantage in military operations and corporate applications.</p>
+        <small>C1: CA-AI-STRAT-2024-EN p.7; C2: CA-AI-STRAT-2024-FR p.7</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 5</h4>
+        <p>Achieving this end state will require assistance from AI and other automated decision systems.</p>
+        <small>C1: CA-AI-STRAT-2024-EN p.7; C2: CA-AI-STRAT-2024-FR p.7</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 6</h4>
+        <p>Defence priority areas</p>
+        <small>C1: CA-AI-STRAT-2024-EN p.7; C2: CA-AI-STRAT-2024-FR p.7</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 7</h4>
+        <p>NORAD modernization, National Defence Operations and Intelligence Centre (NDOIC), and Joint Intelligence, Surveillance, and Reconnaissance (JISR)</p>
+        <small>C1: CA-AI-STRAT-2024-EN p.7; C2: CA-AI-STRAT-2024-FR p.7</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 8</h4>
+        <p>envisage the incorporation of AI and related technologies in the development of a modernized Command, Control, Communications, Computers, Cyber, Intelligence, Surveillance and Reconnaissance (C5ISR) spine.</p>
+        <small>C1: CA-AI-STRAT-2024-EN p.7; C2: CA-AI-STRAT-2024-FR p.7</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 9</h4>
+        <p>commits the Defence Team to becoming AI-enabled by 2030</p>
+        <small>C4: CA-AI-STRAT-2024-EN p.3; C6: CA-AI-STRAT-2024-FR p.3</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 10</h4>
+        <p>goals for an overall digital transformation by that date.</p>
+        <small>C4: CA-AI-STRAT-2024-EN p.3; C6: CA-AI-STRAT-2024-FR p.3</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 11</h4>
+        <p>Becoming AI-enabled also offers the opportunity to meet the call for modernization and reconstitution.</p>
+        <small>C4: CA-AI-STRAT-2024-EN p.3; C6: CA-AI-STRAT-2024-FR p.3</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 12</h4>
+        <p>AI will be foundational to defence modernization.</p>
+        <small>C5: CA-AI-STRAT-2024-EN p.15; C8: CA-AI-STRAT-2024-FR p.15</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 13</h4>
+        <p>The fusion of AI, networking, predictive and prescriptive analytics, ML, and robotics will be critical to equip DND/CAF and digitally transform defence.</p>
+        <small>C5: CA-AI-STRAT-2024-EN p.15; C8: CA-AI-STRAT-2024-FR p.15</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 14</h4>
+        <p>This will provide the capabilities needed to ensure operational superiority over adversaries and technological parity and interoperability with allies.</p>
+        <small>C5: CA-AI-STRAT-2024-EN p.15; C8: CA-AI-STRAT-2024-FR p.15</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 15</h4>
+        <p>To reach its AI goals, DND/CAF needs an AI Centre of its own.</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.18; C10: CA-AI-STRAT-2024-FR p.18</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 16</h4>
+        <p>The Centre would serve as a hub of AI expertise for the Defence Team.</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.18; C10: CA-AI-STRAT-2024-FR p.18</small>
+      </article>
+
+
+      <article class="citation-card">
+        <h4>Citation span 17</h4>
+        <p>It would identify and support the integration of capabilities developed by industry, academia, or allies.</p>
+        <small>C9: CA-AI-STRAT-2024-EN p.18; C10: CA-AI-STRAT-2024-FR p.18</small>
+      </article>
+</div>
+  </details>
+
+</section>
+
+
+<section class="section run run-warn" id="access-unclassified">
+  <div class="section-head">
+    <p class="eyebrow">Step 5</p>
     <h2>Access Boundary: Unclassified User</h2>
     <p>The same question refuses when the relevant source is outside the user&#x27;s access scope.</p>
   </div>
@@ -1184,6 +2427,7 @@ td span {
       </ol>
     </div>
   </details>
+
 
 
   <details class="details" open>
@@ -1322,7 +2566,7 @@ td span {
 
 <section class="section run run-secure" id="access-secret">
   <div class="section-head">
-    <p class="eyebrow">Step 4</p>
+    <p class="eyebrow">Step 6</p>
     <h2>Access Boundary: Secret User</h2>
     <p>A cleared user receives a cited answer because the restricted source is authorized for that persona.</p>
   </div>
@@ -1385,6 +2629,7 @@ td span {
       </ol>
     </div>
   </details>
+
 
 
   <details class="details" open>
@@ -1549,7 +2794,7 @@ td span {
 
 <section class="section run run-primary" id="scanned">
   <div class="section-head">
-    <p class="eyebrow">Step 5</p>
+    <p class="eyebrow">Step 7</p>
     <h2>Scanned Manual Retrieval</h2>
     <p>Digitized physical-manual evidence enters the same retrieval, rerank, citation, and trace workflow.</p>
   </div>
@@ -1628,6 +2873,7 @@ td span {
       </ol>
     </div>
   </details>
+
 
 
   <details class="details" open>
@@ -1893,7 +3139,7 @@ td span {
 
 <section class="section run run-warn" id="refusal">
   <div class="section-head">
-    <p class="eyebrow">Step 6</p>
+    <p class="eyebrow">Step 8</p>
     <h2>Evidence Gap Refusal</h2>
     <p>Related authorized pages are retrieved, but the answer refuses when the exact claim is unsupported.</p>
   </div>
@@ -1956,6 +3202,7 @@ td span {
       </ol>
     </div>
   </details>
+
 
 
   <details class="details" open>
@@ -2086,7 +3333,7 @@ td span {
 
 <section class="section run run-secure" id="follow-up">
   <div class="section-head">
-    <p class="eyebrow">Step 7</p>
+    <p class="eyebrow">Step 9</p>
     <h2>Source And Access Follow-Up</h2>
     <p>A follow-up question can cite the source page and access level behind the prior answer.</p>
   </div>
@@ -2144,6 +3391,7 @@ td span {
       </ol>
     </div>
   </details>
+
 
 
   <details class="details" open>
@@ -2227,7 +3475,7 @@ td span {
 
 <section class="section run run-neutral" id="french-nato-doctrine-answer">
   <div class="section-head">
-    <p class="eyebrow">Step 8</p>
+    <p class="eyebrow">Step 10</p>
     <h2>French NATO Doctrine Answer</h2>
     <p>The same evidence workflow preserves citations for a French answer over NATO doctrine sources.</p>
   </div>
@@ -2290,6 +3538,7 @@ td span {
       </ol>
     </div>
   </details>
+
 
 
   <details class="details" open>

@@ -11,6 +11,7 @@ import logging
 from dataclasses import dataclass, field
 import inspect
 import json
+import os
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -23,11 +24,30 @@ from google.genai import types
 
 from .auth.context import DEFAULT_PERSONA_ID, DEMO_USERS
 from .config import get_settings
+from .critic import NEEDS_HUMAN_REVIEW, NEEDS_REVISION, review_answer
 from .grounding import GroundedAnswer, finalize_answer
+from .index import search_pages
+from .routing import SIMPLE_RAG, RouteDecision, choose_route
+from .tool_state import record_search_documents_state
 
 
 APP_NAME = "defence_agent"
 logger = logging.getLogger(__name__)
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
+DEFAULT_MAX_REVIEW_CYCLES = _env_int("DEFTECH_ADK_MAX_REVIEW_CYCLES", 2)
+MAX_REVIEW_FEEDBACK_CHARS = _env_int("DEFTECH_ADK_REVIEW_FEEDBACK_CHARS", 3600)
+MAX_REVIEW_CONTEXT_SOURCES = _env_int("DEFTECH_ADK_REVIEW_CONTEXT_SOURCES", 8)
+CONTEXT_WINDOW_TOKEN_ESTIMATE = _env_int("DEFTECH_CONTEXT_WINDOW_TOKENS", 256000)
+ESTIMATED_CHARS_PER_TOKEN = _env_int("DEFTECH_ESTIMATED_CHARS_PER_TOKEN", 4)
+CONTEXT_ESTIMATE_OVERHEAD_TOKENS = _env_int("DEFTECH_CONTEXT_ESTIMATE_OVERHEAD_TOKENS", 450)
 
 
 class SessionPersonaMismatchError(PermissionError):
@@ -131,6 +151,10 @@ async def run_turn(
     session_id: str | None = None,
     session_service: DatabaseSessionService | InMemorySessionService | None = None,
     target_answer_language: str = "auto",
+    run_mode: str = "reviewed_agent",
+    accuracy_priority: int = 4,
+    latency_priority: int = 2,
+    max_review_cycles: int | None = None,
 ) -> AgentTurnResult:
     """Run one ADK agent turn and return the final answer.
 
@@ -171,6 +195,24 @@ async def run_turn(
             prior_audit=prior_answer_audit,
         )
 
+    route = choose_route(
+        requested_mode=run_mode,
+        query=query,
+        accuracy_priority=accuracy_priority,
+        latency_priority=latency_priority,
+    )
+    if route.selected_mode == SIMPLE_RAG:
+        return await _simple_rag_result(
+            query=query,
+            session_service=service,
+            session_id=resolved_session_id,
+            user_id=resolved_user_id,
+            persona_id=persona_id,
+            prior_answer=prior_answer,
+            target_answer_language=target_answer_language,
+            route=route,
+        )
+
     from .agent import root_agent
 
     runner = Runner(app_name=APP_NAME, agent=root_agent, session_service=service)
@@ -180,22 +222,26 @@ async def run_turn(
     tool_call_records: list[dict[str, Any]] = []
     tool_responses: list[str] = []
     retrieval_status = ""
+    review_cycles: list[dict[str, Any]] = []
+    review_cycle_limit = _review_cycle_limit(max_review_cycles)
 
     logger.info(
         "agent_turn_intent",
         extra={"persona_id": persona_id, "user_id": resolved_user_id, "session_id": resolved_session_id},
     )
-    async for event in runner.run_async(
-        user_id=resolved_user_id,
-        session_id=resolved_session_id,
-        new_message=message,
-    ):
-        event_count += 1
-        tool_calls.extend(_function_call_names(event))
-        tool_call_records.extend(_function_call_records(event))
-        tool_responses.extend(_function_response_names(event))
-        if event.is_final_response():
-            retrieval_status = _event_text(event)
+    cycle_events, cycle_tool_calls, cycle_tool_call_records, cycle_tool_responses, cycle_status = (
+        await _run_generator_agent_cycle(
+            runner=runner,
+            user_id=resolved_user_id,
+            session_id=resolved_session_id,
+            message=message,
+        )
+    )
+    event_count += cycle_events
+    tool_calls.extend(cycle_tool_calls)
+    tool_call_records.extend(cycle_tool_call_records)
+    tool_responses.extend(cycle_tool_responses)
+    retrieval_status = cycle_status
 
     final_state = await _session_state(service, user_id=resolved_user_id, session_id=resolved_session_id)
     turn_audits = _turn_audits(final_state, existing_audit_count)
@@ -232,8 +278,105 @@ async def run_turn(
         retrieval_audits=turn_audits,
         sources_sent_to_answer=turn_sources,
         grounded=grounded,
+        prior_answer=prior_answer,
         target_answer_language=target_answer_language,
     )
+    cycle_index = 1
+    while True:
+        answer_audit["routing"] = route.as_audit()
+        if not route.uses_reviewer:
+            critic_report = _critic_skipped_report(route=route, citation_count=len(grounded.citations))
+            answer_audit["reviewer"] = critic_report
+            answer_audit["critic"] = critic_report
+            break
+
+        critic_report = await _critic_report(
+            query=query,
+            answer_audit=answer_audit,
+            grounded=grounded,
+            sources_sent_to_answer=turn_sources,
+        )
+        should_revise = _should_run_revision(
+            critic_report,
+            cycle_index=cycle_index,
+            max_review_cycles=review_cycle_limit,
+        )
+        feedback_message = (
+            _generator_feedback_message(
+                query=query,
+                grounded=grounded,
+                answer_audit=answer_audit,
+                critic_report=critic_report,
+                cycle_index=cycle_index,
+                max_review_cycles=review_cycle_limit,
+            )
+            if should_revise
+            else ""
+        )
+        if not should_revise and _review_cycles_exhausted(critic_report, cycle_index, review_cycle_limit):
+            critic_report = _max_cycles_human_review_report(critic_report, review_cycle_limit)
+        answer_audit["reviewer"] = critic_report
+        answer_audit["critic"] = critic_report
+        review_cycles.append(
+            _review_cycle_summary(
+                cycle_index=cycle_index,
+                max_review_cycles=review_cycle_limit,
+                critic_report=critic_report,
+                feedback_message=feedback_message,
+                source_count=len(turn_sources),
+                search_count=len(turn_audits),
+            )
+        )
+        answer_audit["review_control"] = _review_control_summary(
+            max_review_cycles=review_cycle_limit,
+            review_cycles=review_cycles,
+        )
+        if not should_revise:
+            break
+
+        cycle_index += 1
+        revision_message = types.Content(role="user", parts=[types.Part.from_text(text=feedback_message)])
+        cycle_events, cycle_tool_calls, cycle_tool_call_records, cycle_tool_responses, cycle_status = (
+            await _run_generator_agent_cycle(
+                runner=runner,
+                user_id=resolved_user_id,
+                session_id=resolved_session_id,
+                message=revision_message,
+            )
+        )
+        event_count += cycle_events
+        tool_calls.extend(cycle_tool_calls)
+        tool_call_records.extend(cycle_tool_call_records)
+        tool_responses.extend(cycle_tool_responses)
+        retrieval_status = cycle_status
+        final_state = await _session_state(service, user_id=resolved_user_id, session_id=resolved_session_id)
+        turn_audits = _turn_audits(final_state, existing_audit_count)
+        turn_sources = _turn_sources_from_audits(final_state, turn_audits) or _turn_sources(
+            final_state,
+            existing_source_keys,
+        )
+        grounded = _safe_finalize_answer(
+            query=query,
+            sources=turn_sources,
+            prior_answer=prior_answer,
+            fallback_answer=_fallback_answer(retrieval_status),
+            target_answer_language=target_answer_language,
+        )
+        answer_audit = _answer_audit(
+            query=query,
+            session_id=resolved_session_id,
+            user_id=resolved_user_id,
+            persona_id=persona_id,
+            tool_calls=tool_calls,
+            tool_call_records=tool_call_records,
+            tool_responses=tool_responses,
+            retrieval_status=retrieval_status,
+            retrieval_audits=turn_audits,
+            sources_sent_to_answer=turn_sources,
+            grounded=grounded,
+            prior_answer=prior_answer,
+            target_answer_language=target_answer_language,
+        )
     await _update_session_grounding(
         service,
         user_id=resolved_user_id,
@@ -241,7 +384,6 @@ async def run_turn(
         grounded=grounded,
         answer_audit=answer_audit,
     )
-
     return AgentTurnResult(
         session_id=resolved_session_id,
         user_id=resolved_user_id,
@@ -261,6 +403,98 @@ async def run_turn(
         answer_audit=answer_audit,
     )
 
+
+async def _simple_rag_result(
+    *,
+    query: str,
+    session_service: DatabaseSessionService | InMemorySessionService,
+    session_id: str,
+    user_id: str,
+    persona_id: str,
+    prior_answer: str,
+    target_answer_language: str,
+    route: RouteDecision,
+) -> AgentTurnResult:
+    """Run one direct retrieval plus grounded answer without the ADK planner."""
+
+    retrieval_language = target_answer_language if target_answer_language in {"en", "fr"} else "any"
+    search_result = search_pages(
+        query=query,
+        persona_id=persona_id,
+        top_k=8,
+        status_filter="approved",
+        language=retrieval_language,
+    )
+    search_audit = record_search_documents_state(
+        tool_context=None,
+        query=query,
+        persona_id=persona_id,
+        result=search_result,
+    )
+    sources_for_answer = _sources_for_answer(search_result)
+    retrieval_status = "direct_retrieval_complete"
+    grounded = _safe_finalize_answer(
+        query=query,
+        sources=sources_for_answer,
+        prior_answer=prior_answer,
+        fallback_answer=_fallback_answer(str(search_result.get("policy_decision", ""))),
+        target_answer_language=target_answer_language,
+    )
+    tool_call_records = [
+        {
+            "tool_name": "search_documents",
+            "args": {
+                "query": query,
+                "top_k": 8,
+                "status_filter": "approved",
+                "language": retrieval_language,
+            },
+        }
+    ]
+    answer_audit = _answer_audit(
+        query=query,
+        session_id=session_id,
+        user_id=user_id,
+        persona_id=persona_id,
+        tool_calls=["search_documents"],
+        tool_call_records=tool_call_records,
+        tool_responses=["search_documents"],
+        retrieval_status=retrieval_status,
+        retrieval_audits=[search_audit],
+        sources_sent_to_answer=sources_for_answer,
+        grounded=grounded,
+        prior_answer=prior_answer,
+        target_answer_language=target_answer_language,
+    )
+    answer_audit["routing"] = route.as_audit()
+    critic_report = _critic_skipped_report(route=route, citation_count=len(grounded.citations))
+    answer_audit["reviewer"] = critic_report
+    answer_audit["critic"] = critic_report
+    await _update_session_grounding(
+        session_service,
+        user_id=user_id,
+        session_id=session_id,
+        grounded=grounded,
+        answer_audit=answer_audit,
+    )
+    return AgentTurnResult(
+        session_id=session_id,
+        user_id=user_id,
+        persona_id=persona_id,
+        answer=grounded.answer,
+        raw_answer=grounded.raw_answer,
+        events_seen=0,
+        tool_calls=["search_documents"],
+        tool_responses=["search_documents"],
+        citations=grounded.citations,
+        citation_mode=grounded.citation_mode,
+        citation_validation=grounded.citation_validation,
+        grounded_model=grounded.model,
+        documents_sent_to_model=grounded.documents_sent,
+        thinking_blocks=grounded.thinking_blocks,
+        retrieval_status=retrieval_status,
+        answer_audit=answer_audit,
+    )
 
 def _is_audit_follow_up(query: str) -> bool:
     """Detect source-trace follow-ups that should use prior audit metadata."""
@@ -319,6 +553,14 @@ async def _audit_follow_up_result(
         excluded_sources=excluded_sources,
         grounded=grounded,
     )
+    critic_report = await _critic_report(
+        query=query,
+        answer_audit=answer_audit,
+        grounded=grounded,
+        sources_sent_to_answer=supporting_sources,
+    )
+    answer_audit["reviewer"] = critic_report
+    answer_audit["critic"] = critic_report
     await _update_session_grounding(
         session_service,
         user_id=user_id,
@@ -486,7 +728,17 @@ def _audit_lookup_audit(
             "content_blocks": grounded.content_blocks,
             "thinking_blocks": grounded.thinking_blocks,
             "thinking_block_count": len(grounded.thinking_blocks),
+            "usage": grounded.usage,
+            "billed_units": grounded.billed_units,
         },
+        "context_budget": _context_budget_summary(
+            query=query,
+            prior_answer="",
+            sources_sent_to_answer=supporting_sources,
+            grounded=grounded,
+            retrieval_audits=[],
+            tool_call_records=[{"tool_name": "answer_audit_lookup", "args": {"source": "last_answer_audit"}}],
+        ),
         "citations": grounded.citations,
     }
 
@@ -506,6 +758,33 @@ def _message_text(query: str, prior_answer: str) -> str:
         "User follow-up:\n"
         f"{query}"
     )
+
+
+async def _run_generator_agent_cycle(
+    *,
+    runner: Runner,
+    user_id: str,
+    session_id: str,
+    message: types.Content,
+) -> tuple[int, list[str], list[dict[str, Any]], list[str], str]:
+    event_count = 0
+    tool_calls: list[str] = []
+    tool_call_records: list[dict[str, Any]] = []
+    tool_responses: list[str] = []
+    retrieval_status = ""
+
+    async for event in runner.run_async(
+        user_id=user_id,
+        session_id=session_id,
+        new_message=message,
+    ):
+        event_count += 1
+        tool_calls.extend(_function_call_names(event))
+        tool_call_records.extend(_function_call_records(event))
+        tool_responses.extend(_function_response_names(event))
+        if event.is_final_response():
+            retrieval_status = _event_text(event)
+    return event_count, tool_calls, tool_call_records, tool_responses, retrieval_status
 
 
 def _function_call_names(event: Any) -> list[str]:
@@ -665,6 +944,7 @@ def _answer_audit(
     sources_sent_to_answer: list[dict[str, Any]],
     grounded: GroundedAnswer,
     tool_call_records: list[dict[str, Any]] | None = None,
+    prior_answer: str = "",
     target_answer_language: str = "auto",
 ) -> dict[str, Any]:
     source_summaries = [_source_summary(source) for source in sources_sent_to_answer]
@@ -684,6 +964,9 @@ def _answer_audit(
             "search_queries": _search_queries(retrieval_audits),
             "tool_cache": _tool_cache_summary(retrieval_audits),
             "allowed_access": _unique_values(retrieval_audits, "allowed_access"),
+            "retrieval_modes": _unique_values(retrieval_audits, "retrieval_mode"),
+            "chunk_strategies": _unique_values(retrieval_audits, "chunk_strategy"),
+            "retrieval_metrics": [audit.get("retrieval_metrics", {}) for audit in retrieval_audits],
             "filters_applied": [audit.get("filters_applied", {}) for audit in retrieval_audits],
             "policy_decisions": [audit.get("policy_decision", "") for audit in retrieval_audits],
             "answerability": [audit.get("answerability", {}) for audit in retrieval_audits],
@@ -712,15 +995,109 @@ def _answer_audit(
             "content_blocks": grounded.content_blocks,
             "thinking_blocks": grounded.thinking_blocks,
             "thinking_block_count": len(grounded.thinking_blocks),
+            "usage": grounded.usage,
+            "billed_units": grounded.billed_units,
         },
+        "context_budget": _context_budget_summary(
+            query=query,
+            prior_answer=prior_answer,
+            sources_sent_to_answer=sources_sent_to_answer,
+            grounded=grounded,
+            retrieval_audits=retrieval_audits,
+            tool_call_records=list(tool_call_records or []),
+        ),
         "citations": [_citation_summary(citation, lookup) for citation in grounded.citations],
     }
+
+
+def _context_budget_summary(
+    *,
+    query: str,
+    prior_answer: str,
+    sources_sent_to_answer: list[dict[str, Any]],
+    grounded: GroundedAnswer,
+    retrieval_audits: list[dict[str, Any]],
+    tool_call_records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Estimate the context footprint for the generation step.
+
+    Cohere usage is provider truth when present. The other values are still
+    useful in the demo because they show how much source text we are injecting.
+    """
+
+    source_text_chars = sum(len(_source_context_text(source)) for source in sources_sent_to_answer)
+    source_metadata_chars = sum(
+        len(json.dumps(_review_source_summary(source), ensure_ascii=False))
+        for source in sources_sent_to_answer
+        if isinstance(source, dict)
+    )
+    query_chars = len(str(query or ""))
+    prior_answer_chars = min(len(str(prior_answer or "")), 1800)
+    answer_chars = len(str(grounded.raw_answer or grounded.answer or ""))
+
+    query_tokens = _estimate_tokens(query_chars)
+    prior_answer_tokens = _estimate_tokens(prior_answer_chars)
+    source_text_tokens = _estimate_tokens(source_text_chars)
+    source_metadata_tokens = _estimate_tokens(source_metadata_chars)
+    output_tokens = _estimate_tokens(answer_chars)
+    prompt_tokens = (
+        query_tokens
+        + prior_answer_tokens
+        + source_text_tokens
+        + source_metadata_tokens
+        + CONTEXT_ESTIMATE_OVERHEAD_TOKENS
+    )
+    total_tokens = prompt_tokens + output_tokens
+    context_window = max(1, CONTEXT_WINDOW_TOKEN_ESTIMATE)
+    provider_usage = dict(grounded.usage or {})
+    provider_billed_units = dict(grounded.billed_units or {})
+
+    return {
+        "schema_version": "context_budget.v1",
+        "method": f"estimate_{max(1, ESTIMATED_CHARS_PER_TOKEN)}_chars_per_token",
+        "context_window_tokens": context_window,
+        "context_window_used_pct": round((prompt_tokens / context_window) * 100, 2),
+        "prompt_tokens_estimate": prompt_tokens,
+        "output_tokens_estimate": output_tokens,
+        "total_tokens_estimate": total_tokens,
+        "query_tokens_estimate": query_tokens,
+        "prior_answer_tokens_estimate": prior_answer_tokens,
+        "source_text_tokens_estimate": source_text_tokens,
+        "source_metadata_tokens_estimate": source_metadata_tokens,
+        "system_overhead_tokens_estimate": CONTEXT_ESTIMATE_OVERHEAD_TOKENS,
+        "source_text_chars": source_text_chars,
+        "source_metadata_chars": source_metadata_chars,
+        "document_count": grounded.documents_sent,
+        "source_count": len(sources_sent_to_answer),
+        "search_count": len(retrieval_audits),
+        "tool_call_count": len(tool_call_records),
+        "provider_usage_available": bool(provider_usage or provider_billed_units),
+        "provider_usage": provider_usage,
+        "provider_billed_units": provider_billed_units,
+        "note": "Token counts are estimates unless provider usage is available.",
+    }
+
+
+def _source_context_text(source: dict[str, Any]) -> str:
+    for field in ("text", "retrieval_chunk_text", "content", "page_text"):
+        value = source.get(field)
+        if value not in ("", None):
+            return str(value)
+    return ""
+
+
+def _estimate_tokens(char_count: int) -> int:
+    denominator = max(1, ESTIMATED_CHARS_PER_TOKEN)
+    return max(0, int(round(max(0, char_count) / denominator)))
 
 
 def _source_summary(source: dict[str, Any]) -> dict[str, Any]:
     return {
         "citation_id": source.get("citation_id", ""),
         "chunk_id": source.get("chunk_id", ""),
+        "parent_page_id": source.get("parent_page_id", ""),
+        "retrieval_chunk_id": source.get("retrieval_chunk_id", ""),
+        "chunk_strategy": source.get("chunk_strategy", ""),
         "doc_id": source.get("doc_id", ""),
         "title": source.get("title", ""),
         "section": source.get("section", ""),
@@ -746,7 +1123,10 @@ def _source_summary(source: dict[str, Any]) -> dict[str, Any]:
         "manifest_path": source.get("manifest_path", ""),
         "page_image_sha256": source.get("page_image_sha256", ""),
         "vector_score": source.get("vector_score"),
+        "bm25_score": source.get("bm25_score"),
+        "pre_rerank_score": source.get("pre_rerank_score"),
         "rerank_score": source.get("rerank_score"),
+        "retrieval_modes": source.get("retrieval_modes", []),
     }
 
 
@@ -817,6 +1197,9 @@ def _citation_summary(citation: dict[str, Any], lookup: dict[str, dict[str, Any]
                 "status": source.get("status") or resolved.get("status", ""),
                 "version": source.get("version") or resolved.get("version", ""),
                 "chunk_id": source.get("chunk_id") or resolved.get("chunk_id", ""),
+                "parent_page_id": source.get("parent_page_id") or resolved.get("parent_page_id", ""),
+                "retrieval_chunk_id": source.get("retrieval_chunk_id") or resolved.get("retrieval_chunk_id", ""),
+                "chunk_strategy": source.get("chunk_strategy") or resolved.get("chunk_strategy", ""),
                 "source_pdf_path": resolved.get("source_pdf_path", ""),
                 "manifest_path": resolved.get("manifest_path", ""),
                 "page_image_sha256": resolved.get("page_image_sha256", ""),
@@ -966,6 +1349,19 @@ def _safe_finalize_answer(
         )
 
 
+def _sources_for_answer(search_result: dict[str, Any]) -> list[dict[str, Any]]:
+    answerability = (
+        search_result.get("answerability", {})
+        if isinstance(search_result.get("answerability", {}), dict)
+        else {}
+    )
+    reason = str(answerability.get("reason", "") or "")
+    answerable = bool(answerability.get("answerable", True))
+    if answerable or reason == "insufficient_authorized_evidence":
+        return [source for source in search_result.get("authorized_sources", []) or [] if isinstance(source, dict)]
+    return []
+
+
 def _fallback_answer(retrieval_status: str) -> str:
     status = retrieval_status.strip()
     if status and (
@@ -976,6 +1372,290 @@ def _fallback_answer(retrieval_status: str) -> str:
     ):
         return status
     return "I do not have enough authorized evidence to answer."
+
+
+def _review_cycle_limit(value: int | None) -> int:
+    requested = DEFAULT_MAX_REVIEW_CYCLES if value is None else value
+    try:
+        parsed = int(requested)
+    except (TypeError, ValueError):
+        parsed = 1
+    return min(3, max(1, parsed))
+
+
+def _should_run_revision(
+    critic_report: dict[str, Any],
+    *,
+    cycle_index: int,
+    max_review_cycles: int,
+) -> bool:
+    return (
+        str(critic_report.get("status", "") or "") == NEEDS_REVISION
+        and cycle_index < max_review_cycles
+        and bool(str(critic_report.get("generator_feedback", "") or "").strip())
+    )
+
+
+def _review_cycles_exhausted(
+    critic_report: dict[str, Any],
+    cycle_index: int,
+    max_review_cycles: int,
+) -> bool:
+    return str(critic_report.get("status", "") or "") == NEEDS_REVISION and cycle_index >= max_review_cycles
+
+
+def _max_cycles_human_review_report(critic_report: dict[str, Any], max_review_cycles: int) -> dict[str, Any]:
+    report = dict(critic_report)
+    report["status"] = NEEDS_HUMAN_REVIEW
+    report["release_gate"] = "human_continue_or_stop_required"
+    report["requires_human_decision"] = True
+    report["human_prompt"] = (
+        "The previous output did not meet the citation credibility threshold. "
+        "Rerun with the reviewer feedback or remove unsupported claims before release."
+    )
+    report["summary"] = (
+        f"Reviewer Agent still requested revision after {max_review_cycles} research cycle(s). "
+        + str(report.get("summary", "") or "")
+    ).strip()
+    limits = dict(report.get("limits", {}) or {})
+    limits["max_review_cycles"] = max_review_cycles
+    report["limits"] = limits
+    return report
+
+
+def _generator_feedback_message(
+    *,
+    query: str,
+    grounded: GroundedAnswer,
+    answer_audit: dict[str, Any],
+    critic_report: dict[str, Any],
+    cycle_index: int,
+    max_review_cycles: int,
+) -> str:
+    payload = {
+        "schema_version": "reviewer_feedback.v1",
+        "control_flow": {
+            "cycle_completed": cycle_index,
+            "max_review_cycles": max_review_cycles,
+            "next_cycle": cycle_index + 1,
+            "instruction": "Run search_documents again if better evidence is needed, then return a concise retrieval status.",
+        },
+        "original_query": query,
+        "previous_answer": _truncate(grounded.answer, 1200),
+        "reviewer": {
+            "status": critic_report.get("status", ""),
+            "credibility_score": critic_report.get("credibility_score"),
+            "threshold": critic_report.get("threshold"),
+            "summary": critic_report.get("summary", ""),
+            "overall_reason": critic_report.get("overall_reason", ""),
+            "generator_feedback": critic_report.get("generator_feedback", ""),
+            "suggested_search_queries": list(critic_report.get("suggested_search_queries", []) or []),
+            "weak_citations": _weak_citation_feedback(critic_report),
+        },
+        "retrieval_context": _compact_retrieval_context(answer_audit),
+    }
+    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    compacted = len(text) > MAX_REVIEW_FEEDBACK_CHARS
+    if compacted:
+        payload["previous_answer"] = _truncate(grounded.answer, 600)
+        payload["reviewer"]["weak_citations"] = payload["reviewer"]["weak_citations"][:3]
+        payload["retrieval_context"] = _compact_retrieval_context(answer_audit, source_limit=4, applied=True)
+        text = json.dumps(payload, ensure_ascii=False, indent=2)
+    if len(text) > MAX_REVIEW_FEEDBACK_CHARS:
+        text = text[: MAX_REVIEW_FEEDBACK_CHARS - 20] + "\n...truncated"
+        compacted = True
+    header = (
+        "Reviewer Agent feedback for the Research Agent.\n"
+        "Do not answer the user directly in this step. Use the feedback to improve retrieval planning.\n"
+        "Do not use excluded source text. Preserve the original user question.\n"
+    )
+    remaining_chars = max(400, MAX_REVIEW_FEEDBACK_CHARS - len(header))
+    if len(text) > remaining_chars:
+        text = text[: max(0, remaining_chars - 20)] + "\n...truncated"
+    return header + text
+
+
+def _compact_retrieval_context(
+    answer_audit: dict[str, Any],
+    *,
+    source_limit: int | None = None,
+    applied: bool = True,
+) -> dict[str, Any]:
+    retrieval = answer_audit.get("retrieval", {}) if isinstance(answer_audit.get("retrieval"), dict) else {}
+    sources = [source for source in retrieval.get("sources_sent_to_answer", []) or [] if isinstance(source, dict)]
+    limit = source_limit if source_limit is not None else MAX_REVIEW_CONTEXT_SOURCES
+    return {
+        "context_compaction": {
+            "applied": applied,
+            "strategy": "metadata_only_source_lookup",
+            "full_source_text_location": "ADK session state search_history_sources",
+            "reason": "review feedback passes source identifiers and metadata instead of full tool results",
+        },
+        "search_queries": list(retrieval.get("search_queries", []) or [])[-6:],
+        "source_count": len(sources),
+        "sources": [_review_source_summary(source) for source in sources[:limit]],
+        "excluded_source_summary": _restricted_exclusion_summary(retrieval.get("excluded_sources", []) or []),
+    }
+
+
+def _review_source_summary(source: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "source_id": source.get("chunk_id") or source.get("source_id") or "",
+        "doc_id": source.get("doc_id", ""),
+        "title": source.get("title", ""),
+        "page": source.get("page", ""),
+        "access_level": source.get("access_level", ""),
+        "status": source.get("status", ""),
+        "rerank_score": source.get("rerank_score"),
+    }
+
+
+def _weak_citation_feedback(critic_report: dict[str, Any]) -> list[dict[str, Any]]:
+    weak: list[dict[str, Any]] = []
+    for item in critic_report.get("citation_reviews", []) or []:
+        if not isinstance(item, dict) or item.get("verdict") == "verified":
+            continue
+        weak.append(
+            {
+                "citation_index": item.get("citation_index"),
+                "verdict": item.get("verdict", "unclear"),
+                "answer_span": _truncate(str(item.get("answer_span", "") or ""), 220),
+                "source_ids": list(item.get("source_ids", []) or []),
+                "reason": _truncate(str(item.get("reason", "") or ""), 220),
+            }
+        )
+        if len(weak) >= 6:
+            break
+    return weak
+
+
+def _review_cycle_summary(
+    *,
+    cycle_index: int,
+    max_review_cycles: int,
+    critic_report: dict[str, Any],
+    feedback_message: str,
+    source_count: int,
+    search_count: int,
+) -> dict[str, Any]:
+    return {
+        "cycle": cycle_index,
+        "max_review_cycles": max_review_cycles,
+        "reviewer_status": critic_report.get("status", ""),
+        "critic_status": critic_report.get("status", ""),
+        "credibility_score": critic_report.get("credibility_score"),
+        "release_gate": critic_report.get("release_gate", ""),
+        "feedback_sent_to_research_agent": bool(feedback_message),
+        "feedback_sent_to_generator": bool(feedback_message),
+        "feedback_char_count": len(feedback_message),
+        "feedback_preview": _truncate(str(critic_report.get("generator_feedback", "") or ""), 900),
+        "suggested_search_queries": list(critic_report.get("suggested_search_queries", []) or [])[:4],
+        "weak_citations": _weak_citation_feedback(critic_report),
+        "source_count": source_count,
+        "search_count": search_count,
+    }
+
+
+def _review_control_summary(
+    *,
+    max_review_cycles: int,
+    review_cycles: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "schema_version": "review_control.v1",
+        "pattern": "research_reviewer_bounded_loop",
+        "research_agent": "defence_agent_research",
+        "reviewer_agent": "defence_agent_reviewer",
+        "generator_agent": "defence_agent_research",
+        "critic_agent": "defence_agent_reviewer",
+        "max_review_cycles": max_review_cycles,
+        "completed_review_cycles": len(review_cycles),
+        "cycles": list(review_cycles),
+        "context_compaction": {
+            "strategy": "metadata_only_source_lookup",
+            "full_source_text_location": "ADK session state search_history_sources",
+            "max_feedback_chars": MAX_REVIEW_FEEDBACK_CHARS,
+        },
+    }
+
+
+def _truncate(value: str, limit: int) -> str:
+    text = " ".join(str(value or "").split())
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 12)].rstrip() + " ...truncated"
+
+
+def _critic_skipped_report(*, route: RouteDecision, citation_count: int) -> dict[str, Any]:
+    return {
+        "schema_version": "reviewer_report.v1",
+        "reviewer": "defence_agent_reviewer",
+        "status": "not_run",
+        "credibility_score": None,
+        "threshold": 0.8,
+        "verified_citation_count": None,
+        "unverified_citation_count": None,
+        "total_citation_count": citation_count,
+        "citation_reviews": [],
+        "release_gate": "not_applicable",
+        "requires_human_decision": False,
+        "human_prompt": "",
+        "generator_feedback": "",
+        "suggested_search_queries": [],
+        "summary": f"Reviewer Agent skipped for {route.label}.",
+        "overall_reason": "The selected demo route does not include Reviewer Agent scoring.",
+        "raw_critic_response": {},
+        "limits": {
+            "truth_verification": "not_claimed",
+            "human_approval": "not_claimed",
+            "dynamic_multi_agent_fanout": "not_used",
+        },
+    }
+
+
+async def _critic_report(
+    *,
+    query: str,
+    answer_audit: dict[str, Any],
+    grounded: GroundedAnswer,
+    sources_sent_to_answer: list[dict[str, Any]],
+) -> dict[str, Any]:
+    try:
+        return await review_answer(
+            query=query,
+            answer=grounded.answer,
+            citations=grounded.citations,
+            answer_audit=answer_audit,
+            sources_sent_to_answer=sources_sent_to_answer,
+        )
+    except Exception as exc:
+        return {
+            "schema_version": "reviewer_report.v1",
+            "reviewer": "defence_agent_reviewer",
+            "status": NEEDS_HUMAN_REVIEW,
+            "credibility_score": 0.0,
+            "threshold": 0.8,
+            "verified_citation_count": 0,
+            "unverified_citation_count": len(grounded.citations),
+            "total_citation_count": len(grounded.citations),
+            "citation_reviews": [],
+            "release_gate": "human_continue_or_stop_required",
+            "requires_human_decision": True,
+            "human_prompt": (
+                "The previous output did not meet the citation credibility threshold. "
+                "Rerun with the reviewer feedback or remove unsupported claims before release."
+            ),
+            "generator_feedback": "",
+            "suggested_search_queries": [],
+            "summary": f"Reviewer review failed: {type(exc).__name__}: {exc}",
+            "overall_reason": f"{type(exc).__name__}: {exc}",
+            "raw_critic_response": {},
+            "limits": {
+                "truth_verification": "not_claimed",
+                "human_approval": "not_claimed",
+                "dynamic_multi_agent_fanout": "not_used",
+            },
+        }
 
 
 async def _update_session_grounding(

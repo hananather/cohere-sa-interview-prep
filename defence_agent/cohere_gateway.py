@@ -19,11 +19,14 @@ class CohereRateLimiter:
     """Process-local pacing for billable Cohere API calls."""
 
     def __init__(self, requests_per_minute: float) -> None:
-        self.min_interval_seconds = 60.0 / max(float(requests_per_minute), 0.01)
+        self.enabled = float(requests_per_minute) > 0
+        self.min_interval_seconds = 60.0 / float(requests_per_minute) if self.enabled else 0.0
         self._lock = threading.Lock()
         self._last_request_at = 0.0
 
     def wait(self) -> None:
+        if not self.enabled:
+            return
         with self._lock:
             now = time.monotonic()
             wait_seconds = self.min_interval_seconds - (now - self._last_request_at)
@@ -159,4 +162,26 @@ def _is_retryable_cohere_error(exc: BaseException) -> bool:
     return any(fragment in text for fragment in retryable_fragments)
 
 
-cohere_gateway = CohereGateway()
+class _LazyCohereGateway:
+    """Construct the real Cohere client only when a live call needs it.
+
+    Guided demo replays import the same modules as live mode, but they should not
+    require a Cohere key or network access just to boot the UI.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._gateway: CohereGateway | None = None
+
+    def _get_gateway(self) -> CohereGateway:
+        if self._gateway is None:
+            with self._lock:
+                if self._gateway is None:
+                    self._gateway = CohereGateway()
+        return self._gateway
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._get_gateway(), name)
+
+
+cohere_gateway = _LazyCohereGateway()

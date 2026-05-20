@@ -29,8 +29,8 @@
   logs, tickets, or chat.
 - The active prototype uses real Cohere model calls for embeddings, reranking,
   and final cited answers.
-- Use `COHERE_REQUESTS_PER_MINUTE=20` or lower to pace live calls unless the
-  account limit is explicitly higher.
+- Use `COHERE_REQUESTS_PER_MINUTE=0` for full-speed live evals on a monitored
+  personal key. Set a positive value only when local request pacing is needed.
 - Keep `COHERE_EMBED_PAGE_BATCH_SIZE=1` for normal builds. It avoids large
   multimodal requests and checkpoints each embedded page immediately.
 - Treat every run as billable external API usage. Keep prompts scoped to the

@@ -14,7 +14,7 @@ from defence_agent.session import SessionPersonaMismatchError
 from defence_agent.session import AgentTurnResult
 from defence_agent.session import create_session_service
 from defence_agent.session import ensure_session
-from defence_agent.ui.backend_bridge import _result_from_stdout, _safe_error_detail, agent_turn_result_from_dict
+from defence_agent.ui.backend_bridge import _result_from_stdout, _safe_error_detail, _worker_env, agent_turn_result_from_dict
 from defence_agent.ui.backend_bridge import run_turn_in_subprocess
 from defence_agent.ui.eval_results import (
     INSUFFICIENT_EVIDENCE_READINESS_RUN,
@@ -56,6 +56,27 @@ def _result_from_transcript(path: Path) -> AgentTurnResult:
     )
 
 
+def _result_from_audit(audit: dict[str, object], *, answer: str = "Recorded answer.") -> AgentTurnResult:
+    generation = audit.get("generation", {}) if isinstance(audit.get("generation"), dict) else {}
+    return AgentTurnResult(
+        session_id=str(audit.get("session_id", "s_test")),
+        user_id=str(audit.get("user_id", "clearance_unclassified")),
+        persona_id=str(audit.get("persona_id", "clearance_unclassified")),
+        answer=answer,
+        raw_answer=answer,
+        events_seen=0,
+        tool_calls=list(audit.get("tool_calls", []) or []),
+        tool_responses=list(audit.get("tool_responses", []) or []),
+        citations=list(audit.get("citations", []) or []),
+        citation_mode=str(generation.get("citation_mode", "none") or "none"),
+        citation_validation=dict(generation.get("citation_resolution", {}) or {}),
+        grounded_model=str(generation.get("model", "") or ""),
+        documents_sent_to_model=int(generation.get("document_count", 0) or 0),
+        retrieval_status=str(audit.get("retrieval_status", "")),
+        answer_audit=audit,
+    )
+
+
 def test_persona_b_maps_to_top_secret_backend_clearance() -> None:
     persona = persona_for_ui_id("persona_b")
 
@@ -84,6 +105,301 @@ def test_view_model_uses_answer_audit_citations() -> None:
     assert source.access_level == "secret"
     assert citation_chip_label(view_model.citations[0], view_model.sources).startswith("[1]")
     assert "C1" not in citation_chip_label(view_model.citations[0], view_model.sources)
+
+
+def test_runtime_flow_builds_from_older_search_queries_and_cache_events() -> None:
+    audit = {
+        "query": "Compare AI modernization policy sources.",
+        "session_id": "s_runtime_old",
+        "user_id": "clearance_unclassified",
+        "persona_id": "clearance_unclassified",
+        "tool_calls": ["search_documents", "search_documents"],
+        "retrieval": {
+            "search_count": 2,
+            "search_queries": [
+                "Canada's defence policy",
+                "DND/CAF AI Strategy",
+            ],
+            "allowed_access": ["unclassified"],
+            "filters_applied": [
+                {"access_level": ["unclassified"], "language": "any", "status": "approved"},
+                {"access_level": ["unclassified"], "language": "any", "status": "approved"},
+            ],
+            "tool_cache": {
+                "events": [
+                    {
+                        "tool_name": "search_documents",
+                        "normalized_args": {
+                            "query": "Canada's defence policy",
+                            "status_filter": "approved",
+                            "language": "any",
+                            "top_k": 8,
+                        },
+                    },
+                    {
+                        "tool_name": "search_documents",
+                        "normalized_args": {
+                            "query": "DND/CAF AI Strategy",
+                            "status_filter": "approved",
+                            "language": "any",
+                            "top_k": 8,
+                        },
+                    },
+                ]
+            },
+            "answerability": [
+                {
+                    "answerable": True,
+                    "reason": "authorized_sources_available",
+                    "evidence_quality": {
+                        "selected_source_count": 8,
+                        "top_authorized_vector_score": 0.5121,
+                        "top_authorized_rerank_score": 0.9752,
+                    },
+                },
+                {
+                    "answerable": True,
+                    "reason": "authorized_sources_available",
+                    "evidence_quality": {
+                        "selected_source_count": 8,
+                        "top_authorized_vector_score": 0.5033,
+                        "top_authorized_rerank_score": 0.9884,
+                    },
+                },
+            ],
+        },
+        "generation": {"model": "command-a-03-2025", "document_count": 11},
+    }
+
+    view_model = build_view_model(_result_from_audit(audit), ui_persona_id="persona_a")
+
+    assert [call.query for call in view_model.tool_calls] == [
+        "Canada's defence policy",
+        "DND/CAF AI Strategy",
+    ]
+    assert view_model.tool_calls[0].arguments["top_k"] == 8
+    assert view_model.tool_calls[0].filters["status"] == "approved"
+    first_search = view_model.runtime_steps[3]
+    assert first_search.title == "Tool call 1: search_documents"
+    assert first_search.code == 'search_documents(query="Canada\'s defence policy", top_k=8)'
+    assert first_search.metrics == (
+        ("Authorized pages", "8"),
+        ("Top rerank", "0.9752"),
+        ("Top vector", "0.5121"),
+    )
+    assert first_search.markers == ()
+
+
+def test_runtime_flow_prefers_retrieval_searches_when_new_audit_shape_is_present() -> None:
+    audit = {
+        "query": "Compare sources.",
+        "session_id": "s_runtime_new",
+        "user_id": "clearance_unclassified",
+        "persona_id": "clearance_unclassified",
+        "tool_calls": ["search_documents"],
+        "tool_call_records": [
+            {"tool_name": "search_documents", "args": {"query": "draft query", "top_k": 5}},
+        ],
+        "retrieval": {
+            "search_count": 1,
+            "search_queries": ["fallback query"],
+            "allowed_access": ["unclassified"],
+            "searches": [
+                {
+                    "call_index": 1,
+                    "query": "recorded retrieval query",
+                    "filters_applied": {"access_level": ["unclassified"], "language": "en", "status": "approved"},
+                    "authorized_source_count": 6,
+                    "sources_sent_to_answer_count": 4,
+                    "excluded_source_count": 0,
+                    "collection": "defence_agent_pdf_pages_1536",
+                    "embedding_backend": "embed-v4.0",
+                    "rerank_backend": "rerank-v4.0-pro",
+                    "top_authorized_vector_score": 0.4444,
+                    "top_authorized_rerank_score": 0.9991,
+                    "policy_decision": "allow",
+                }
+            ],
+            "answerability": [{"answerable": True, "reason": "authorized_sources_available"}],
+        },
+        "generation": {"model": "command-a-03-2025", "document_count": 4},
+    }
+
+    view_model = build_view_model(_result_from_audit(audit), ui_persona_id="persona_a")
+
+    call = view_model.tool_calls[0]
+    assert call.query == "recorded retrieval query"
+    assert call.arguments["query"] == "draft query"
+    assert call.vector_score == 0.4444
+    assert call.rerank_score == 0.9991
+    assert view_model.runtime_steps[3].code == 'search_documents(query="recorded retrieval query", top_k=5)'
+    assert view_model.runtime_steps[3].metrics == (
+        ("Authorized pages", "6"),
+        ("Top rerank", "0.9991"),
+        ("Top vector", "0.4444"),
+    )
+
+
+def test_view_model_surfaces_routing_and_reviewer_gate() -> None:
+    audit = {
+        "query": "Review cited answer.",
+        "session_id": "s_routing",
+        "user_id": "clearance_unclassified",
+        "persona_id": "clearance_unclassified",
+        "tool_calls": ["search_documents"],
+        "retrieval": {
+            "search_count": 1,
+            "search_queries": ["Review cited answer."],
+            "allowed_access": ["unclassified"],
+            "retrieval_modes": ["hybrid"],
+            "chunk_strategies": ["page"],
+            "answerability": [{"answerable": True, "reason": "authorized_sources_available"}],
+        },
+        "generation": {
+            "model": "command-a-03-2025",
+            "document_count": 2,
+            "usage": {"input_tokens": 1200, "output_tokens": 180},
+            "billed_units": {"input_tokens": 1200, "output_tokens": 180},
+        },
+        "context_budget": {
+            "schema_version": "context_budget.v1",
+            "context_window_tokens": 256000,
+            "context_window_used_pct": 0.64,
+            "prompt_tokens_estimate": 1640,
+            "output_tokens_estimate": 180,
+            "total_tokens_estimate": 1820,
+            "source_text_tokens_estimate": 980,
+            "provider_usage_available": True,
+            "provider_usage": {"input_tokens": 1200, "output_tokens": 180},
+            "provider_billed_units": {"input_tokens": 1200, "output_tokens": 180},
+        },
+        "routing": {
+            "label": "Multi-agent",
+            "expected_latency": "high",
+            "expected_cost": "high",
+            "uses_adk_agent": True,
+            "uses_reviewer": True,
+        },
+        "critic": {
+            "status": "needs_human_review",
+            "credibility_score": 0.625,
+            "release_gate": "human_continue_or_stop_required",
+            "summary": "Citation support is weak.",
+        },
+    }
+
+    view_model = build_view_model(_result_from_audit(audit), ui_persona_id="persona_a")
+
+    assert view_model.routing["label"] == "Multi-agent"
+    assert view_model.critic["status"] == "needs_human_review"
+    reviewer_step = next(step for step in view_model.runtime_steps if step.title == "Reviewer sub-agent trust check")
+    assert reviewer_step.status == "denied"
+    assert ("Trust score", "0.625") in reviewer_step.metrics
+    assert view_model.sanitized_answer_audit["reviewer"]["status"] == "needs_human_review"
+    assert view_model.sanitized_answer_audit["context_budget"]["prompt_tokens_estimate"] == 1640
+    assert view_model.sanitized_answer_audit["generation"]["usage"]["input_tokens"] == 1200
+
+
+def test_runtime_flow_marks_model_grounded_insufficiency_refusal() -> None:
+    audit = {
+        "query": "Give the approved Arctic submarine basing schedule for 2031.",
+        "session_id": "s_runtime_refusal",
+        "user_id": "clearance_unclassified",
+        "persona_id": "clearance_unclassified",
+        "tool_calls": ["search_documents"],
+        "retrieval": {
+            "search_count": 1,
+            "search_queries": ["approved Arctic submarine basing schedule for 2031"],
+            "allowed_access": ["unclassified"],
+            "answerability": [
+                {
+                    "answerable": False,
+                    "reason": "insufficient_authorized_evidence",
+                    "evidence_quality": {
+                        "selected_source_count": 8,
+                        "top_authorized_vector_score": 0.3947,
+                        "top_authorized_rerank_score": 0.7369,
+                    },
+                }
+            ],
+            "sources_sent_to_answer": [
+                {"chunk_id": f"CA-DEF-POL-2024-EN_page_{page:03d}", "doc_id": "CA-DEF-POL-2024-EN", "page": page}
+                for page in range(1, 9)
+            ],
+        },
+        "generation": {"model": "command-a-03-2025", "document_count": 8},
+    }
+
+    view_model = build_view_model(
+        _result_from_audit(audit, answer="Evidence is insufficient."),
+        ui_persona_id="persona_a",
+    )
+
+    gate = next(step for step in view_model.runtime_steps if step.title == "Evidence check")
+    generation = next(step for step in view_model.runtime_steps if step.title == "Grounded generation")
+    assert gate.status == "denied"
+    assert gate.detail == "Evidence not sufficient after reviewing authorized pages."
+    assert "insufficient_authorized_evidence" not in gate.detail
+    assert gate.metrics == ()
+    assert generation.status == "denied"
+    assert "reviewed 8 authorized page(s)" in generation.detail
+    assert generation.code == "documents=authorized_pages"
+    assert view_model.documents_sent_to_model == 8
+
+
+def test_runtime_flow_does_not_create_search_step_for_audit_follow_up() -> None:
+    audit = {
+        "query": "Show me the prior audit trail.",
+        "session_id": "s_runtime_followup",
+        "user_id": "clearance_unclassified",
+        "persona_id": "clearance_unclassified",
+        "tool_calls": ["answer_audit_lookup"],
+        "tool_call_records": [{"tool_name": "answer_audit_lookup", "args": {"turn_id": "prior"}}],
+        "retrieval": {"search_count": 0, "allowed_access": ["unclassified"]},
+        "generation": {"model": "none", "document_count": 0},
+    }
+
+    view_model = build_view_model(_result_from_audit(audit, answer="Prior audit trace shown."), ui_persona_id="persona_a")
+
+    assert view_model.tool_calls == ()
+    assert all("search_documents" not in step.title for step in view_model.runtime_steps)
+    assert view_model.runtime_steps[2].status == "neutral"
+
+
+def test_view_model_surfaces_native_thinking_blocks_from_generation_audit() -> None:
+    result = replace(_result_from_transcript(TRANSCRIPTS / "flagship_planning_brief_modernization.json"))
+    audit = dict(result.answer_audit)
+    generation = dict(audit.get("generation", {}))
+    generation["thinking_blocks"] = [
+        {"index": 1, "type": "thinking", "thinking": "Plan retrieval, then compare cited evidence."},
+        {"index": 2, "type": "text", "text": "Ignored because it is not a thinking block."},
+    ]
+    generation["thinking_block_count"] = 1
+    audit["generation"] = generation
+    result = replace(result, answer_audit=audit)
+
+    view_model = build_view_model(result, ui_persona_id="persona_a")
+
+    assert view_model.thinking_blocks == (
+        {"index": 1, "type": "thinking", "thinking": "Plan retrieval, then compare cited evidence."},
+    )
+    assert view_model.sanitized_answer_audit["generation"]["thinking_block_count"] == 1
+    assert view_model.sanitized_answer_audit["generation"]["thinking_blocks"][0]["thinking"] == (
+        "Plan retrieval, then compare cited evidence."
+    )
+
+
+def test_view_model_sanitizes_malformed_thinking_block_index() -> None:
+    result = replace(_result_from_transcript(TRANSCRIPTS / "flagship_planning_brief_modernization.json"))
+    audit = dict(result.answer_audit)
+    generation = dict(audit.get("generation", {}))
+    generation["thinking_blocks"] = [{"index": "not-an-int", "thinking": "Use returned native thinking only."}]
+    audit["generation"] = generation
+    result = replace(result, answer_audit=audit)
+
+    view_model = build_view_model(result, ui_persona_id="persona_a")
+
+    assert view_model.thinking_blocks[0]["index"] == 1
 
 
 def test_view_model_builds_display_citations_and_deduped_source_pages() -> None:
@@ -433,10 +749,12 @@ def test_eval_options_default_to_presentation_readiness_bundle(tmp_path: Path) -
 
 def test_backend_bridge_rehydrates_agent_turn_result() -> None:
     result = _result_from_transcript(TRANSCRIPTS / "natural_multilingual_nato_core_tasks.json")
-    rehydrated = agent_turn_result_from_dict(result.__dict__)
+    payload = {**result.__dict__, "thinking_blocks": [{"index": 1, "type": "thinking", "thinking": "check evidence"}]}
+    rehydrated = agent_turn_result_from_dict(payload)
 
     assert rehydrated.session_id == result.session_id
     assert rehydrated.persona_id == result.persona_id
+    assert rehydrated.thinking_blocks == [{"index": 1, "type": "thinking", "thinking": "check evidence"}]
     assert rehydrated.answer_audit["query"]
     assert rehydrated.citation_mode == result.citation_mode
 
@@ -455,6 +773,37 @@ def test_backend_bridge_error_detail_does_not_expose_stdout_payload() -> None:
 
     assert detail == "TimeoutError: upstream timed out"
     assert len(detail) < 240
+
+
+def test_backend_bridge_worker_env_bounds_cohere_retries(monkeypatch) -> None:
+    for key in (
+        "COHERE_TIMEOUT_SECONDS",
+        "COHERE_MAX_RETRIES",
+        "COHERE_RETRY_MAX_WAIT_SECONDS",
+        "DEFENCE_AGENT_UI_COHERE_TIMEOUT_SECONDS",
+        "DEFENCE_AGENT_UI_COHERE_MAX_RETRIES",
+        "DEFENCE_AGENT_UI_COHERE_RETRY_MAX_WAIT_SECONDS",
+        "DEFENCE_AGENT_UI_ADK_TIMEOUT_SECONDS",
+        "DEFTECH_ADK_TIMEOUT_SECONDS",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    env = _worker_env()
+
+    assert env["COHERE_TIMEOUT_SECONDS"] == "45"
+    assert env["COHERE_MAX_RETRIES"] == "1"
+    assert env["COHERE_RETRY_MAX_WAIT_SECONDS"] == "5"
+    assert env["DEFTECH_ADK_TIMEOUT_SECONDS"] == "45"
+
+
+def test_backend_bridge_worker_env_accepts_demo_retrieval_overrides(monkeypatch) -> None:
+    monkeypatch.delenv("DEFENCE_AGENT_RETRIEVAL_MODE", raising=False)
+    monkeypatch.delenv("DEFENCE_AGENT_CHUNK_STRATEGY", raising=False)
+
+    env = _worker_env(retrieval_mode="bm25", chunk_strategy="windowed")
+
+    assert env["DEFENCE_AGENT_RETRIEVAL_MODE"] == "bm25"
+    assert env["DEFENCE_AGENT_CHUNK_STRATEGY"] == "windowed"
 
 
 def test_backend_bridge_handles_large_worker_json_without_polling_deadlock(monkeypatch) -> None:

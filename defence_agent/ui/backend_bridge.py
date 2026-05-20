@@ -36,6 +36,12 @@ def run_turn_in_subprocess(
     user_id: str,
     session_id: str | None,
     target_answer_language: str = "auto",
+    run_mode: str = "reviewed_agent",
+    accuracy_priority: int = 4,
+    latency_priority: int = 2,
+    max_review_cycles: int | None = None,
+    retrieval_mode: str | None = None,
+    chunk_strategy: str | None = None,
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     progress: Callable[[str], None] | None = None,
 ) -> AgentTurnResult:
@@ -47,6 +53,10 @@ def run_turn_in_subprocess(
         "user_id": user_id,
         "session_id": session_id,
         "target_answer_language": target_answer_language,
+        "run_mode": run_mode,
+        "accuracy_priority": accuracy_priority,
+        "latency_priority": latency_priority,
+        "max_review_cycles": max_review_cycles,
     }
     if progress:
         progress("Live backend call started. Waiting for a structured worker result.")
@@ -58,7 +68,7 @@ def run_turn_in_subprocess(
             input=json.dumps(payload),
             capture_output=True,
             text=True,
-            env=_worker_env(),
+            env=_worker_env(retrieval_mode=retrieval_mode, chunk_strategy=chunk_strategy),
             timeout=timeout_seconds,
             check=False,
         )
@@ -91,7 +101,7 @@ def run_turn_in_subprocess(
     return agent_turn_result_from_dict(result)
 
 
-def _worker_env() -> dict[str, str]:
+def _worker_env(*, retrieval_mode: str | None = None, chunk_strategy: str | None = None) -> dict[str, str]:
     env = os.environ.copy()
     env["COHERE_TIMEOUT_SECONDS"] = env.get("COHERE_TIMEOUT_SECONDS", DEFAULT_UI_COHERE_TIMEOUT_SECONDS)
     env["COHERE_MAX_RETRIES"] = env.get("COHERE_MAX_RETRIES", DEFAULT_UI_COHERE_MAX_RETRIES)
@@ -100,6 +110,10 @@ def _worker_env() -> dict[str, str]:
         DEFAULT_UI_COHERE_RETRY_MAX_WAIT_SECONDS,
     )
     env["DEFTECH_ADK_TIMEOUT_SECONDS"] = env.get("DEFTECH_ADK_TIMEOUT_SECONDS", DEFAULT_UI_ADK_TIMEOUT_SECONDS)
+    if retrieval_mode:
+        env["DEFENCE_AGENT_RETRIEVAL_MODE"] = retrieval_mode
+    if chunk_strategy:
+        env["DEFENCE_AGENT_CHUNK_STRATEGY"] = chunk_strategy
     return env
 
 

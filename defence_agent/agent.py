@@ -41,9 +41,22 @@ def _instruction(context: ReadonlyContext) -> str:
     )
 
 
+def _lite_llm_kwargs(model: str) -> dict[str, object]:
+    kwargs: dict[str, object] = {"timeout": ADK_TIMEOUT_SECONDS}
+    if _is_command_a_plus(model):
+        kwargs["custom_llm_provider"] = "cohere_chat"
+        kwargs["allowed_openai_params"] = ["tools"]
+    return kwargs
+
+
+def _is_command_a_plus(model: str) -> bool:
+    model_name = str(model).rsplit("/", maxsplit=1)[-1]
+    return model_name.startswith("command-a-plus-")
+
+
 root_agent = LlmAgent(
     name=AGENT_ID,
-    model=LiteLlm(model=MODEL, timeout=ADK_TIMEOUT_SECONDS),
+    model=LiteLlm(model=MODEL, **_lite_llm_kwargs(MODEL)),
     instruction=_instruction,
     tools=[search_documents],
     output_key="last_retrieval_status",

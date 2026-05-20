@@ -51,6 +51,22 @@ The PDF offers five scenario families:
 - Educational personalization and privacy-respecting curriculum adaptation.
 - Public sector Defence Agent.
 
+## Cross-Scenario Assessment Signals
+
+The selected scenario is Defence Agent, but the other scenarios are still useful.
+They show what Cohere likely values across the interview:
+
+| Scenario | Assessment signal to reuse |
+| --- | --- |
+| Ecommerce | Relevance, personalization, secure use of customer data, measurable business impact. |
+| Healthcare | Confidentiality, integration with existing systems, high-stakes accuracy. |
+| Financial services | Transparency, compliance, document understanding, adaptation to changing regulations. |
+| Education | Personalization, privacy, adaptation to different standards and curricula. |
+| Defence Agent | Accuracy, traceability, access control, document interrogation, staff efficiency. |
+
+Use these as design signals for the Defence Agent demo and notebook. Do not turn
+the presentation into a survey of all scenarios.
+
 ## Selected Scenario: Defence Agent
 
 DefTech is a national defence technology agency that wants an AI assistant to help staff interrogate manuals, procedures, and doctrine.

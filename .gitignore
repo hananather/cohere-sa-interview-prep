@@ -28,6 +28,12 @@ defence_agent/data/*
 !defence_agent/data/corpus/synthetic/*.pdf
 !defence_agent/data/corpus/synthetic_source/*.md
 !defence_agent/data/corpus/synthetic_source/*.py
+!defence_agent/data/reports/
+!defence_agent/data/reports/generated/
+!defence_agent/data/reports/generated/demo_weekly_northern_readiness_brief/
+!defence_agent/data/reports/generated/demo_weekly_northern_readiness_brief/*.html
+!defence_agent/data/reports/generated/demo_weekly_northern_readiness_brief/*.json
+!defence_agent/data/reports/generated/demo_weekly_northern_readiness_brief/*.md
 defence_agent/data/chroma/
 defence_agent/data/sessions/
 defence_agent/data/transcripts/

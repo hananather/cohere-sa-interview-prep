@@ -4,9 +4,22 @@
 
 Defence Agent helps central planning staff interrogate doctrine, manuals, and
 procedures with cited, access-controlled answers. The technical proof is a
-  page-level normalized evidence stack: Cohere Embed v4 for multilingual page-image
+page-level normalized evidence stack: Cohere Embed v4 for multilingual page-image
 search, Cohere Rerank v4 for evidence ordering, and persona-aware filters so
 the model only sees authorized pages.
+
+## Interview Competency Frame
+
+This demo should be narrated as proof of technical Solutions Architect
+competence, not just as a product walkthrough.
+
+- The live app proves hands-on implementation.
+- Trace proves inspectable agent behavior and security boundaries.
+- The technical walkthrough proves architecture and Cohere fluency.
+- The eval artifacts prove pilot readiness and measurement discipline.
+- The notebook slides prove production-shaped thinking beyond the local app.
+
+For each demo moment, say what competency it proves before diving into mechanics.
 
 ## Strategic Frame
 
@@ -29,8 +42,9 @@ the model only sees authorized pages.
 - Keep `.env` out of git.
 - Confirm the real Cohere API key is set only in `.env` as
   `COHERE_API_KEY`.
-- Prefer a trial key for rehearsal when limits are sufficient, with
-  `COHERE_REQUESTS_PER_MINUTE=20` or lower.
+- For full-speed live evals on a monitored personal key, use
+  `COHERE_REQUESTS_PER_MINUTE=0`. Set a positive value only when local pacing is
+  needed.
 - Rebuild the index with `python defence_agent/scripts/build_chroma_index.py`.
 - Run the demo registry with `python defence_agent/scripts/run_demo_query_registry.py --no-fail` and mark any failing case as `do_not_demo`.
 - Start the primary demo UI with `make run`, then open
@@ -44,15 +58,18 @@ the model only sees authorized pages.
 ## Flow 1: Agentic Planning Brief
 
 - Persona: `clearance_unclassified`.
-- Query: `I am preparing a planning brief. First search Canada's defence policy for AI-enabled modernization. Then search the DND/CAF AI Strategy for AI-enabled modernization. Compare both and cite the strongest source pages.`
-- Show: one or more `search_documents` calls, retrieved policy/AI strategy pages, rerank scores, and citations.
+- Query: `Compare how Canada's defence policy and the DND/CAF AI Strategy describe AI-enabled modernization for a planning brief, and cite the strongest source pages.`
+- Show: the Trace dropdown as an ordered execution log:
+  - `search_documents(query="Canada's defence policy", top_k=8, status_filter="approved", language="en")`
+  - `search_documents(query="DND/CAF AI Strategy", top_k=8, status_filter="approved", language="en")`
+- Show: retrieved policy/AI strategy pages, vector scores, rerank scores, and citations.
 - Show: `answer_audit.generation.citation_resolution.coverage` so the panel can see that claim-like answer sentences were cited.
-- Point: agentic RAG handles a planning task that needs document comparison, not just a single vector lookup.
+- Point: agentic RAG handles a planning task that needs document comparison, not just a single vector lookup. Call this an ordered tool-call trace, not parallel search, unless the audit explicitly records concurrent execution.
 - CLI rehearsal:
 
 ```bash
 python defence_agent/scripts/run_agent_session.py \
-  "I am preparing a planning brief. First search Canada's defence policy for AI-enabled modernization. Then search the DND/CAF AI Strategy for AI-enabled modernization. Compare both and cite the strongest source pages." \
+  "Compare how Canada's defence policy and the DND/CAF AI Strategy describe AI-enabled modernization for a planning brief, and cite the strongest source pages." \
   --persona clearance_unclassified \
   --show-audit
 ```
@@ -63,6 +80,20 @@ python defence_agent/scripts/run_agent_session.py \
 - Query: `What core tasks does NATO assign to the Alliance in its Strategic Concept, and why do they matter for a Canadian planning brief?`
 - Show: source language is selected by retrieval, not hard-coded by the user query.
 - Point: the corpus can include English and French evidence; the user does not need to know the source language in advance.
+
+## Flow 2b: Scanned Manual Retrieval
+
+- Persona: `clearance_unclassified`.
+- Query: `In the scanned Technical Intelligence field manual, what is technical intelligence, what foreign materiel does it cover, and which objectives matter most for strategic and tactical planners?`
+- Show: retrieved pages from `US-ARMY-FM30-16-1972-SCAN`, source format `scanned_pdf`, rendered page preview, and native Cohere citations.
+- Point: the customer's older physical manuals can enter the same cited evidence workflow after digitization, without a separate demo-only OCR path.
+- CLI rehearsal:
+
+```bash
+python defence_agent/scripts/run_demo_query_registry.py \
+  --case-id scanned_manual_technical_intelligence \
+  --no-fail
+```
 
 ## Flow 3: Permission-Aware Retrieval
 
@@ -111,7 +142,7 @@ python defence_agent/scripts/run_agent_session.py \
 
 - Persona: `clearance_unclassified`.
 - Query: `What does the corpus say about the approved Arctic submarine basing schedule for 2031?`
-- Show: retrieval finds related public defence-policy pages but the answerability gate sends zero documents to final generation because the scheduled 2031 claim is unsupported.
+- Show: retrieval finds related public defence-policy pages, sends the authorized pages to Command A, and Command A refuses because the scheduled 2031 claim is unsupported.
 - Point: citations alone are not enough. The workflow must abstain when authorized evidence does not support the user's claim.
 
 ## Close
@@ -130,5 +161,7 @@ python defence_agent/scripts/run_agent_session.py \
   publisher's official PDF pair, proving that DOCX-origin and PDF-origin sources
   use the same Embed v4, Rerank v4, ACL, citation, and audit workflow after
   verified normalization.
+- State that the scanned-manual source is a 10-page excerpt from a public
+  digitized physical manual with page images plus an OCR text layer.
 - For production native DOCX ingestion, point to Compass or a
   manifest-compatible parser and normalization adapter.

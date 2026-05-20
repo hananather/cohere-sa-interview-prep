@@ -25,6 +25,7 @@ The generator reads:
 
 - `defence_agent/data/corpus/manifest.yaml`
 - selected saved runs under `defence_agent/data/transcripts/`
+- selected reviewer challenge runs under `defence_agent/data/evals/reviewer_challenge_runs/`
 
 It writes:
 
@@ -35,7 +36,7 @@ It writes:
 - Edit `DEMO_RUNS` in `presentation_backup/build_backup.py` to add, remove, or reorder cases.
 - Keep the first section as the database/source catalog.
 - Keep the first demo case as the planning brief comparison.
-- Use access-boundary, scanned-manual, refusal, follow-up, and bilingual runs as modular proof sections.
+- Use reviewer, access-boundary, scanned-manual, refusal, follow-up, and bilingual runs as modular proof sections.
 
 ## Online Backup Options
 

@@ -13,6 +13,14 @@ import time
 
 import streamlit as st
 
+from defence_agent.routing import (
+    AGENTIC_RAG,
+    AUTO,
+    REVIEWED_AGENT,
+    SIMPLE_RAG,
+    RUN_MODE_LABELS as AUTONOMY_LABELS,
+    choose_route,
+)
 from defence_agent.session import AgentTurnResult
 from defence_agent.ui import backend_bridge
 from defence_agent.ui.backend_bridge import DEFAULT_TIMEOUT_SECONDS
@@ -83,12 +91,37 @@ DEMO_QUERIES = {
         "Compact cited answer using NATO source pages.",
         target_answer_language="en",
     ),
+    "DOCX-origin ASOEM responsibilities": DemoQuery(
+        "Summarize the ASOEM manual's safe operating environment responsibilities.",
+        "DOCX-origin doctrine source after normalized page ingestion.",
+        target_answer_language="en",
+    ),
+    "Reviewer catches unsupported claims": DemoQuery(
+        "The Chief of Staff wants a document-backed list of named Canadian modernization programs that will use AI. Include NORAD modernization, NDOIC, JISR, C5ISR, and any AI-specific roadmap details only if the cited documents directly support each item.",
+        "Show the Reviewer sub-agent pushing unsupported named-program claims to human review.",
+        target_answer_language="en",
+    ),
+    "Reviewer improves weak answer": DemoQuery(
+        "Compare Canada's defence policy and the DND CAF AI Strategy on AI-enabled modernization. Separate direct evidence from planning interpretation.",
+        "Show reviewer feedback triggering a second research pass that reaches approval.",
+        target_answer_language="en",
+    ),
 }
 EXAMPLE_PROMPTS = {label: query.prompt for label, query in DEMO_QUERIES.items()}
 DEFAULT_DEMO_QUERY = "Planning brief comparison"
 RUN_MODES = {
     "demo": "Guided run",
     "live": "Live run",
+}
+AUTONOMY_MODES = (REVIEWED_AGENT, AGENTIC_RAG, SIMPLE_RAG, AUTO)
+RETRIEVAL_MODES = {
+    "hybrid": "Hybrid",
+    "vector": "Vector",
+    "bm25": "BM25",
+}
+CHUNK_STRATEGIES = {
+    "page": "Page traceability",
+    "windowed": "Windowed child chunks",
 }
 PLANNING_TRANSCRIPT_DIR = (
     Path(__file__).resolve().parent
@@ -118,10 +151,55 @@ EVAL_FULL_TRANSCRIPT_DIR = (
     / "transcripts"
     / "eval_full_registry_20260514_020915"
 )
-GUIDED_STEP_DELAY_SECONDS = 1.25
+ROUTE_SIMPLE_TRANSCRIPT_DIR = (
+    Path(__file__).resolve().parent
+    / "defence_agent"
+    / "data"
+    / "transcripts"
+    / "route_comparison_live_20260519_simple"
+)
+ROUTE_AGENTIC_TRANSCRIPT_DIR = (
+    Path(__file__).resolve().parent
+    / "defence_agent"
+    / "data"
+    / "transcripts"
+    / "route_comparison_live_20260519_agentic"
+)
+ROUTE_REVIEWED_TRANSCRIPT_DIR = (
+    Path(__file__).resolve().parent
+    / "defence_agent"
+    / "data"
+    / "transcripts"
+    / "route_comparison_live_20260519_reviewed"
+)
+REVIEWER_CHALLENGE_TRANSCRIPT_DIR = (
+    Path(__file__).resolve().parent
+    / "defence_agent"
+    / "data"
+    / "evals"
+    / "reviewer_challenge_runs"
+    / "reviewed_answer_challenges_20260520_040245"
+)
+REVIEWER_FEEDBACK_LOOP_TRANSCRIPT_DIR = (
+    Path(__file__).resolve().parent
+    / "defence_agent"
+    / "data"
+    / "evals"
+    / "reviewer_challenge_runs"
+    / "reviewed_answer_feedback_loop_20260520"
+)
+GUIDED_STEP_DELAY_SECONDS = 0.65
+GUIDED_MIN_RUN_SECONDS_BY_ROUTE = {
+    SIMPLE_RAG: 5.5,
+    AGENTIC_RAG: 7.0,
+    REVIEWED_AGENT: 8.5,
+}
 LIVE_STATUS_POLL_INTERVAL_SECONDS = 0.75
 ANSWER_STREAM_CHUNK_WORDS = 4
-ANSWER_STREAM_DELAY_SECONDS = 0.07
+CONTEXT_WINDOW_TOKEN_ESTIMATE = int(os.getenv("DEFTECH_CONTEXT_WINDOW_TOKENS", "256000"))
+ESTIMATED_CHARS_PER_TOKEN = 4
+ESTIMATED_SOURCE_PAGE_TOKENS = 750
+ANSWER_STREAM_DELAY_SECONDS = 0.12
 
 
 @dataclass(frozen=True)
@@ -131,66 +209,132 @@ class DemoReplay:
     demo_point: str
 
 
+def _replay_key(
+    ui_persona_id: str,
+    selected_example: str,
+    autonomy_mode: str = REVIEWED_AGENT,
+    retrieval_mode: str = "hybrid",
+    chunk_strategy: str = "page",
+) -> tuple[str, str, str, str, str]:
+    return (ui_persona_id, selected_example, autonomy_mode, retrieval_mode, chunk_strategy)
+
+
 DEMO_REPLAYS = {
-    ("persona_a", "Planning brief comparison"): DemoReplay(
-        PLANNING_TRANSCRIPT_DIR,
-        "flagship_planning_brief_modernization.json",
-        "Two-step planning question across defence policy and AI strategy.",
+    _replay_key("persona_a", "Planning brief comparison", SIMPLE_RAG): DemoReplay(
+        ROUTE_SIMPLE_TRANSCRIPT_DIR,
+        "readiness_hybrid_multidoc_modernization.json",
+        "RAG comparison over the same planning question.",
     ),
-    ("persona_a", "Access boundary"): DemoReplay(
+    _replay_key("persona_a", "Planning brief comparison", AGENTIC_RAG): DemoReplay(
+        ROUTE_AGENTIC_TRANSCRIPT_DIR,
+        "readiness_hybrid_multidoc_modernization.json",
+        "Agentic RAG comparison with two planned searches.",
+    ),
+    _replay_key("persona_a", "Planning brief comparison", REVIEWED_AGENT): DemoReplay(
+        ROUTE_REVIEWED_TRANSCRIPT_DIR,
+        "readiness_hybrid_multidoc_modernization.json",
+        "Multi-agent comparison with citation-support scoring.",
+    ),
+    _replay_key("persona_a", "Access boundary"): DemoReplay(
         DEMO_TRANSCRIPT_DIR,
         "acl_unclassified_sensor_fusion_release_rule.json",
         "Unclassified user is blocked from restricted sensor-fusion guidance.",
     ),
-    ("persona_a", "Scanned manual retrieval"): DemoReplay(
+    _replay_key("persona_a", "Scanned manual retrieval"): DemoReplay(
         EVAL_FULL_TRANSCRIPT_DIR,
         "scanned_manual_technical_intelligence.json",
         "Digitized physical manual excerpt with cited scanned-source pages.",
     ),
-    ("persona_a", "Evidence gap: Arctic basing 2031"): DemoReplay(
+    _replay_key("persona_a", "Evidence gap: Arctic basing 2031"): DemoReplay(
         INSUFFICIENT_EVIDENCE_TRANSCRIPT_DIR,
         "insufficient_evidence_planning_topic.json",
         "Authorized pages are reviewed, then the unsupported scheduled claim is refused.",
     ),
-    ("persona_a", "French NATO doctrine answer"): DemoReplay(
+    _replay_key("persona_a", "French NATO doctrine answer"): DemoReplay(
         EVAL_FULL_TRANSCRIPT_DIR,
         "french_nato_doctrine_answer.json",
         "French cited answer over bilingual NATO Strategic Concept pages.",
     ),
-    ("persona_a", "Concise cited NATO answer"): DemoReplay(
+    _replay_key("persona_a", "Concise cited NATO answer"): DemoReplay(
         DEMO_TRANSCRIPT_DIR,
         "natural_multilingual_nato_core_tasks.json",
         "Compact cited answer using NATO source pages.",
     ),
-    ("persona_b", "Planning brief comparison"): DemoReplay(
-        PLANNING_TRANSCRIPT_DIR,
-        "flagship_planning_brief_modernization.json",
-        "Two-step planning question across defence policy and AI strategy.",
+    _replay_key("persona_a", "DOCX-origin ASOEM responsibilities"): DemoReplay(
+        EVAL_FULL_TRANSCRIPT_DIR,
+        "docx_origin_asoem_safe_operating_environment.json",
+        "DOCX-origin doctrine source after normalized page ingestion.",
     ),
-    ("persona_b", "Access boundary"): DemoReplay(
+    _replay_key("persona_a", "Reviewer catches unsupported claims"): DemoReplay(
+        REVIEWER_CHALLENGE_TRANSCRIPT_DIR,
+        "level_8_forced_specific_program_overreach.json",
+        "Reviewer sub-agent flags unsupported named-program claims after bounded review cycles.",
+    ),
+    _replay_key("persona_a", "Reviewer improves weak answer"): DemoReplay(
+        REVIEWER_FEEDBACK_LOOP_TRANSCRIPT_DIR,
+        "level_2_cross_document_modernization_comparison.json",
+        "Reviewer sub-agent feedback triggers a second research pass and final approval.",
+    ),
+    _replay_key("persona_b", "Planning brief comparison", SIMPLE_RAG): DemoReplay(
+        ROUTE_SIMPLE_TRANSCRIPT_DIR,
+        "readiness_hybrid_multidoc_modernization.json",
+        "RAG comparison over the same planning question.",
+    ),
+    _replay_key("persona_b", "Planning brief comparison", AGENTIC_RAG): DemoReplay(
+        ROUTE_AGENTIC_TRANSCRIPT_DIR,
+        "readiness_hybrid_multidoc_modernization.json",
+        "Agentic RAG comparison with two planned searches.",
+    ),
+    _replay_key("persona_b", "Planning brief comparison", REVIEWED_AGENT): DemoReplay(
+        ROUTE_REVIEWED_TRANSCRIPT_DIR,
+        "readiness_hybrid_multidoc_modernization.json",
+        "Multi-agent comparison with citation-support scoring.",
+    ),
+    _replay_key("persona_b", "Access boundary"): DemoReplay(
         DEMO_TRANSCRIPT_DIR,
         "acl_secret_sensor_fusion_release_rule.json",
         "Cleared user receives the restricted workflow rule with traceability.",
     ),
-    ("persona_b", "Scanned manual retrieval"): DemoReplay(
+    _replay_key("persona_b", "Scanned manual retrieval"): DemoReplay(
         EVAL_FULL_TRANSCRIPT_DIR,
         "scanned_manual_technical_intelligence.json",
         "Digitized physical manual excerpt with cited scanned-source pages.",
     ),
-    ("persona_b", "Evidence gap: Arctic basing 2031"): DemoReplay(
+    _replay_key("persona_b", "Evidence gap: Arctic basing 2031"): DemoReplay(
         INSUFFICIENT_EVIDENCE_TRANSCRIPT_DIR,
         "insufficient_evidence_planning_topic.json",
         "Authorized pages are reviewed, then the unsupported scheduled claim is refused.",
     ),
-    ("persona_b", "French NATO doctrine answer"): DemoReplay(
+    _replay_key("persona_b", "French NATO doctrine answer"): DemoReplay(
         EVAL_FULL_TRANSCRIPT_DIR,
         "french_nato_doctrine_answer.json",
         "French cited answer over bilingual NATO Strategic Concept pages.",
     ),
-    ("persona_b", "Concise cited NATO answer"): DemoReplay(
+    _replay_key("persona_b", "Concise cited NATO answer"): DemoReplay(
         DEMO_TRANSCRIPT_DIR,
         "natural_multilingual_nato_core_tasks.json",
         "Compact cited answer using NATO source pages.",
+    ),
+    _replay_key("persona_b", "DOCX-origin ASOEM responsibilities"): DemoReplay(
+        EVAL_FULL_TRANSCRIPT_DIR,
+        "docx_origin_asoem_safe_operating_environment.json",
+        "DOCX-origin doctrine source after normalized page ingestion.",
+    ),
+    _replay_key("persona_b", "Reviewer catches unsupported claims"): DemoReplay(
+        REVIEWER_CHALLENGE_TRANSCRIPT_DIR,
+        "level_8_forced_specific_program_overreach.json",
+        "Reviewer sub-agent flags unsupported named-program claims after bounded review cycles.",
+    ),
+    _replay_key("persona_b", "Reviewer improves weak answer"): DemoReplay(
+        REVIEWER_FEEDBACK_LOOP_TRANSCRIPT_DIR,
+        "level_2_cross_document_modernization_comparison.json",
+        "Reviewer sub-agent feedback triggers a second research pass and final approval.",
+    ),
+    # Legacy fallback kept available if a scripted demo needs the original May 11 trace.
+    ("legacy_persona_a", "Planning brief comparison", REVIEWED_AGENT, "hybrid", "page"): DemoReplay(
+        PLANNING_TRANSCRIPT_DIR,
+        "flagship_planning_brief_modernization.json",
+        "Two-step planning question across defence policy and AI strategy.",
     ),
 }
 
@@ -231,30 +375,39 @@ def _init_state() -> None:
         "run_active": False,
         "scroll_to_evidence": False,
         "run_mode": "demo",
+        "autonomy_mode": REVIEWED_AGENT,
+        "accuracy_priority": 5,
+        "latency_priority": 2,
+        "max_review_cycles": 2,
+        "retrieval_mode": "hybrid",
+        "chunk_strategy": "page",
         "stream_answer": True,
         "stream_answer_once": False,
+        "auto_scroll_run": True,
+        "follow_up_text": "",
         "session_id_by_persona": {},
         "show_sanitized_json": False,
+        "reviewer_escalation_dialog_session": "",
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
 
 
 def _render_ask_tab() -> None:
-    _render_query_controls()
+    view_model = st.session_state.get("last_result")
+    persona = _render_query_controls(show_main_query=view_model is None)
 
     if st.session_state.get("last_run_error"):
         st.error(st.session_state["last_run_error"])
 
-    view_model = st.session_state.get("last_result")
     if view_model is None:
         return
 
-    _render_runtime_flow_panel(view_model)
-    _render_answer(view_model)
+    _render_runtime_flow_panel(view_model, expanded=False)
+    _render_answer(view_model, persona)
 
 
-def _render_query_controls() -> UiPersona:
+def _render_query_controls(*, show_main_query: bool) -> UiPersona:
     with st.sidebar:
         st.markdown("## Defence Agent")
         selected = st.radio(
@@ -267,10 +420,6 @@ def _render_query_controls() -> UiPersona:
     _reset_result_when_persona_changes(persona)
 
     with st.sidebar:
-        st.caption(persona.description)
-        st.markdown("**Allowed evidence**")
-        st.write(persona.visible_access_label)
-
         if st.session_state.get("selected_example") not in EXAMPLE_PROMPTS:
             st.session_state["selected_example"] = DEFAULT_DEMO_QUERY
             st.session_state["query_text"] = EXAMPLE_PROMPTS[DEFAULT_DEMO_QUERY]
@@ -279,8 +428,8 @@ def _render_query_controls() -> UiPersona:
             options=tuple(EXAMPLE_PROMPTS.keys()),
             key="selected_example",
             on_change=_sync_selected_demo_query,
+            label_visibility="collapsed",
         )
-        _render_demo_query_context(selected_example, persona)
 
         with st.expander("Advanced run controls", expanded=False):
             run_mode = st.radio(
@@ -289,72 +438,151 @@ def _render_query_controls() -> UiPersona:
                 format_func=lambda key: RUN_MODES[key],
                 key="run_mode",
             )
+            autonomy_mode = st.selectbox(
+                "Autonomy mode",
+                options=AUTONOMY_MODES,
+                format_func=lambda key: AUTONOMY_LABELS[key],
+                key="autonomy_mode",
+            )
+            auto_route_enabled = autonomy_mode == AUTO
+            st.slider(
+                "Accuracy priority (Auto route)",
+                min_value=1,
+                max_value=5,
+                key="accuracy_priority",
+                disabled=not auto_route_enabled,
+                help=(
+                    "Used only when Autonomy mode is Auto route. Higher values favor Multi-agent "
+                    "for citation-sensitive questions."
+                ),
+            )
+            st.slider(
+                "Latency priority (Auto route)",
+                min_value=1,
+                max_value=5,
+                key="latency_priority",
+                disabled=not auto_route_enabled,
+                help=(
+                    "Used only when Autonomy mode is Auto route. Higher values can choose RAG "
+                    "when accuracy is low and the question is narrow."
+                ),
+            )
+            st.slider(
+                "Reviewer cycles",
+                min_value=1,
+                max_value=3,
+                key="max_review_cycles",
+                help="Maximum Research sub-agent + Reviewer sub-agent revision cycles before release or escalation.",
+            )
+            retrieval_mode = st.selectbox(
+                "Retrieval mode",
+                options=tuple(RETRIEVAL_MODES.keys()),
+                format_func=lambda key: RETRIEVAL_MODES[key],
+                key="retrieval_mode",
+            )
+            chunk_strategy = st.selectbox(
+                "Chunk strategy",
+                options=tuple(CHUNK_STRATEGIES.keys()),
+                format_func=lambda key: CHUNK_STRATEGIES[key],
+                key="chunk_strategy",
+            )
             effective_run_mode = _effective_run_mode(selected_example, run_mode)
             selected_query = DEMO_QUERIES.get(selected_example)
             if selected_query is not None and selected_query.live_only:
                 st.caption("This selected query runs live because no guided replay is bundled.")
-            elif effective_run_mode == "demo":
-                st.caption("Uses the curated walkthrough output when available.")
+            elif _can_use_guided_replay(
+                effective_run_mode,
+                selected_example,
+                st.session_state.get("query_text", ""),
+                autonomy_mode=autonomy_mode,
+                retrieval_mode=retrieval_mode,
+                chunk_strategy=chunk_strategy,
+                persona=persona,
+            ):
+                st.caption("Uses a curated trace for the selected route when available.")
+            elif autonomy_mode == SIMPLE_RAG:
+                st.caption("Runs RAG: direct retrieval plus Cohere cited generation.")
+            elif autonomy_mode == AGENTIC_RAG:
+                st.caption("Runs Agentic RAG without the Reviewer sub-agent score.")
             else:
-                st.caption("Runs the backend with Cohere and the agent loop.")
+                st.caption("Runs Multi-agent with Research and Reviewer sub-agents.")
+            st.caption(
+                _route_preview_caption(
+                    query=st.session_state.get("query_text", ""),
+                    autonomy_mode=autonomy_mode,
+                    accuracy_priority=int(st.session_state.get("accuracy_priority", 4)),
+                    latency_priority=int(st.session_state.get("latency_priority", 2)),
+                )
+            )
             st.checkbox("Stream answer display", key="stream_answer")
             st.caption("Streams the answer after the run completes.")
+            st.checkbox("Auto-scroll while running", key="auto_scroll_run")
+            st.caption("Keeps the visible run progress in view during guided and live runs.")
 
-        _render_tool_card()
+    if show_main_query:
+        with st.form("ask_form", clear_on_submit=False):
+            query = st.text_area(
+                "Question",
+                key="query_text",
+                height=224,
+                placeholder="Ask a question over manuals, procedures, and doctrine...",
+            )
+            submitted = st.form_submit_button("Run query", type="primary")
 
-    st.caption(
-        f"Persona: {persona.label} · Allowed evidence: {persona.visible_access_label} · "
-        f"Run mode: {RUN_MODES[effective_run_mode]}"
-    )
-
-    with st.form("ask_form", clear_on_submit=False):
-        query = st.text_area(
-            "Question",
-            key="query_text",
-            height=116,
-            placeholder="Ask a question over manuals, procedures, and doctrine...",
-        )
-        submitted = st.form_submit_button("Run query", type="primary")
-
-    if submitted:
-        _run_query(query=query, persona=persona, selected_example=selected_example, run_mode=effective_run_mode)
+        if submitted:
+            _run_query(
+                query=query,
+                persona=persona,
+                selected_example=selected_example,
+                run_mode=effective_run_mode,
+                autonomy_mode=str(st.session_state["autonomy_mode"]),
+                accuracy_priority=int(st.session_state["accuracy_priority"]),
+                latency_priority=int(st.session_state["latency_priority"]),
+                max_review_cycles=int(st.session_state["max_review_cycles"]),
+                retrieval_mode=str(st.session_state["retrieval_mode"]),
+                chunk_strategy=str(st.session_state["chunk_strategy"]),
+            )
+            st.rerun()
     return persona
-
-
-def _render_tool_card() -> None:
-    st.markdown("**Model-facing tool**")
-    st.markdown(
-        f"""
-        <div class="da-tool-card">
-            <div class="da-tool-header">
-                <span>Only tool</span>
-                <code>search_documents</code>
-            </div>
-            <div class="da-tool-purpose">Persona-scoped evidence retrieval over approved doctrine pages.</div>
-            <div class="da-tool-flow">
-                <span>Access filter</span>
-                <span>Embed v4</span>
-                <span>Vector search</span>
-                <span>Rerank v4</span>
-                <span>Citation IDs</span>
-            </div>
-            <code class="da-tool-signature">query, top_k, status_filter, language</code>
-            <div class="da-tool-timeout">Live hard stop: {DEFAULT_TIMEOUT_SECONDS}s</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
 
 def _reset_result_when_persona_changes(persona: UiPersona) -> None:
     if st.session_state["_active_ui_persona_id"] == persona.ui_id:
         return
     st.session_state["_active_ui_persona_id"] = persona.ui_id
+    _reset_conversation_view(persona)
+
+
+def _reset_conversation_view(persona: UiPersona | None = None) -> None:
     st.session_state["last_result"] = None
     st.session_state["selected_citation_id"] = None
     st.session_state["selected_page_key"] = None
     st.session_state["last_run_error"] = ""
     st.session_state["run_active"] = False
+    if persona is not None:
+        st.session_state["session_id_by_persona"].pop(persona.ui_id, None)
+
+
+def _route_preview_caption(
+    *,
+    query: str,
+    autonomy_mode: str,
+    accuracy_priority: int,
+    latency_priority: int,
+) -> str:
+    route = choose_route(
+        requested_mode=autonomy_mode,
+        query=query,
+        accuracy_priority=accuracy_priority,
+        latency_priority=latency_priority,
+    )
+    if autonomy_mode != AUTO:
+        return f"Route locked to {route.label}; Auto priority sliders are not applied."
+    return (
+        f"Auto preview: {route.label}. "
+        f"{route.reason} "
+        f"Expected latency {route.expected_latency}; expected cost {route.expected_cost}."
+    )
 
 
 def _sync_selected_demo_query() -> None:
@@ -371,7 +599,19 @@ def _sync_selected_demo_query() -> None:
     st.session_state["last_run_error"] = ""
 
 
-def _run_query(*, query: str, persona: UiPersona, selected_example: str, run_mode: str) -> None:
+def _run_query(
+    *,
+    query: str,
+    persona: UiPersona,
+    selected_example: str,
+    run_mode: str,
+    autonomy_mode: str,
+    accuracy_priority: int,
+    latency_priority: int,
+    max_review_cycles: int,
+    retrieval_mode: str,
+    chunk_strategy: str,
+) -> None:
     cleaned = query.strip()
     if not cleaned:
         st.warning("Enter a query before running the agent.")
@@ -387,18 +627,31 @@ def _run_query(*, query: str, persona: UiPersona, selected_example: str, run_mod
     run_mode = _effective_run_mode(selected_example, run_mode)
     target_answer_language = _target_answer_language(cleaned, selected_example)
     try:
-        if _can_use_guided_replay(run_mode, selected_example, cleaned):
+        if _can_use_guided_replay(
+            run_mode,
+            selected_example,
+            cleaned,
+            autonomy_mode=autonomy_mode,
+            retrieval_mode=retrieval_mode,
+            chunk_strategy=chunk_strategy,
+            persona=persona,
+        ):
             status_slot = st.empty()
-            result = _load_demo_result(
-                selected_example=selected_example,
-                persona=persona,
-                query=cleaned,
-                target_answer_language=target_answer_language,
-            )
-            elapsed = time.monotonic() - started
-            view_model = build_view_model(result, ui_persona_id=persona.ui_id, run_elapsed_seconds=elapsed)
             with status_slot.status("Running Defence Agent", expanded=True):
+                _write_status_step("Starting run and applying persona access policy", delay_seconds=GUIDED_STEP_DELAY_SECONDS)
+                result = _load_demo_result(
+                    selected_example=selected_example,
+                    persona=persona,
+                    query=cleaned,
+                    target_answer_language=target_answer_language,
+                    autonomy_mode=autonomy_mode,
+                    retrieval_mode=retrieval_mode,
+                    chunk_strategy=chunk_strategy,
+                )
+                elapsed = time.monotonic() - started
+                view_model = build_view_model(result, ui_persona_id=persona.ui_id, run_elapsed_seconds=elapsed)
                 _reveal_audit_sequence(view_model, delay_seconds=GUIDED_STEP_DELAY_SECONDS)
+                _pace_guided_result(started=started, view_model=view_model)
                 _store_result(view_model, result, persona)
             status_slot.empty()
             return
@@ -410,7 +663,12 @@ def _run_query(*, query: str, persona: UiPersona, selected_example: str, run_mod
         status_slot = st.empty()
         with status_slot.status("Running Defence Agent", expanded=True):
             st.write("Applying persona access policy")
-            st.write("Running live Cohere/ADK backend with read-only search access")
+            st.write(f"Routing: {AUTONOMY_LABELS.get(autonomy_mode, autonomy_mode)}")
+            st.write(
+                f"Retrieval: {RETRIEVAL_MODES.get(retrieval_mode, retrieval_mode)} · "
+                f"Chunks: {CHUNK_STRATEGIES.get(chunk_strategy, chunk_strategy)}"
+            )
+            st.write(f"Reviewer cycles: {max_review_cycles}")
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(
                     _run_turn_sync,
@@ -418,6 +676,12 @@ def _run_query(*, query: str, persona: UiPersona, selected_example: str, run_mod
                     persona=persona,
                     session_id=session_id,
                     target_answer_language=target_answer_language,
+                    autonomy_mode=autonomy_mode,
+                    accuracy_priority=accuracy_priority,
+                    latency_priority=latency_priority,
+                    max_review_cycles=max_review_cycles,
+                    retrieval_mode=retrieval_mode,
+                    chunk_strategy=chunk_strategy,
                     progress=lambda _message: None,
                 )
                 while not future.done():
@@ -447,8 +711,32 @@ def _reveal_audit_sequence(view_model: DefenceAgentViewModel, *, delay_seconds: 
         _write_status_step(message, delay_seconds=delay_seconds)
 
 
-def _render_runtime_flow_panel(view_model: DefenceAgentViewModel) -> None:
-    with st.expander("Runtime flow", expanded=False):
+def _pace_guided_result(*, started: float, view_model: DefenceAgentViewModel) -> None:
+    routing = view_model.routing if isinstance(view_model.routing, dict) else {}
+    selected_mode = str(routing.get("selected_mode") or "")
+    if selected_mode not in GUIDED_MIN_RUN_SECONDS_BY_ROUTE:
+        if bool(routing.get("uses_reviewer", False)):
+            selected_mode = REVIEWED_AGENT
+        elif bool(routing.get("uses_adk_agent", False)):
+            selected_mode = AGENTIC_RAG
+        else:
+            selected_mode = SIMPLE_RAG
+    minimum_seconds = GUIDED_MIN_RUN_SECONDS_BY_ROUTE.get(selected_mode)
+    if minimum_seconds is None:
+        return
+
+    remaining = float(minimum_seconds) - (time.monotonic() - started)
+    if remaining <= 0:
+        return
+
+    _write_status_step(
+        "Preparing cited answer stream and reviewer metadata",
+        delay_seconds=remaining,
+    )
+
+
+def _render_runtime_flow_panel(view_model: DefenceAgentViewModel, *, expanded: bool = False) -> None:
+    with st.expander("Runtime flow", expanded=expanded):
         st.markdown(_runtime_flow_html(view_model), unsafe_allow_html=True)
 
 
@@ -492,17 +780,71 @@ def _audit_status_steps(view_model: DefenceAgentViewModel) -> list[str]:
 
 def _write_status_step(message: str, *, delay_seconds: float = 0.16) -> None:
     st.write(message)
-    if delay_seconds > 0:
-        time.sleep(delay_seconds)
+    _auto_scroll_run_progress()
+    _sleep_for_ui(delay_seconds)
 
 
-def _can_use_guided_replay(run_mode: str, selected_example: str, query: str) -> bool:
+def _sleep_for_ui(seconds: float) -> None:
+    if seconds <= 0 or os.getenv("PYTEST_CURRENT_TEST"):
+        return
+    time.sleep(seconds)
+
+
+def _auto_scroll_run_progress() -> None:
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        return
+    if not st.session_state.get("auto_scroll_run", True):
+        return
+    st.iframe(_auto_scroll_run_progress_script(), height=1)
+
+
+def _auto_scroll_run_progress_script() -> str:
+    return """
+        <script>
+        const parentWin = window.parent;
+        const parentDoc = parentWin.document;
+        const scrollWithRun = () => {
+            const statusWidgets = parentDoc.querySelectorAll('[data-testid="stStatusWidget"]');
+            const activeStatus = statusWidgets.length ? statusWidgets[statusWidgets.length - 1] : null;
+            const target = activeStatus || parentDoc.body;
+            if (target && target.scrollIntoView) {
+                target.scrollIntoView({ behavior: "smooth", block: "end" });
+            } else {
+                parentWin.scrollTo({ top: parentDoc.documentElement.scrollHeight, behavior: "smooth" });
+            }
+        };
+        window.requestAnimationFrame(() => window.setTimeout(scrollWithRun, 40));
+        </script>
+        """
+
+
+def _can_use_guided_replay(
+    run_mode: str,
+    selected_example: str,
+    query: str,
+    *,
+    autonomy_mode: str = REVIEWED_AGENT,
+    retrieval_mode: str = "hybrid",
+    chunk_strategy: str = "page",
+    persona: UiPersona | None = None,
+) -> bool:
     if run_mode != "demo":
+        return False
+    if retrieval_mode != "hybrid" or chunk_strategy != "page":
         return False
     demo_query = DEMO_QUERIES.get(selected_example)
     if demo_query is None or demo_query.live_only:
         return False
-    return query.strip() == EXAMPLE_PROMPTS.get(selected_example, "").strip()
+    if query.strip() != EXAMPLE_PROMPTS.get(selected_example, "").strip():
+        return False
+    ui_persona_id = (persona or persona_for_ui_id(DEFAULT_UI_PERSONA_ID)).ui_id
+    return _demo_replay(
+        ui_persona_id=ui_persona_id,
+        selected_example=selected_example,
+        autonomy_mode=autonomy_mode,
+        retrieval_mode=retrieval_mode,
+        chunk_strategy=chunk_strategy,
+    ) is not None
 
 
 def _effective_run_mode(selected_example: str, requested_run_mode: str) -> str:
@@ -539,15 +881,6 @@ def _detect_query_language(query: str) -> str:
     return "fr" if sum(1 for marker in french_markers if marker in text) >= 2 else "en"
 
 
-def _render_demo_query_context(selected_example: str, persona: UiPersona) -> None:
-    query = DEMO_QUERIES.get(selected_example)
-    if query is not None:
-        st.caption(query.summary)
-    replay = DEMO_REPLAYS.get((persona.ui_id, selected_example))
-    if replay is None and query is not None and query.live_only:
-        st.caption("Runs live against the current model and index.")
-
-
 def _store_result(view_model: DefenceAgentViewModel, result: AgentTurnResult, persona: UiPersona) -> None:
     st.session_state["last_result"] = view_model
     st.session_state["session_id_by_persona"][persona.ui_id] = result.session_id
@@ -567,8 +900,17 @@ def _load_demo_result(
     persona: UiPersona,
     query: str,
     target_answer_language: str,
+    autonomy_mode: str,
+    retrieval_mode: str,
+    chunk_strategy: str,
 ) -> AgentTurnResult:
-    replay = DEMO_REPLAYS.get((persona.ui_id, selected_example))
+    replay = _demo_replay(
+        ui_persona_id=persona.ui_id,
+        selected_example=selected_example,
+        autonomy_mode=autonomy_mode,
+        retrieval_mode=retrieval_mode,
+        chunk_strategy=chunk_strategy,
+    )
     if replay is None:
         raise DemoReplayUnavailable("No guided run exists for this persona and query.")
     path = replay.transcript_dir / replay.transcript_name
@@ -586,6 +928,14 @@ def _load_demo_result(
     audit["persona_id"] = persona.backend_persona_id
     audit["user_id"] = persona.backend_persona_id
     audit["query"] = query
+    route = choose_route(
+        requested_mode=autonomy_mode,
+        query=query,
+        accuracy_priority=int(st.session_state.get("accuracy_priority", 4)),
+        latency_priority=int(st.session_state.get("latency_priority", 2)),
+    ).as_audit()
+    existing_routing = audit.get("routing", {}) if isinstance(audit.get("routing"), dict) else {}
+    audit["routing"] = {**existing_routing, **route}
     generation = audit.get("generation", {}) if isinstance(audit.get("generation"), dict) else {}
     generation = dict(generation)
     generation["target_answer_language"] = target_answer_language
@@ -606,6 +956,25 @@ def _load_demo_result(
         documents_sent_to_model=int(generation.get("document_count", 0) or 0),
         retrieval_status=str(audit.get("retrieval_status", "")),
         answer_audit=audit,
+    )
+
+
+def _demo_replay(
+    *,
+    ui_persona_id: str,
+    selected_example: str,
+    autonomy_mode: str,
+    retrieval_mode: str,
+    chunk_strategy: str,
+) -> DemoReplay | None:
+    return DEMO_REPLAYS.get(
+        _replay_key(
+            ui_persona_id,
+            selected_example,
+            autonomy_mode,
+            retrieval_mode,
+            chunk_strategy,
+        )
     )
 
 
@@ -665,6 +1034,12 @@ def _run_turn_sync(
     persona: UiPersona,
     session_id: str | None,
     target_answer_language: str,
+    autonomy_mode: str,
+    accuracy_priority: int,
+    latency_priority: int,
+    max_review_cycles: int,
+    retrieval_mode: str,
+    chunk_strategy: str,
     progress,
 ) -> AgentTurnResult:
     return backend_bridge.run_turn_in_subprocess(
@@ -673,18 +1048,420 @@ def _run_turn_sync(
         user_id=persona.backend_persona_id,
         session_id=session_id,
         target_answer_language=target_answer_language,
+        run_mode=autonomy_mode,
+        accuracy_priority=accuracy_priority,
+        latency_priority=latency_priority,
+        max_review_cycles=max_review_cycles,
+        retrieval_mode=retrieval_mode,
+        chunk_strategy=chunk_strategy,
         progress=progress,
     )
 
 
-def _render_answer(view_model: DefenceAgentViewModel) -> None:
+def _render_answer(view_model: DefenceAgentViewModel, persona: UiPersona) -> None:
     with st.container(border=True):
+        citation_payloads = _evidence_page_payloads(view_model)
         _render_answer_text(view_model)
+        _install_citation_interaction_for_view_model(view_model, citation_payloads)
+        _render_quality_gate(view_model)
+        _render_reviewer_value_panel(view_model)
+        _render_reviewer_escalation_prompt(view_model)
         _render_multilingual_retrieval(view_model)
+        _render_follow_up_box(view_model, persona)
         _render_citation_pages(view_model)
-        _render_selected_evidence(view_model)
+        _render_selected_evidence(view_model, citation_payloads)
         _render_citation_explainer(view_model)
         _render_answer_trace_panel(view_model)
+
+
+def _install_citation_interaction_for_view_model(
+    view_model: DefenceAgentViewModel,
+    payloads: dict[str, dict[str, object]],
+) -> None:
+    selected_page = _selected_evidence_page(view_model)
+    if selected_page is None:
+        return
+    selected_citation = _citation_for_evidence_page(view_model, selected_page)
+    _install_citation_interaction_script(
+        payloads,
+        selected_page_key=selected_page.page_key,
+        selected_citation_id=selected_citation.citation_id if selected_citation else "",
+    )
+
+
+def _render_follow_up_box(view_model: DefenceAgentViewModel, persona: UiPersona) -> None:
+    st.markdown("**Follow-up question**")
+    with st.form(f"follow_up_form_{view_model.session_id}", clear_on_submit=True):
+        follow_up = st.text_area(
+            "Follow-up question",
+            key="follow_up_text",
+            height=132,
+            placeholder="Ask about the answer, citations, source pages, or access boundary...",
+            label_visibility="collapsed",
+        )
+        submitted = st.form_submit_button("Ask follow-up")
+    if submitted:
+        _run_query(
+            query=follow_up,
+            persona=persona,
+            selected_example=str(st.session_state.get("selected_example", DEFAULT_DEMO_QUERY)),
+            run_mode=str(st.session_state.get("run_mode", "demo")),
+            autonomy_mode=str(st.session_state.get("autonomy_mode", REVIEWED_AGENT)),
+            accuracy_priority=int(st.session_state.get("accuracy_priority", 4)),
+            latency_priority=int(st.session_state.get("latency_priority", 2)),
+            max_review_cycles=int(st.session_state.get("max_review_cycles", 2)),
+            retrieval_mode=str(st.session_state.get("retrieval_mode", "hybrid")),
+            chunk_strategy=str(st.session_state.get("chunk_strategy", "page")),
+        )
+        st.rerun()
+    if st.button("Start new question", key=f"new_question_{view_model.session_id}"):
+        _reset_conversation_view(persona)
+        st.rerun()
+
+
+def _render_quality_gate(view_model: DefenceAgentViewModel) -> None:
+    st.markdown(_quality_gate_html(view_model), unsafe_allow_html=True)
+
+
+def _render_reviewer_escalation_prompt(view_model: DefenceAgentViewModel) -> None:
+    critic = view_model.critic if isinstance(view_model.critic, dict) else {}
+    if not _critic_requires_human_decision(critic):
+        return
+    feedback = _latest_reviewer_feedback(view_model)
+    st.warning(_reviewer_escalation_message(critic))
+    if st.button("Rerun with reviewer feedback", key=f"rerun_feedback_{view_model.session_id}"):
+        _reviewer_rerun_dialog(view_model.query, feedback)
+
+
+@st.dialog("Rerun with reviewer feedback")
+def _reviewer_rerun_dialog(query: str, feedback: str) -> None:
+    st.write("Use the reviewer feedback to tighten retrieval and remove unsupported citations.")
+    if feedback:
+        st.text_area("Reviewer feedback", value=feedback, height=180, disabled=True)
+    st.caption("Preparing the rerun switches to live mode and gives the reviewer up to three cycles.")
+    if st.button("Prepare live rerun", type="primary"):
+        st.session_state["query_text"] = _rerun_query_with_reviewer_feedback(query, feedback)
+        st.session_state["run_mode"] = "live"
+        st.session_state["max_review_cycles"] = 3
+        st.session_state["last_result"] = None
+        st.rerun()
+
+
+def _rerun_query_with_reviewer_feedback(query: str, feedback: str) -> str:
+    feedback_block = feedback or "Reviewer flagged unsupported citations. Remove claims without direct cited support."
+    return (
+        f"{query.strip()}\n\n"
+        "Reviewer feedback to address before answering:\n"
+        f"{feedback_block.strip()}\n\n"
+        "Rerun retrieval if needed. Return only claims directly supported by authorized cited evidence. "
+        "Remove unsupported citations instead of keeping weak claims."
+    )
+
+
+def _reviewer_escalation_message(critic: dict[str, object]) -> str:
+    return "Low-trust answer. Rerun with reviewer feedback or remove unsupported claims before release."
+
+
+def _quality_gate_html(view_model: DefenceAgentViewModel) -> str:
+    validation = view_model.citation_validation or {}
+    critic = view_model.critic or {}
+    validation_label = "passed" if validation.get("passed") else "not passed"
+    citation_count = validation.get("citation_count", len(view_model.citations))
+    coverage = validation.get("coverage", {}) if isinstance(validation.get("coverage"), dict) else {}
+    covered = coverage.get("covered_claim_count", "")
+    total_claims = coverage.get("claim_count", "")
+    if covered != "" and total_claims != "":
+        citation_detail = f"{covered}/{total_claims} claims covered"
+    else:
+        citation_detail = f"{citation_count} citations"
+    critic_status = str(critic.get("status") or "not_run")
+    score = critic.get("credibility_score")
+    score_label = _trust_score_label(score)
+    gate = str(critic.get("release_gate") or "not recorded")
+    human_review = "required" if _critic_requires_human_decision(critic) else "not required"
+    return (
+        '<div class="da-quality-gate">'
+        f'<span><em>Citation validation</em>{html.escape(validation_label)}</span>'
+        f'<span><em>Coverage</em>{html.escape(citation_detail)}</span>'
+        f'<span><em>Trust status</em>{html.escape(_trust_status_label(critic_status))}</span>'
+        f'<span><em>Trust score</em>{html.escape(score_label)}</span>'
+        f'<span><em>System action</em>{html.escape(_release_gate_label(gate))}</span>'
+        f'<span><em>Human review</em>{html.escape(human_review)}</span>'
+        "</div>"
+    )
+
+
+def _render_reviewer_value_panel(view_model: DefenceAgentViewModel) -> None:
+    critic = view_model.critic if isinstance(view_model.critic, dict) else {}
+    if not critic or str(critic.get("status") or "not_run") == "not_run":
+        return
+    st.markdown(_reviewer_value_html(view_model), unsafe_allow_html=True)
+    iteration_html = _review_iteration_html(view_model)
+    if iteration_html:
+        st.markdown(iteration_html, unsafe_allow_html=True)
+
+
+def _reviewer_value_html(view_model: DefenceAgentViewModel) -> str:
+    critic = view_model.critic if isinstance(view_model.critic, dict) else {}
+    counts = _citation_trust_counts(view_model)
+    decision, decision_class = _trust_decision(view_model)
+    trigger = _trust_trigger_text(view_model)
+    used = _trust_usage_text(view_model)
+    score = _trust_score_label(critic.get("credibility_score"))
+    threshold = _trust_score_label(critic.get("threshold"))
+    reviewed_count = counts["verified"] + counts["unclear"] + counts["unverified"]
+    answer_count = len(view_model.citations) or int(critic.get("answer_citation_count", 0) or 0)
+    filtered_count = counts["unclear"] + counts["unverified"]
+    review_cards = [
+        ("Score", f"{score} / {threshold}"),
+        ("Checked", f"{reviewed_count}/{answer_count or reviewed_count}"),
+        ("Verified", str(counts["verified"])),
+        ("Needs review", str(counts["unclear"])),
+        ("Low-trust", str(counts["unverified"])),
+    ]
+    cards_html = "".join(
+        f'<span><em>{html.escape(label)}</em>{html.escape(value)}</span>'
+        for label, value in review_cards
+    )
+    legend = "".join(
+        f'<span class="da-trust-legend-item da-citation-trust--{css_class}">{html.escape(label)}</span>'
+        for label, css_class in (
+            ("Verified", "verified"),
+            ("Needs review", "unclear"),
+            ("Low-trust", "unverified"),
+            ("Not checked", "unreviewed"),
+        )
+    )
+    coverage_note = _reviewer_coverage_note(view_model, counts)
+    coverage_html = f'<p class="da-trust-note">{html.escape(coverage_note)}</p>' if coverage_note else ""
+    summary = _reviewer_summary_text(view_model, counts, reviewed_count, filtered_count)
+    return (
+        f'<section class="da-trust-panel da-trust-panel--{decision_class}">'
+        '<div class="da-trust-panel-header">'
+        "<div><em>Reviewer trust layer</em>"
+        f"<strong>{html.escape(decision)}</strong></div>"
+        f'<span class="da-trust-score">{html.escape(score)}</span>'
+        "</div>"
+        f'<div class="da-trust-panel-metrics">{cards_html}</div>'
+        f'<p class="da-trust-summary">{html.escape(summary)}</p>'
+        '<details class="da-trust-details">'
+        "<summary>Review details</summary>"
+        f'<p><strong>Trigger:</strong> {html.escape(trigger)}</p>'
+        f'<p><strong>System use:</strong> {html.escape(used)}</p>'
+        f"{coverage_html}"
+        "</details>"
+        f'<div class="da-trust-legend">{legend}</div>'
+        "</section>"
+    )
+
+
+def _reviewer_summary_text(
+    view_model: DefenceAgentViewModel,
+    counts: dict[str, int],
+    reviewed_count: int,
+    filtered_count: int,
+) -> str:
+    unchecked = counts["unreviewed"]
+    if _critic_requires_human_decision(view_model.critic if isinstance(view_model.critic, dict) else {}):
+        return (
+            f"The reviewer checked {reviewed_count} citation marker(s), filtered {filtered_count} from trusted support, "
+            "and marked the answer for human review."
+        )
+    if filtered_count:
+        return (
+            f"The reviewer checked {reviewed_count} citation marker(s) and filtered {filtered_count} from trusted support. "
+            "Green citations are the trusted support set."
+        )
+    if unchecked:
+        return (
+            f"The reviewer checked {reviewed_count} citation marker(s). Green citations are trusted; not-checked citations "
+            "were not scored in this saved run."
+        )
+    return f"The reviewer checked {reviewed_count} citation marker(s); all checked citations are trusted."
+
+
+def _reviewer_coverage_note(view_model: DefenceAgentViewModel, counts: dict[str, int]) -> str:
+    reviewed_count = counts["verified"] + counts["unclear"] + counts["unverified"]
+    answer_count = len(view_model.citations)
+    if not answer_count or counts["unreviewed"] <= 0:
+        return ""
+    return (
+        f"Not checked means the saved trace recorded reviewer decisions for {reviewed_count} of {answer_count} citation "
+        "markers. Not-checked markers are unknown, not trusted. Live runs now use a higher reviewer cap."
+    )
+
+
+def _citation_trust_counts(view_model: DefenceAgentViewModel) -> dict[str, int]:
+    trust_by_id = _citation_trust_by_id(view_model)
+    counts = {"verified": 0, "unclear": 0, "unverified": 0, "unreviewed": 0}
+    for citation in view_model.citations:
+        verdict = str(trust_by_id.get(citation.citation_id, {}).get("verdict") or "unreviewed")
+        if verdict not in counts:
+            verdict = "unreviewed"
+        counts[verdict] += 1
+    return counts
+
+
+def _citation_trust_by_id(view_model: DefenceAgentViewModel) -> dict[str, dict[str, str]]:
+    critic = view_model.critic if isinstance(view_model.critic, dict) else {}
+    reviews = critic.get("citation_reviews", []) if isinstance(critic, dict) else []
+    review_by_index: dict[int, dict[str, str]] = {}
+    for review in reviews if isinstance(reviews, list) else []:
+        if not isinstance(review, dict):
+            continue
+        try:
+            index = int(review.get("citation_index", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+        verdict = str(review.get("verdict", "unclear") or "unclear").lower()
+        if verdict not in {"verified", "unverified", "unclear"}:
+            verdict = "unclear"
+        review_by_index[index] = {
+            "verdict": verdict,
+            "reason": _canonical_agent_terms(str(review.get("reason", "") or "")),
+        }
+
+    trust: dict[str, dict[str, str]] = {}
+    for citation in view_model.citations:
+        review = review_by_index.get(citation.display_index)
+        if review is None:
+            trust[citation.citation_id] = {
+                "verdict": "unreviewed",
+                "reason": "No reviewer verdict was recorded for this citation in the saved run.",
+            }
+        else:
+            trust[citation.citation_id] = review
+    return trust
+
+
+def _citation_trust_label(verdict: str) -> str:
+    return {
+        "verified": "high trust",
+        "unclear": "unclear support",
+        "unverified": "low trust",
+        "unreviewed": "not checked",
+    }.get(verdict, "not checked")
+
+
+def _trust_score_label(value: object) -> str:
+    if value in ("", None):
+        return "n/a"
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    return f"{round(numeric * 100)}%"
+
+
+def _trust_status_label(status: str) -> str:
+    return {
+        "approved": "trusted",
+        "needs_revision": "retrying",
+        "needs_human_review": "low trust",
+        "needs_clarification": "needs clarification",
+        "not_run": "not reviewed",
+    }.get(status, status or "not reviewed")
+
+
+def _release_gate_label(gate: str) -> str:
+    return {
+        "release": "release",
+        "revise": "retry with feedback",
+        "clarification_required": "ask for clarification",
+        "human_continue_or_stop_required": "human review",
+        "not recorded": "not recorded",
+    }.get(gate, gate or "not recorded")
+
+
+def _trust_decision(view_model: DefenceAgentViewModel) -> tuple[str, str]:
+    critic = view_model.critic if isinstance(view_model.critic, dict) else {}
+    status = str(critic.get("status") or "not_run")
+    gate = str(critic.get("release_gate") or "")
+    counts = _citation_trust_counts(view_model)
+    weak_or_unreviewed = counts["unclear"] + counts["unverified"] + counts["unreviewed"]
+    if status == "approved" and gate == "release":
+        if weak_or_unreviewed:
+            return "Released with citation caveats", "retry"
+        return "Trusted answer released", "trusted"
+    if status == "needs_revision" or gate == "revise":
+        return "Reviewer requested regeneration", "retry"
+    if _critic_requires_human_decision(critic):
+        return "Low-trust answer needs human review", "low"
+    if status == "needs_clarification":
+        return "Reviewer needs clarification", "unclear"
+    return "Reviewer signal recorded", "neutral"
+
+
+def _trust_trigger_text(view_model: DefenceAgentViewModel) -> str:
+    critic = view_model.critic if isinstance(view_model.critic, dict) else {}
+    status = str(critic.get("status") or "not_run")
+    score = critic.get("credibility_score")
+    threshold = critic.get("threshold")
+    score_text = _trust_score_label(score)
+    threshold_text = _trust_score_label(threshold)
+    review_control = view_model.answer_audit.get("review_control", {}) if isinstance(view_model.answer_audit, dict) else {}
+    cycles = review_control.get("cycles", []) if isinstance(review_control, dict) else []
+    completed = int(review_control.get("completed_review_cycles", 0) or 0) if isinstance(review_control, dict) else 0
+    maximum = int(review_control.get("max_review_cycles", 0) or 0) if isinstance(review_control, dict) else 0
+    output_validation = critic.get("critic_output_validation", {}) if isinstance(critic.get("critic_output_validation"), dict) else {}
+    warnings = output_validation.get("warnings", []) if isinstance(output_validation, dict) else []
+    counts = _citation_trust_counts(view_model)
+    weak_count = counts["unclear"] + counts["unverified"]
+
+    if status == "approved":
+        if weak_count or counts["unreviewed"]:
+            return (
+                "The score met the threshold, but weak or unchecked citations remain. "
+                "Only verified citations are treated as trusted support."
+            )
+        return f"The reviewer verified enough cited spans for the trust score to meet the threshold: {score_text} >= {threshold_text}."
+    if status == "needs_revision":
+        return f"The trust score was below threshold: {score_text} < {threshold_text}; reviewer feedback is sent back to the Research sub-agent."
+    if _critic_requires_human_decision(critic):
+        if completed and maximum and completed >= maximum:
+            return (
+                f"After {completed}/{maximum} review cycle(s), the trust score still did not meet the bar "
+                f"or the reviewer still found weak citations."
+            )
+        if warnings:
+            return f"The reviewer output failed validation: {', '.join(str(item) for item in warnings[:3])}."
+        return f"The reviewer marked the answer as low trust with score {score_text} against threshold {threshold_text}."
+    if status == "needs_clarification":
+        return "The reviewer could not decide citation support from the supplied evidence."
+    if cycles:
+        return "The reviewer cycle produced feedback for regeneration."
+    return "No reviewer trust trigger was recorded for this route."
+
+
+def _trust_usage_text(view_model: DefenceAgentViewModel) -> str:
+    critic = view_model.critic if isinstance(view_model.critic, dict) else {}
+    review_control = view_model.answer_audit.get("review_control", {}) if isinstance(view_model.answer_audit, dict) else {}
+    cycles = review_control.get("cycles", []) if isinstance(review_control, dict) else []
+    feedback_cycles = [
+        cycle for cycle in cycles
+        if isinstance(cycle, dict)
+        and (cycle.get("feedback_sent_to_research_agent") or cycle.get("feedback_sent_to_generator"))
+    ]
+    counts = _citation_trust_counts(view_model)
+    weak_count = counts["unverified"] + counts["unclear"]
+    if feedback_cycles:
+        return (
+            "Low-trust citation findings were fed back to the Research sub-agent for another retrieval/generation pass. "
+            f"The current answer filters {weak_count} red/yellow citation marker(s) out of trusted support."
+        )
+    if _critic_requires_human_decision(critic):
+        return (
+            "Red and yellow citations are filtered out of trusted support. "
+            "The answer remains visible for transparency, but the system marks it low trust and requires human review."
+        )
+    if str(critic.get("status") or "") == "approved":
+        if weak_count or counts["unreviewed"]:
+            return (
+                "The answer is visible with caveats: green citations are trusted, while red, yellow, and not-checked "
+                "citations are not counted as trusted support."
+            )
+        return "The answer is released with citation-level trust markers so users can inspect which claims were verified."
+    return "The reviewer result is stored in Trace and Eval for audit."
 
 
 def _render_answer_text(view_model: DefenceAgentViewModel) -> None:
@@ -772,9 +1549,12 @@ def _render_answer_trace_panel(view_model: DefenceAgentViewModel) -> None:
         st.markdown(
             _trace_meta_html(
                 [
+                    ("route", view_model.routing.get("label", "recorded")),
                     ("persona", view_model.persona_label),
                     ("allowed", view_model.visible_access_label),
                     ("language", _language_label(view_model.target_answer_language)),
+                    ("retrieval", ", ".join(view_model.answer_audit.get("retrieval", {}).get("retrieval_modes", []) or [])),
+                    ("chunks", ", ".join(view_model.answer_audit.get("retrieval", {}).get("chunk_strategies", []) or [])),
                     ("decision", view_model.answerability.lower()),
                     ("docs", view_model.documents_sent_to_model),
                 ]
@@ -835,6 +1615,7 @@ def _trace_meta_html(items: list[tuple[str, object]]) -> str:
 
 def _request_trace_payload(view_model: DefenceAgentViewModel) -> dict[str, object]:
     return {
+        "routing": view_model.routing,
         "persona": view_model.persona_label,
         "allowed_evidence": list(view_model.allowed_access),
         "target_answer_language": _language_label(view_model.target_answer_language),
@@ -899,6 +1680,9 @@ def _retrieval_trace_payload(view_model: DefenceAgentViewModel) -> dict[str, obj
     return {
         "allowed_access": list(retrieval.get("allowed_access", []) or []),
         "filters_applied": list(retrieval.get("filters_applied", []) or []),
+        "retrieval_modes": list(retrieval.get("retrieval_modes", []) or []),
+        "chunk_strategies": list(retrieval.get("chunk_strategies", []) or []),
+        "retrieval_metrics": list(retrieval.get("retrieval_metrics", []) or []),
         "search_count": retrieval.get("search_count", len(view_model.tool_calls)),
         "searches": searches,
         "authorized_source_count": len(retrieval.get("authorized_sources", []) or []),
@@ -923,6 +1707,15 @@ def _generation_trace_payload(view_model: DefenceAgentViewModel) -> dict[str, ob
         "document_count": generation.get("document_count", view_model.documents_sent_to_model),
         "cohere_document_ids": list(generation.get("cohere_document_ids", []) or []),
         "citation_mode": generation.get("citation_mode", view_model.citation_mode) or "none",
+        "citation_validation": view_model.citation_validation,
+        "critic": view_model.critic,
+        "context_budget": _context_budget(view_model),
+        "usage": generation.get("usage", {}) if isinstance(generation.get("usage", {}), dict) else {},
+        "billed_units": (
+            generation.get("billed_units", {})
+            if isinstance(generation.get("billed_units", {}), dict)
+            else {}
+        ),
         "target_answer_language": generation.get("target_answer_language", view_model.target_answer_language),
     }
 
@@ -973,8 +1766,7 @@ def _stream_answer_display(view_model: DefenceAgentViewModel) -> None:
     for end in range(chunk_size, len(words) + chunk_size, chunk_size):
         partial = " ".join(words[: min(end, len(words))])
         placeholder.markdown(_plain_answer_html(partial), unsafe_allow_html=True)
-        if ANSWER_STREAM_DELAY_SECONDS > 0:
-            time.sleep(ANSWER_STREAM_DELAY_SECONDS)
+        _sleep_for_ui(ANSWER_STREAM_DELAY_SECONDS)
     placeholder.markdown(_answer_html_with_inline_citations(view_model), unsafe_allow_html=True)
 
 
@@ -990,12 +1782,20 @@ def _answer_html_with_inline_citations(view_model: DefenceAgentViewModel) -> str
         return "<p><em>No answer returned.</em></p>"
 
     markers_by_end: dict[int, list[str]] = {}
+    trust_by_id = _citation_trust_by_id(view_model)
     for citation in view_model.citations:
         end = _inline_citation_end(view_model, text, citation)
         if end is None:
             continue
         href = _citation_href(citation.citation_id)
-        tooltip = html.escape(_citation_tooltip(view_model, citation), quote=True)
+        trust = trust_by_id.get(citation.citation_id, {"verdict": "unreviewed", "reason": ""})
+        verdict = str(trust.get("verdict") or "unreviewed")
+        trust_label = _citation_trust_label(verdict)
+        reason = str(trust.get("reason") or "").strip()
+        tooltip_text = f"{_citation_tooltip(view_model, citation)} | Trust: {trust_label}"
+        if reason:
+            tooltip_text += f" - {reason}"
+        tooltip = html.escape(tooltip_text, quote=True)
         page_key = _single_page_key_for_citation(view_model, citation)
         page_key_attr = (
             f'data-citation-page-key="{html.escape(page_key, quote=True)}" '
@@ -1003,9 +1803,10 @@ def _answer_html_with_inline_citations(view_model: DefenceAgentViewModel) -> str
             else ""
         )
         markers_by_end.setdefault(end, []).append(
-            f'<a class="da-inline-cite" href="{href}" target="_self" '
+            f'<a class="da-inline-cite da-citation-trust--{html.escape(verdict, quote=True)}" href="{href}" target="_self" '
             f'data-citation-id="{html.escape(citation.citation_id, quote=True)}" '
-            f'{page_key_attr}data-citation-marker="{html.escape(citation.marker, quote=True)}" data-tooltip="{tooltip}" '
+            f'{page_key_attr}data-citation-marker="{html.escape(citation.marker, quote=True)}" '
+            f'data-citation-trust="{html.escape(verdict, quote=True)}" data-tooltip="{tooltip}" '
             f'aria-label="Show evidence for citation {citation.display_index}">'
             f"{html.escape(citation.marker)}</a>"
         )
@@ -1270,6 +2071,7 @@ def _render_citation_pages(view_model: DefenceAgentViewModel) -> None:
     st.markdown("**Citations**")
     st.caption("Source pages linked from inline citation markers. Each page lists the citation markers that point to it.")
     citations_by_id = {citation.citation_id: citation for citation in view_model.citations}
+    trust_by_id = _citation_trust_by_id(view_model)
     for page in view_model.evidence_pages:
         span_count = len(page.citation_ids)
         span_label = "1 cited span" if span_count == 1 else f"{span_count} cited spans"
@@ -1277,7 +2079,7 @@ def _render_citation_pages(view_model: DefenceAgentViewModel) -> None:
         if span_count:
             button_label += f" · {span_label}"
         st.markdown(
-            _evidence_page_card_html(page, button_label, citations_by_id),
+            _evidence_page_card_html(page, button_label, citations_by_id, trust_by_id=trust_by_id),
             unsafe_allow_html=True,
         )
 
@@ -1286,6 +2088,8 @@ def _evidence_page_card_html(
     page: EvidencePageView,
     label: str,
     citations_by_id: dict[str, CitationView],
+    *,
+    trust_by_id: dict[str, dict[str, str]] | None = None,
 ) -> str:
     attributes = [
         'class="da-list-button da-evidence-link"',
@@ -1297,7 +2101,7 @@ def _evidence_page_card_html(
     return (
         '<div class="da-evidence-card">'
         f"{page_link}"
-        f"{_evidence_page_citation_map_html(page, citations_by_id)}"
+        f"{_evidence_page_citation_map_html(page, citations_by_id, trust_by_id=trust_by_id)}"
         "</div>"
     )
 
@@ -1305,19 +2109,29 @@ def _evidence_page_card_html(
 def _evidence_page_citation_map_html(
     page: EvidencePageView,
     citations_by_id: dict[str, CitationView],
+    *,
+    trust_by_id: dict[str, dict[str, str]] | None = None,
 ) -> str:
     chips: list[str] = []
+    trust_by_id = trust_by_id or {}
     for citation_id in page.citation_ids:
         citation = citations_by_id.get(citation_id)
         marker = citation.marker if citation else citation_id
         label = f"{marker} {_compact_label(citation.answer_text, 96)}" if citation else marker
+        trust = trust_by_id.get(citation_id, {"verdict": "unreviewed", "reason": ""})
+        verdict = str(trust.get("verdict") or "unreviewed")
+        trust_title = f"{label} | Trust: {_citation_trust_label(verdict)}"
+        reason = str(trust.get("reason") or "").strip()
+        if reason:
+            trust_title += f" - {reason}"
         attributes = [
-            'class="da-citation-chip"',
+            f'class="da-citation-chip da-citation-trust--{html.escape(verdict, quote=True)}"',
             'href="#selected-evidence-anchor"',
             'target="_self"',
             f'data-citation-id="{html.escape(citation_id, quote=True)}"',
             f'data-citation-page-key="{html.escape(page.page_key, quote=True)}"',
-            f'title="{html.escape(label, quote=True)}"',
+            f'data-citation-trust="{html.escape(verdict, quote=True)}"',
+            f'title="{html.escape(trust_title, quote=True)}"',
             f'aria-label="Show evidence for {html.escape(marker, quote=True)} on this source page"',
         ]
         chips.append(f"<a {' '.join(attributes)}>{html.escape(marker)}</a>")
@@ -1343,13 +2157,15 @@ def _normalized_source_language(language: str) -> str:
     return str(language or "").strip().lower()
 
 
-def _render_selected_evidence(view_model: DefenceAgentViewModel) -> None:
+def _render_selected_evidence(
+    view_model: DefenceAgentViewModel,
+    payloads: dict[str, dict[str, object]],
+) -> None:
     selected_page = _selected_evidence_page(view_model)
     if selected_page is None:
         return
 
     selected_citation = _citation_for_evidence_page(view_model, selected_page)
-    payloads = _evidence_page_payloads(view_model)
     selected_payload = payloads.get(selected_page.page_key)
     if selected_payload is None:
         st.caption("Selected evidence source metadata was not resolved in the answer audit.")
@@ -1360,11 +2176,6 @@ def _render_selected_evidence(view_model: DefenceAgentViewModel) -> None:
     st.markdown(
         f'<div data-da-selected-evidence-panel>{selected_payload["html"]}</div>',
         unsafe_allow_html=True,
-    )
-    _install_citation_interaction_script(
-        payloads,
-        selected_page_key=selected_page.page_key,
-        selected_citation_id=selected_citation.citation_id if selected_citation else "",
     )
 
 
@@ -1523,14 +2334,50 @@ def _citation_interaction_script(
         const parentWin = window.parent;
         const parentDoc = parentWin.document;
         parentWin.__defenceAgentEvidencePages = {payload_json};
-        parentWin.__defenceAgentEvidenceRecordForCitation = (citationId) => {{
+        parentWin.__defenceAgentActiveEvidence = {{
+            citationId: {initial_citation_json},
+            pageKey: {initial_page_json}
+        }};
+        parentWin.__defenceAgentEvidenceRecordsForCitation = (citationId) => {{
             const evidence = parentWin.__defenceAgentEvidencePages || {{}};
-            for (const record of Object.values(evidence)) {{
-                if ((record.citation_ids || []).includes(citationId)) {{
-                    return record;
-                }}
+            return Object.values(evidence).filter((record) =>
+                (record.citation_ids || []).includes(citationId)
+            );
+        }};
+        parentWin.__defenceAgentEvidenceRecordForCitation = (citationId) => {{
+            const records = parentWin.__defenceAgentEvidenceRecordsForCitation(citationId);
+            return records.length ? records[0] : null;
+        }};
+        parentWin.__defenceAgentScrollToEvidence = (shouldScroll = true) => {{
+            const anchor = parentDoc.getElementById("selected-evidence-anchor");
+            if (shouldScroll && anchor) {{
+                parentWin.history.replaceState(null, "", "#selected-evidence-anchor");
+                anchor.scrollIntoView({{ behavior: "auto", block: "start" }});
             }}
-            return null;
+        }};
+        parentWin.__defenceAgentSetActiveEvidence = (citationId, pageKey) => {{
+            parentWin.__defenceAgentActiveEvidence = {{ citationId, pageKey }};
+            parentDoc.querySelectorAll("[data-page-key]").forEach((node) => {{
+                const active = Boolean(pageKey) && node.dataset.pageKey === pageKey;
+                node.classList.toggle("da-active-page", active);
+                if (active) {{
+                    node.setAttribute("aria-current", "true");
+                }} else {{
+                    node.removeAttribute("aria-current");
+                }}
+            }});
+            parentDoc.querySelectorAll("[data-citation-id]").forEach((node) => {{
+                const chipPageKey = node.dataset.citationPageKey || "";
+                const active = Boolean(citationId)
+                    && node.dataset.citationId === citationId
+                    && (!chipPageKey || chipPageKey === pageKey);
+                node.classList.toggle("da-active-citation", active);
+                if (active) {{
+                    node.setAttribute("aria-current", "true");
+                }} else {{
+                    node.removeAttribute("aria-current");
+                }}
+            }});
         }};
         parentWin.__defenceAgentSelectPage = (pageKey, preferredCitationId, shouldScroll = true) => {{
             const evidence = parentWin.__defenceAgentEvidencePages || {{}};
@@ -1548,75 +2395,61 @@ def _citation_interaction_script(
             if (panel) {{
                 panel.innerHTML = selectedHtml;
             }}
-            parentDoc.querySelectorAll("[data-page-key]").forEach((node) => {{
-                const active = node.dataset.pageKey === pageKey;
-                node.classList.toggle("da-active-page", active);
-                if (active) {{
-                    node.setAttribute("aria-current", "true");
-                }} else {{
-                    node.removeAttribute("aria-current");
-                }}
-            }});
-            parentDoc.querySelectorAll("[data-citation-id]").forEach((node) => {{
-                const chipPageKey = node.dataset.citationPageKey || "";
-                const active = Boolean(activeCitationId)
-                    && node.dataset.citationId === activeCitationId
-                    && (!chipPageKey || chipPageKey === pageKey);
-                node.classList.toggle("da-active-citation", active);
-                if (active) {{
-                    node.setAttribute("aria-current", "true");
-                }} else {{
-                    node.removeAttribute("aria-current");
-                }}
-            }});
-            const anchor = parentDoc.getElementById("selected-evidence-anchor");
-            if (shouldScroll && anchor) {{
-                parentWin.history.replaceState(null, "", "#selected-evidence-anchor");
-                anchor.scrollIntoView({{ behavior: "smooth", block: "start" }});
-            }}
+            parentWin.__defenceAgentSetActiveEvidence(activeCitationId, pageKey);
+            parentWin.__defenceAgentScrollToEvidence(shouldScroll);
         }};
         parentWin.__defenceAgentSelectCitation = (citationId) => {{
-            const activePage = parentDoc.querySelector("[data-page-key].da-active-page");
-            if (activePage) {{
-                const activeRecord = (parentWin.__defenceAgentEvidencePages || {{}})[activePage.dataset.pageKey];
-                if (activeRecord && (activeRecord.citation_ids || []).includes(citationId)) {{
-                    parentWin.__defenceAgentSelectPage(activeRecord.page_key, citationId);
-                    return;
-                }}
-            }}
-            const record = parentWin.__defenceAgentEvidenceRecordForCitation(citationId);
-            if (!record) return;
+            const records = parentWin.__defenceAgentEvidenceRecordsForCitation(citationId);
+            if (!records.length) return;
+            const activePageKey = (parentWin.__defenceAgentActiveEvidence || {{}}).pageKey || "";
+            const activeRecord = records.find((record) => record.page_key === activePageKey);
+            const record = activeRecord || records[0];
             parentWin.__defenceAgentSelectPage(record.page_key, citationId);
         }};
-        if (!parentWin.__defenceAgentCitationClickInstalled) {{
-            parentDoc.addEventListener("click", (event) => {{
-                const target = event.target;
-                if (!(target instanceof parentWin.Element)) return;
-                const citationTarget = target.closest("[data-citation-id]");
-                if (citationTarget) {{
-                    const citationId = citationTarget.dataset.citationId;
-                    const evidence = parentWin.__defenceAgentEvidencePages || {{}};
-                    const pageKey = citationTarget.dataset.citationPageKey;
-                    if (!citationId || !parentWin.__defenceAgentEvidenceRecordForCitation(citationId)) return;
-                    event.preventDefault();
-                    if (pageKey && evidence[pageKey]) {{
-                        parentWin.__defenceAgentSelectPage(pageKey, citationId);
-                    }} else {{
-                        parentWin.__defenceAgentSelectCitation(citationId);
-                    }}
-                    return;
-                }}
-                const pageTarget = target.closest("[data-page-key]");
-                if (pageTarget) {{
-                    const pageKey = pageTarget.dataset.pageKey;
-                    const evidence = parentWin.__defenceAgentEvidencePages || {{}};
-                    if (!pageKey || !evidence[pageKey]) return;
-                    event.preventDefault();
-                    parentWin.__defenceAgentSelectPage(pageKey, evidence[pageKey].primary_citation_id || "");
-                }}
-            }}, true);
-            parentWin.__defenceAgentCitationClickInstalled = true;
+        parentWin.__defenceAgentStopClick = (event) => {{
+            event.preventDefault();
+            event.stopPropagation();
+            if (typeof event.stopImmediatePropagation === "function") {{
+                event.stopImmediatePropagation();
+            }}
+        }};
+        parentWin.__defenceAgentHandleCitationClick = (event, citationTarget) => {{
+            const citationId = citationTarget.dataset.citationId;
+            const evidence = parentWin.__defenceAgentEvidencePages || {{}};
+            const pageKey = citationTarget.dataset.citationPageKey;
+            if (!citationId || !parentWin.__defenceAgentEvidenceRecordForCitation(citationId)) return;
+            parentWin.__defenceAgentStopClick(event);
+            if (pageKey && evidence[pageKey]) {{
+                parentWin.__defenceAgentSelectPage(pageKey, citationId);
+            }} else {{
+                parentWin.__defenceAgentSelectCitation(citationId);
+            }}
+        }};
+        parentWin.__defenceAgentHandlePageClick = (event, pageTarget) => {{
+            const pageKey = pageTarget.dataset.pageKey;
+            const evidence = parentWin.__defenceAgentEvidencePages || {{}};
+            if (!pageKey || !evidence[pageKey]) return;
+            parentWin.__defenceAgentStopClick(event);
+            parentWin.__defenceAgentSelectPage(pageKey, evidence[pageKey].primary_citation_id || "");
+        }};
+        if (parentWin.__defenceAgentCitationClickHandler) {{
+            parentDoc.removeEventListener("click", parentWin.__defenceAgentCitationClickHandler, true);
         }}
+        parentWin.__defenceAgentCitationClickHandler = (event) => {{
+            const target = event.target;
+            if (!(target instanceof parentWin.Element)) return;
+            const citationTarget = target.closest("[data-citation-id]");
+            if (citationTarget) {{
+                parentWin.__defenceAgentHandleCitationClick(event, citationTarget);
+                return;
+            }}
+            const pageTarget = target.closest("[data-page-key]");
+            if (pageTarget) {{
+                parentWin.__defenceAgentHandlePageClick(event, pageTarget);
+            }}
+        }};
+        parentDoc.addEventListener("click", parentWin.__defenceAgentCitationClickHandler, true);
+        parentWin.__defenceAgentCitationClickInstalled = true;
         parentWin.__defenceAgentSelectPage({initial_page_json}, {initial_citation_json}, false);
         </script>
         """
@@ -1766,7 +2599,7 @@ def _scroll_to_selected_evidence_script() -> str:
         const scrollToEvidence = () => {
             const target = parentDoc.getElementById("selected-evidence-anchor");
             if (target) {
-                target.scrollIntoView({ behavior: "smooth", block: "start" });
+                target.scrollIntoView({ behavior: "auto", block: "start" });
                 parentDoc.__defenceAgentPendingCitationScroll = false;
                 return;
             }
@@ -1817,6 +2650,7 @@ def _render_trace_tab() -> None:
 def _render_trace_story(view_model: DefenceAgentViewModel) -> None:
     st.markdown("**Execution timeline**")
     st.markdown(_trace_timeline_html(view_model), unsafe_allow_html=True)
+    _render_review_loop_table(view_model)
 
     cols = st.columns(4)
     cols[0].metric("Retrieval status", _compact_label(view_model.retrieval_status or "unknown", 22))
@@ -1827,6 +2661,7 @@ def _render_trace_story(view_model: DefenceAgentViewModel) -> None:
     cols[0].metric("Persona", view_model.persona_label.replace("Persona ", "P"))
     cols[1].metric("Allowed evidence", view_model.visible_access_label)
     cols[2].metric("Evidence pages", str(len(view_model.evidence_pages)))
+    _render_context_budget_metrics(view_model)
 
     st.markdown("**Full query**")
     st.text_area(
@@ -1851,14 +2686,26 @@ def _render_trace_story(view_model: DefenceAgentViewModel) -> None:
 
 
 def _trace_timeline_html(view_model: DefenceAgentViewModel) -> str:
+    routing = view_model.routing if isinstance(view_model.routing, dict) else {}
+    route_label = str(routing.get("label") or "Recorded route")
+    uses_adk = bool(routing.get("uses_adk_agent", bool(view_model.tool_calls)))
+    uses_reviewer = bool(routing.get("uses_reviewer", False))
     steps: list[tuple[str, str]] = [
         (
             "1. Access scope set",
             f"{view_model.persona_label} can use {view_model.visible_access_label} evidence.",
-        )
+        ),
+        (
+            "2. Route selected",
+            (
+                f"{route_label}: "
+                f"{'Research sub-agent planner' if uses_adk else 'direct retrieval'}; "
+                f"{'Reviewer sub-agent enabled' if uses_reviewer else 'Reviewer sub-agent not run'}."
+            ),
+        ),
     ]
 
-    next_index = 2
+    next_index = 3
     if view_model.tool_calls:
         for call in view_model.tool_calls:
             query = call.query or "document search"
@@ -1866,6 +2713,9 @@ def _trace_timeline_html(view_model: DefenceAgentViewModel) -> str:
             detail = query
             if filters:
                 detail += f" | {filters}"
+            score_detail = _trace_tool_score_summary(call)
+            if score_detail:
+                detail += f" | {score_detail}"
             steps.append((f"{next_index}. Search {call.call_index}", detail))
             next_index += 1
     else:
@@ -1888,6 +2738,22 @@ def _trace_timeline_html(view_model: DefenceAgentViewModel) -> str:
     )
     next_index += 1
 
+    critic = view_model.critic if isinstance(view_model.critic, dict) else {}
+    if critic:
+        steps.append((f"{next_index}. Reviewer sub-agent trust check", _reviewer_trace_detail(view_model, critic)))
+        next_index += 1
+        if _critic_requires_human_decision(critic):
+            steps.append(
+                (
+                    f"{next_index}. Escalation path",
+                    _reviewer_escalation_message(critic),
+                )
+            )
+            next_index += 1
+    elif uses_reviewer:
+        steps.append((f"{next_index}. Reviewer sub-agent trust check", "No reviewer payload was present in this saved trace."))
+        next_index += 1
+
     steps.append(
         (
             f"{next_index}. Citations resolved",
@@ -1897,6 +2763,141 @@ def _trace_timeline_html(view_model: DefenceAgentViewModel) -> str:
 
     items = "".join(_trace_step_html(title, detail) for title, detail in steps)
     return f'<div class="da-trace-timeline">{items}</div>'
+
+
+def _render_context_budget_metrics(view_model: DefenceAgentViewModel) -> None:
+    budget = _context_budget(view_model)
+    if not budget:
+        return
+
+    st.markdown("**Context budget**")
+    cols = st.columns(5)
+    cols[0].metric("Window used", _format_pct(budget.get("context_window_used_pct")))
+    cols[1].metric("Prompt tokens", _format_int(budget.get("prompt_tokens_estimate")))
+    cols[2].metric("Answer tokens", _format_int(budget.get("output_tokens_estimate")))
+    cols[3].metric("Evidence tokens", _format_int(budget.get("source_text_tokens_estimate")))
+    cols[4].metric("Total token proxy", _format_int(budget.get("total_tokens_estimate")))
+
+    detail = (
+        f"Context window: {_format_int(budget.get('context_window_tokens'))} tokens. "
+        f"Documents: {_format_int(budget.get('document_count'))}. "
+        f"Tool calls: {_format_int(budget.get('tool_call_count'))}. "
+        f"{budget.get('note', 'Token counts are estimates unless provider usage is available.')}"
+    )
+    st.caption(detail)
+    provider_usage = budget.get("provider_usage", {}) if isinstance(budget.get("provider_usage", {}), dict) else {}
+    billed_units = (
+        budget.get("provider_billed_units", {})
+        if isinstance(budget.get("provider_billed_units", {}), dict)
+        else {}
+    )
+    if provider_usage or billed_units:
+        st.caption(
+            "Provider usage: "
+            f"{_compact_json(provider_usage) if provider_usage else 'not reported'}; "
+            f"billed units: {_compact_json(billed_units) if billed_units else 'not reported'}."
+        )
+
+
+def _context_budget(view_model: DefenceAgentViewModel) -> dict[str, object]:
+    audit = view_model.answer_audit if isinstance(view_model.answer_audit, dict) else {}
+    budget = audit.get("context_budget", {}) if isinstance(audit.get("context_budget", {}), dict) else {}
+    if budget.get("prompt_tokens_estimate"):
+        return dict(budget)
+    return _estimated_context_budget_from_view_model(view_model)
+
+
+def _estimated_context_budget_from_view_model(view_model: DefenceAgentViewModel) -> dict[str, object]:
+    generation = view_model.answer_audit.get("generation", {}) if isinstance(view_model.answer_audit, dict) else {}
+    document_count = int(generation.get("document_count", view_model.documents_sent_to_model) or 0)
+    source_page_count = max(document_count, len(view_model.evidence_pages), 0)
+    query_tokens = _estimate_ui_tokens(len(view_model.query))
+    output_tokens = _estimate_ui_tokens(len(view_model.raw_answer or view_model.answer))
+    source_tokens = source_page_count * ESTIMATED_SOURCE_PAGE_TOKENS
+    metadata_tokens = max(0, len(view_model.sources)) * 90
+    prompt_tokens = query_tokens + source_tokens + metadata_tokens + 450
+    total_tokens = prompt_tokens + output_tokens
+    context_window = max(1, CONTEXT_WINDOW_TOKEN_ESTIMATE)
+    provider_usage = generation.get("usage", {}) if isinstance(generation.get("usage", {}), dict) else {}
+    billed_units = generation.get("billed_units", {}) if isinstance(generation.get("billed_units", {}), dict) else {}
+    return {
+        "schema_version": "context_budget.v1",
+        "method": "guided_replay_page_estimate",
+        "context_window_tokens": context_window,
+        "context_window_used_pct": round((prompt_tokens / context_window) * 100, 2),
+        "prompt_tokens_estimate": prompt_tokens,
+        "output_tokens_estimate": output_tokens,
+        "total_tokens_estimate": total_tokens,
+        "query_tokens_estimate": query_tokens,
+        "source_text_tokens_estimate": source_tokens,
+        "source_metadata_tokens_estimate": metadata_tokens,
+        "system_overhead_tokens_estimate": 450,
+        "document_count": document_count,
+        "source_count": len(view_model.sources),
+        "search_count": len(view_model.tool_calls),
+        "tool_call_count": len(view_model.tool_calls),
+        "provider_usage_available": bool(provider_usage or billed_units),
+        "provider_usage": provider_usage,
+        "provider_billed_units": billed_units,
+        "note": "Saved guided traces do not include full source text, so evidence tokens are estimated from source page count.",
+    }
+
+
+def _estimate_ui_tokens(char_count: int) -> int:
+    return max(0, int(round(max(0, char_count) / max(1, ESTIMATED_CHARS_PER_TOKEN))))
+
+
+def _format_int(value: object) -> str:
+    try:
+        return f"{int(float(value)):,}"
+    except (TypeError, ValueError):
+        return "n/a"
+
+
+def _format_pct(value: object) -> str:
+    try:
+        return f"{float(value):.2f}%"
+    except (TypeError, ValueError):
+        return "n/a"
+
+
+def _compact_json(value: dict[str, object]) -> str:
+    rendered = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+    return _compact_label(rendered, 160)
+
+
+def _reviewer_trace_detail(view_model: DefenceAgentViewModel, critic: dict[str, object]) -> str:
+    status = str(critic.get("status") or "not_run")
+    score = critic.get("credibility_score")
+    score_text = _trust_score_label(score)
+    gate = str(critic.get("release_gate") or "not recorded")
+    verified = str(critic.get("verified_citation_count", "n/a") or "n/a")
+    unverified = str(critic.get("unverified_citation_count", "n/a") or "n/a")
+    review_control = view_model.answer_audit.get("review_control", {}) if isinstance(view_model.answer_audit, dict) else {}
+    if isinstance(review_control, dict) and review_control:
+        completed = review_control.get("completed_review_cycles", 0)
+        maximum = review_control.get("max_review_cycles", 1)
+        cycle_text = f"{completed}/{maximum} cycle(s)"
+    else:
+        cycle_text = "cycle count not recorded"
+    if status == "not_run":
+        return "Reviewer sub-agent was not run for this route."
+    return (
+        f"status: {status}; trust score: {score_text}; verified citations: {verified}; "
+        f"unverified citations: {unverified}; gate: {gate}; {cycle_text}."
+    )
+
+
+def _trace_tool_score_summary(call: ToolCallView) -> str:
+    pieces: list[str] = []
+    pieces.append(f"authorized pages: {call.authorized_source_count}")
+    if call.rerank_score is not None:
+        pieces.append(f"top rerank score: {call.rerank_score:.4f}")
+    if call.vector_score is not None:
+        pieces.append(f"top vector score: {call.vector_score:.4f}")
+    if call.excluded_source_count:
+        pieces.append(f"excluded: {call.excluded_source_count}")
+    return "; ".join(pieces)
 
 
 def _generation_model_label(view_model: DefenceAgentViewModel) -> str:
@@ -1937,20 +2938,344 @@ def _trace_filter_summary(filters: dict[str, object]) -> str:
 
 
 def _request_rows(view_model: DefenceAgentViewModel) -> list[dict[str, object]]:
-    return [
+    retrieval = view_model.answer_audit.get("retrieval", {}) if isinstance(view_model.answer_audit, dict) else {}
+    review_control = (
+        view_model.answer_audit.get("review_control", {})
+        if isinstance(view_model.answer_audit, dict)
+        else {}
+    )
+    budget = _context_budget(view_model)
+    rows = [
         {"field": "session_id", "value": view_model.session_id},
+        {"field": "route", "value": view_model.routing.get("label", "")},
+        {"field": "selected_mode", "value": view_model.routing.get("selected_mode", "")},
+        {"field": "accuracy_priority", "value": view_model.routing.get("accuracy_priority", "")},
+        {"field": "latency_priority", "value": view_model.routing.get("latency_priority", "")},
+        {"field": "expected_latency", "value": view_model.routing.get("expected_latency", "")},
+        {"field": "expected_cost", "value": view_model.routing.get("expected_cost", "")},
+        {"field": "max_review_cycles", "value": review_control.get("max_review_cycles", "")},
+        {"field": "completed_review_cycles", "value": review_control.get("completed_review_cycles", "")},
+        {"field": "context_window_used_pct", "value": budget.get("context_window_used_pct", "")},
+        {"field": "prompt_tokens_estimate", "value": budget.get("prompt_tokens_estimate", "")},
         {"field": "persona", "value": view_model.persona_label},
         {"field": "backend_persona_id", "value": view_model.backend_persona_id},
         {"field": "allowed_access", "value": ", ".join(view_model.allowed_access)},
+        {"field": "retrieval_mode", "value": ", ".join(retrieval.get("retrieval_modes", []) or [])},
+        {"field": "chunk_strategy", "value": ", ".join(retrieval.get("chunk_strategies", []) or [])},
         {"field": "target_answer_language", "value": view_model.target_answer_language},
         {"field": "answerability", "value": view_model.answerability.lower()},
         {"field": "retrieval_status", "value": view_model.retrieval_status},
         {"field": "citation_mode", "value": view_model.citation_mode},
+        {"field": "reviewer_sub_agent_status", "value": view_model.critic.get("status", "")},
     ]
+    return [{"field": str(row["field"]), "value": _render_trace_value(row.get("value"))} for row in rows]
+
+
+def _render_review_loop_table(view_model: DefenceAgentViewModel) -> None:
+    rows = _review_cycle_rows(view_model)
+    if not rows:
+        return
+    st.markdown("**Review loop**")
+    st.markdown(_review_loop_html(rows), unsafe_allow_html=True)
+
+
+def _review_loop_html(rows: list[dict[str, object]]) -> str:
+    cards: list[str] = []
+    for row in rows:
+        status = str(row.get("reviewer_status", "") or "not recorded")
+        title = str(row.get("title") or f'Cycle {row.get("cycle", "")}').strip()
+        feedback = str(row.get("feedback", "") or "")
+        suggested = str(row.get("suggested_queries", "") or "")
+        weak = str(row.get("weak_citations", "") or "")
+        effect = str(row.get("effect", "") or "")
+        detail_parts = [
+            ("Trust score", row.get("score", "")),
+            ("Gate", row.get("gate", "")),
+            ("Feedback", row.get("feedback_to_research_agent", "")),
+            ("Searches", row.get("searches", "")),
+            ("Sources", row.get("sources", "")),
+        ]
+        detail = "".join(
+            f"<span><em>{html.escape(label)}</em>{html.escape(str(value))}</span>"
+            for label, value in detail_parts
+        )
+        details_html = _review_loop_details_html(
+            feedback=feedback,
+            suggested=suggested,
+            weak=weak,
+        )
+        effect_html = (
+            f'<p class="da-review-loop-impact"><strong>Impact:</strong> {html.escape(effect)}</p>'
+            if effect
+            else ""
+        )
+        cards.append(
+            '<div class="da-review-loop-card">'
+            f'<div class="da-review-loop-title">{html.escape(title)} · {html.escape(status)}</div>'
+            f'<div class="da-review-loop-meta">{detail}</div>'
+            f"{effect_html}{details_html}"
+            "</div>"
+        )
+    return f'<div class="da-review-loop">{ "".join(cards) }</div>'
+
+
+def _review_loop_details_html(*, feedback: str, suggested: str, weak: str) -> str:
+    if not feedback and not suggested and not weak:
+        return '<p class="da-review-loop-feedback da-muted">No feedback was sent for this cycle.</p>'
+    body: list[str] = []
+    if feedback:
+        body.append(f'<p>{html.escape(feedback)}</p>')
+    if suggested:
+        body.append(f'<p><strong>Suggested searches:</strong> {html.escape(suggested)}</p>')
+    if weak:
+        body.append(f'<p><strong>Weak citations:</strong> {html.escape(weak)}</p>')
+    return (
+        '<details class="da-review-loop-details">'
+        "<summary>Reviewer notes</summary>"
+        f"{''.join(body)}"
+        "</details>"
+    )
+
+
+def _review_iteration_html(view_model: DefenceAgentViewModel) -> str:
+    rows = _review_iteration_rows(view_model)
+    if not rows:
+        return ""
+    note = "Trace records reviewer scores, feedback, searches, and citation outcomes. Full previous answer drafts are not persisted."
+    return (
+        '<section class="da-review-iteration-panel">'
+        '<div class="da-review-iteration-header">'
+        "<strong>Reviewer iteration loop</strong>"
+        "<span>feedback to retrieval to trust check</span>"
+        "</div>"
+        f"{_review_loop_html(rows)}"
+        f'<p class="da-review-loop-note da-review-loop-footnote">{html.escape(note)}</p>'
+        "</section>"
+    )
+
+
+def _review_iteration_rows(view_model: DefenceAgentViewModel) -> list[dict[str, object]]:
+    review_control = (
+        view_model.answer_audit.get("review_control", {})
+        if isinstance(view_model.answer_audit, dict)
+        else {}
+    )
+    cycles = review_control.get("cycles", []) if isinstance(review_control, dict) else []
+    if not isinstance(cycles, list) or not cycles:
+        return []
+
+    rows: list[dict[str, object]] = []
+    for cycle in cycles:
+        if not isinstance(cycle, dict):
+            continue
+        sent_feedback = bool(
+            cycle.get("feedback_sent_to_research_agent")
+            or cycle.get("feedback_sent_to_generator")
+        )
+        cycle_number = cycle.get("cycle", "")
+        rows.append(
+            {
+                "title": f"Iteration {cycle_number}",
+                "cycle": cycle_number,
+                "reviewer_status": cycle.get("reviewer_status") or cycle.get("critic_status", ""),
+                "score": _trust_score_label(cycle.get("credibility_score", "")),
+                "gate": cycle.get("release_gate", ""),
+                "feedback_to_research_agent": "yes" if sent_feedback else "no",
+                "searches": cycle.get("search_count", ""),
+                "sources": cycle.get("source_count", ""),
+                "feedback": _review_cycle_feedback_text(cycle),
+                "suggested_queries": _join_values(cycle.get("suggested_search_queries", [])),
+                "weak_citations": _weak_citation_summary(cycle.get("weak_citations", [])),
+                "effect": _review_cycle_effect_text(cycle),
+            }
+        )
+
+    final_row = _final_review_iteration_row(view_model)
+    if final_row:
+        rows.append(final_row)
+    return rows
+
+
+def _review_cycle_effect_text(cycle: dict[str, object]) -> str:
+    gate = str(cycle.get("release_gate") or "")
+    weak_items = cycle.get("weak_citations", [])
+    weak_count = len(weak_items) if isinstance(weak_items, list) else 0
+    sent_feedback = bool(
+        cycle.get("feedback_sent_to_research_agent")
+        or cycle.get("feedback_sent_to_generator")
+    )
+    if sent_feedback and weak_count:
+        return (
+            f"The reviewer found {weak_count} weak citation(s), sent feedback, and triggered another "
+            "retrieval/generation pass."
+        )
+    if sent_feedback:
+        return "The reviewer requested another pass; the saved trace records feedback metadata but not each weak span."
+    if gate == "release" and weak_count:
+        return (
+            f"The score met the threshold, but {weak_count} weak citation(s) stayed filtered out of trusted support."
+        )
+    if gate == "release":
+        return "The reviewer approved this iteration for release."
+    if gate == "human_continue_or_stop_required":
+        return "The loop stopped and the answer was marked low trust for human review."
+    if gate == "revise":
+        return "The reviewer requested regeneration before release."
+    return ""
+
+
+def _final_review_iteration_row(view_model: DefenceAgentViewModel) -> dict[str, object]:
+    critic = view_model.critic if isinstance(view_model.critic, dict) else {}
+    if not critic:
+        return {}
+    counts = _citation_trust_counts(view_model)
+    filtered = counts["unclear"] + counts["unverified"]
+    weak_summary = (
+        f'{counts["verified"]} trusted; {counts["unclear"]} needs review; '
+        f'{counts["unverified"]} low-trust; {counts["unreviewed"]} not checked.'
+    )
+    if _critic_requires_human_decision(critic):
+        effect = (
+            f"{filtered} red/yellow citation marker(s) were filtered out of trusted support; "
+            "the answer remains visible but requires human review."
+        )
+    elif filtered or counts["unreviewed"]:
+        effect = (
+            f"The final answer is visible with caveats; {filtered} red/yellow marker(s) and "
+            f'{counts["unreviewed"]} not-checked marker(s) are not trusted support.'
+        )
+    else:
+        effect = "All final answer citations reviewed by the Reviewer sub-agent are trusted."
+    return {
+        "title": "Final generation",
+        "reviewer_status": _trust_status_label(str(critic.get("status") or "")),
+        "score": _trust_score_label(critic.get("credibility_score", "")),
+        "gate": critic.get("release_gate", ""),
+        "feedback_to_research_agent": "no",
+        "searches": len(view_model.tool_calls),
+        "sources": len(view_model.evidence_pages),
+        "feedback": "",
+        "suggested_queries": "",
+        "weak_citations": weak_summary,
+        "effect": effect,
+    }
+
+
+def _review_cycle_rows(view_model: DefenceAgentViewModel) -> list[dict[str, object]]:
+    review_control = (
+        view_model.answer_audit.get("review_control", {})
+        if isinstance(view_model.answer_audit, dict)
+        else {}
+    )
+    cycles = review_control.get("cycles", []) if isinstance(review_control, dict) else []
+    if not isinstance(cycles, list) or len(cycles) <= 1:
+        return []
+    rows: list[dict[str, object]] = []
+    for cycle in cycles:
+        if not isinstance(cycle, dict):
+            continue
+        sent_feedback = bool(
+            cycle.get("feedback_sent_to_research_agent")
+            or cycle.get("feedback_sent_to_generator")
+        )
+        rows.append(
+            {
+                "cycle": cycle.get("cycle", ""),
+                "reviewer_status": cycle.get("reviewer_status") or cycle.get("critic_status", ""),
+                "score": _trust_score_label(cycle.get("credibility_score", "")),
+                "gate": cycle.get("release_gate", ""),
+                "feedback_to_research_agent": "yes" if sent_feedback else "no",
+                "searches": cycle.get("search_count", ""),
+                "sources": cycle.get("source_count", ""),
+                "feedback": _review_cycle_feedback_text(cycle),
+                "suggested_queries": _join_values(cycle.get("suggested_search_queries", [])),
+                "weak_citations": _weak_citation_summary(cycle.get("weak_citations", [])),
+            }
+        )
+    return rows
+
+
+def _review_cycle_feedback_text(cycle: dict[str, object]) -> str:
+    feedback = str(cycle.get("feedback_preview") or "").strip()
+    if feedback:
+        return _canonical_agent_terms(feedback)
+    sent_feedback = bool(
+        cycle.get("feedback_sent_to_research_agent")
+        or cycle.get("feedback_sent_to_generator")
+    )
+    if sent_feedback:
+        count = cycle.get("feedback_char_count")
+        count_text = f" ({count} chars)" if count else ""
+        return f"Feedback sent to Research sub-agent{count_text}; exact text not persisted in this saved trace."
+    return ""
+
+
+def _latest_reviewer_feedback(view_model: DefenceAgentViewModel) -> str:
+    cycle_rows = _review_cycle_rows(view_model)
+    for row in cycle_rows:
+        feedback = str(row.get("feedback", "") or "")
+        if feedback and "not persisted" not in feedback:
+            return feedback
+    critic = view_model.critic if isinstance(view_model.critic, dict) else {}
+    feedback = str(critic.get("generator_feedback") or "").strip()
+    if feedback:
+        return _canonical_agent_terms(feedback)
+    weak = _weak_citation_summary(critic.get("citation_reviews", []))
+    if weak:
+        return f"Reviewer flagged weak citations: {weak}"
+    return ""
+
+
+def _canonical_agent_terms(text: str) -> str:
+    replacements = (
+        ("Research + Reviewer", "Multi-agent"),
+        ("Simple RAG", "RAG"),
+        ("Research Agent", "Research sub-agent"),
+        ("Reviewer Agent", "Reviewer sub-agent"),
+    )
+    rendered = str(text)
+    for old, new in replacements:
+        rendered = rendered.replace(old, new)
+    return rendered
+
+
+def _weak_citation_summary(raw_items: object) -> str:
+    if not isinstance(raw_items, list):
+        return ""
+    pieces: list[str] = []
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        verdict = str(item.get("verdict", "") or "")
+        if verdict == "verified":
+            continue
+        citation = item.get("citation_index", "")
+        reason = str(item.get("reason", "") or "").strip()
+        span = str(item.get("answer_span", "") or "").strip()
+        detail = reason or span
+        if len(detail) > 160:
+            detail = detail[:157].rstrip() + "..."
+        pieces.append(f"C{citation}: {detail}" if citation else detail)
+        if len(pieces) >= 4:
+            break
+    return "; ".join(piece for piece in pieces if piece)
+
+
+def _join_values(value: object) -> str:
+    if isinstance(value, list):
+        return "; ".join(str(item) for item in value if str(item).strip())
+    if value in ("", None):
+        return ""
+    return str(value)
 
 
 def _render_eval_tab() -> None:
     st.subheader("Demo Readiness")
+    view_model = st.session_state.get("last_result")
+    if isinstance(view_model, DefenceAgentViewModel):
+        _render_current_reviewer_eval(view_model)
+        _render_context_budget_metrics(view_model)
+
     options = transcript_run_options()
     if not options:
         st.info("No saved transcript runs found under defence_agent/data/transcripts.")
@@ -1972,6 +3297,62 @@ def _render_eval_tab() -> None:
 
     _render_eval_metrics(rows)
     st.dataframe(filtered, width="stretch", hide_index=True)
+
+
+def _render_current_reviewer_eval(view_model: DefenceAgentViewModel) -> None:
+    critic = view_model.critic if isinstance(view_model.critic, dict) else {}
+    if not critic:
+        st.markdown("**Current trust check**")
+        st.caption("Run the Multi-agent route to populate reviewer citation checks.")
+        return
+
+    st.markdown("**Current trust check**")
+    cols = st.columns(5)
+    score = critic.get("credibility_score")
+    cols[0].metric("Status", str(critic.get("status", "not_run")))
+    cols[1].metric("Trust score", _trust_score_label(score))
+    cols[2].metric("Verified", str(critic.get("verified_citation_count", 0) or 0))
+    cols[3].metric("Unverified", str(critic.get("unverified_citation_count", 0) or 0))
+    cols[4].metric("Gate", str(critic.get("release_gate", "not recorded")))
+    if _critic_requires_human_decision(critic):
+        st.warning(_reviewer_escalation_message(critic))
+    _render_review_loop_table(view_model)
+    rows = _reviewer_citation_review_rows(critic)
+    if rows:
+        st.dataframe(rows, width="stretch", hide_index=True)
+    else:
+        st.caption("No per-citation reviewer rows were recorded for this run.")
+
+
+def _reviewer_citation_review_rows(critic: dict[str, object]) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    reviews = critic.get("citation_reviews", []) if isinstance(critic, dict) else []
+    for review in reviews if isinstance(reviews, list) else []:
+        if not isinstance(review, dict):
+            continue
+        source_ids = review.get("source_ids", [])
+        if isinstance(source_ids, list):
+            sources = ", ".join(str(source_id) for source_id in source_ids)
+        else:
+            sources = str(source_ids or "")
+        rows.append(
+            {
+                "citation": review.get("citation_index", ""),
+                "verdict": review.get("verdict", ""),
+                "answer_span": review.get("answer_span", ""),
+                "source_ids": sources,
+                "reviewer_reason": _canonical_agent_terms(str(review.get("reason", "") or "")),
+            }
+        )
+    return rows
+
+
+def _critic_requires_human_decision(critic: dict[str, object]) -> bool:
+    return bool(
+        critic.get("requires_human_decision")
+        or critic.get("release_gate") == "human_continue_or_stop_required"
+        or critic.get("status") == "needs_human_review"
+    )
 
 
 def _render_eval_metrics(rows: list[dict[str, object]]) -> None:
@@ -2031,18 +3412,22 @@ def _render_database_tab() -> None:
 def _citation_resolution_rows(view_model: DefenceAgentViewModel) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     allowed_access = set(view_model.allowed_access)
+    validation_passed = bool(view_model.citation_validation.get("passed"))
     for citation in view_model.citations:
         for source_id in citation.source_ids:
             source = view_model.sources.get(source_id)
+            resolved = source is not None
+            authorized = bool(source and source.access_level in allowed_access)
             rows.append(
                 {
                     "citation": citation.marker,
                     "answer_text": citation.answer_text,
                     "source": source.title if source else source_id,
                     "doc_id": source.doc_id if source else "",
-                    "resolved": source is not None,
-                    "authorized": bool(source and source.access_level in allowed_access),
-                    "support_check": "manual review required",
+                    "resolved": resolved,
+                    "authorized": authorized,
+                    "validation": "passed" if validation_passed and resolved and authorized else "review",
+                    "support_check": view_model.critic.get("status", "manual review required"),
                 }
             )
     return rows
@@ -2100,66 +3485,6 @@ def _app_css() -> str:
         }
         div[data-testid="stAlert"] {
             font-size: 0.94rem;
-        }
-        .da-tool-card {
-            margin: 0.35rem 0 1rem;
-            padding: 0.72rem;
-            border: 1px solid rgba(248, 246, 239, 0.24);
-            border-radius: var(--da-radius);
-            background: rgba(248, 246, 239, 0.09);
-            color: var(--da-off-white);
-        }
-        .da-tool-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.5rem;
-            margin-bottom: 0.45rem;
-        }
-        .da-tool-header span {
-            color: rgba(240, 238, 233, 0.72);
-            font-size: 0.74rem;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-        }
-        .da-tool-header code,
-        .da-tool-signature {
-            font-family: var(--da-mono);
-            font-size: 0.74rem;
-            white-space: normal;
-            overflow-wrap: anywhere;
-        }
-        .da-tool-purpose {
-            margin-bottom: 0.52rem;
-            color: rgba(240, 238, 233, 0.9);
-            font-size: 0.84rem;
-            line-height: 1.35;
-        }
-        .da-tool-flow {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.28rem;
-            margin-bottom: 0.56rem;
-        }
-        .da-tool-flow span {
-            padding: 0.14rem 0.34rem;
-            border: 1px solid rgba(184, 249, 243, 0.36);
-            border-radius: var(--da-radius-sm);
-            background: rgba(184, 249, 243, 0.12);
-            color: var(--da-aqua);
-            font-size: 0.72rem;
-            font-weight: 650;
-            line-height: 1.25;
-        }
-        .da-tool-signature {
-            display: block;
-            margin-bottom: 0.38rem;
-            color: rgba(240, 238, 233, 0.86);
-        }
-        .da-tool-timeout {
-            color: rgba(240, 238, 233, 0.64);
-            font-size: 0.72rem;
         }
         .da-list-button {
             display: block;
@@ -2228,8 +3553,8 @@ def _app_css() -> str:
             outline-offset: 2px;
         }
         .da-answer {
-            font-size: 1rem;
-            line-height: 1.62;
+            font-size: 0.94rem;
+            line-height: 1.58;
         }
         .da-answer p {
             margin: 0 0 0.85rem 0;
@@ -2243,14 +3568,14 @@ def _app_css() -> str:
         .da-language-strip span {
             display: inline-flex;
             align-items: center;
-            min-height: 1.75rem;
-            padding: 0.22rem 0.52rem;
+            min-height: 1.48rem;
+            padding: 0.14rem 0.42rem;
             border: 1px solid var(--da-border);
             border-radius: var(--da-radius-sm);
             background: var(--da-panel);
             color: var(--da-near-black);
             box-shadow: var(--da-shadow);
-            font-size: 0.78rem;
+            font-size: 0.7rem;
             font-weight: 600;
             line-height: 1.2;
         }
@@ -2258,6 +3583,144 @@ def _app_css() -> str:
             border-color: var(--da-border-strong);
             background: var(--da-off-white);
             color: var(--da-near-black);
+        }
+        .da-quality-gate {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            margin: 0.4rem 0 0.7rem;
+        }
+        .da-quality-gate span {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.24rem;
+            min-height: 1.38rem;
+            padding: 0.12rem 0.38rem;
+            border: 1px solid var(--da-border);
+            border-radius: var(--da-radius-sm);
+            background: #fffdf8;
+            color: var(--da-near-black);
+            box-shadow: var(--da-shadow);
+            font-size: 0.68rem;
+            font-weight: 610;
+            line-height: 1.2;
+        }
+        .da-quality-gate em {
+            color: #596159;
+            font-style: normal;
+            font-weight: 740;
+        }
+        .da-trust-panel {
+            margin: 0.15rem 0 0.9rem;
+            padding: 0.7rem 0.78rem;
+            border: 1px solid var(--da-border);
+            border-radius: var(--da-radius);
+            background: #fffdf8;
+            box-shadow: var(--da-shadow);
+        }
+        .da-trust-panel--trusted {
+            border-top: 2px solid #247d45;
+        }
+        .da-trust-panel--retry {
+            border-top: 2px solid #a56a00;
+        }
+        .da-trust-panel--low {
+            border-top: 2px solid #b3261e;
+        }
+        .da-trust-panel--unclear,
+        .da-trust-panel--neutral {
+            border-top: 2px solid #6f6f67;
+        }
+        .da-trust-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.46rem;
+        }
+        .da-trust-panel-header div {
+            display: grid;
+            gap: 0.08rem;
+        }
+        .da-trust-panel-header em {
+            color: #66706a;
+            font-size: 0.64rem;
+            font-style: normal;
+            font-weight: 760;
+            letter-spacing: 0.02em;
+            line-height: 1.1;
+            text-transform: uppercase;
+        }
+        .da-trust-panel-header strong {
+            color: var(--da-near-black);
+            font-size: 0.9rem;
+            line-height: 1.2;
+        }
+        .da-trust-score {
+            border: 1px solid #d8d2c7;
+            border-radius: var(--da-radius-sm);
+            background: #f8f6ef;
+            color: var(--da-green);
+            font-size: 0.82rem;
+            font-weight: 760;
+            line-height: 1;
+            padding: 0.22rem 0.42rem;
+            text-align: right;
+        }
+        .da-trust-panel p {
+            margin: 0.42rem 0 0;
+            color: #272b2f;
+            font-size: 0.77rem;
+            line-height: 1.38;
+        }
+        .da-trust-summary {
+            max-width: 52rem;
+        }
+        .da-trust-note {
+            color: #68706a !important;
+            font-size: 0.72rem !important;
+        }
+        .da-trust-details {
+            margin-top: 0.42rem;
+        }
+        .da-trust-details summary {
+            cursor: pointer;
+            color: #5f675f;
+            font-size: 0.72rem;
+            font-weight: 690;
+            line-height: 1.25;
+        }
+        .da-trust-details p {
+            color: #434943;
+            font-size: 0.72rem;
+        }
+        .da-trust-panel-metrics,
+        .da-trust-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.28rem;
+        }
+        .da-trust-panel-metrics span,
+        .da-trust-legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.24rem;
+            min-height: 1.34rem;
+            padding: 0.08rem 0.34rem;
+            border: 1px solid #e5e1d6;
+            border-radius: var(--da-radius-sm);
+            background: #fffdfa;
+            color: #1f2428;
+            font-size: 0.68rem;
+            font-weight: 620;
+        }
+        .da-trust-panel-metrics em {
+            color: #566159;
+            font-style: normal;
+            font-weight: 740;
+        }
+        .da-trust-legend {
+            margin-top: 0.48rem;
         }
         .da-inline-cite {
             position: relative;
@@ -2274,6 +3737,27 @@ def _app_css() -> str:
             line-height: 1.25;
             text-decoration: none !important;
             transform: translateY(-0.04rem);
+        }
+        .da-citation-trust--verified {
+            border-color: #247d45 !important;
+            background: #e8f7eb !important;
+            color: #124f2a !important;
+        }
+        .da-citation-trust--unclear {
+            border-color: #b77900 !important;
+            background: #ffe08a !important;
+            color: #3d2b00 !important;
+            box-shadow: inset 0 0 0 1px rgba(183, 121, 0, 0.2);
+        }
+        .da-citation-trust--unverified {
+            border-color: #b3261e !important;
+            background: #fde7e5 !important;
+            color: #7a1712 !important;
+        }
+        .da-citation-trust--unreviewed {
+            border-color: #d3cec2 !important;
+            background: #f8f6ef !important;
+            color: #6d7069 !important;
         }
         .da-inline-cite:hover,
         .da-inline-cite:focus,
@@ -2421,6 +3905,113 @@ def _app_css() -> str:
 	            font-size: 0.88rem;
 	            line-height: 1.35;
 	        }
+        .da-review-iteration-panel {
+            margin: 0.15rem 0 0.9rem;
+            padding: 0.7rem 0.78rem;
+            border: 1px solid #deded9;
+            border-radius: var(--da-radius);
+            background: #fffdf8;
+            box-shadow: var(--da-shadow);
+        }
+        .da-review-iteration-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.46rem;
+        }
+        .da-review-iteration-header strong {
+            color: var(--da-near-black);
+            font-size: 0.9rem;
+            line-height: 1.2;
+        }
+        .da-review-iteration-header span {
+            color: #70746d;
+            font-size: 0.68rem;
+            font-weight: 650;
+            text-align: right;
+        }
+        .da-review-loop {
+            display: grid;
+            gap: 0.42rem;
+            margin: 0.2rem 0 0.72rem;
+        }
+        .da-review-loop-card {
+            border: 1px solid #e3ded4;
+            border-radius: var(--da-radius);
+            background: #ffffff;
+            padding: 0.52rem 0.6rem;
+        }
+        .da-review-loop-title {
+            color: #151922;
+            font-size: 0.78rem !important;
+            font-weight: 750;
+            line-height: 1.3 !important;
+        }
+        .da-review-loop-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.26rem;
+            margin-top: 0.34rem;
+        }
+        .da-review-loop-meta span {
+            border: 1px solid #ece8dc;
+            border-radius: 0.38rem;
+            background: #fffdfa;
+            color: #3b3d47;
+            font-size: 0.65rem;
+            line-height: 1.2;
+            padding: 0.08rem 0.32rem;
+        }
+        .da-review-loop-meta em {
+            color: #171b24;
+            font-style: normal;
+            font-weight: 750;
+            margin-right: 0.24rem;
+        }
+        .da-review-loop-feedback,
+        .da-review-loop-impact,
+        .da-review-loop-note {
+            color: #2e2f3a;
+            font-size: 0.72rem !important;
+            line-height: 1.38 !important;
+            margin: 0.38rem 0 0;
+            overflow-wrap: anywhere;
+        }
+        .da-review-loop-impact {
+            border-left: 2px solid #b8d4c6;
+            color: #343934;
+            padding-left: 0.46rem;
+        }
+        .da-review-loop-note strong,
+        .da-review-loop-impact strong {
+            color: #171b24;
+            font-weight: 750;
+        }
+        .da-review-loop-footnote {
+            color: #676b65;
+            font-size: 0.68rem !important;
+            margin-bottom: 0;
+        }
+        .da-review-loop-details {
+            margin-top: 0.34rem;
+        }
+        .da-review-loop-details summary {
+            cursor: pointer;
+            color: #646a64;
+            font-size: 0.68rem !important;
+            font-weight: 680;
+            line-height: 1.25 !important;
+        }
+        .da-review-loop-details p {
+            color: #454a45;
+            font-size: 0.7rem !important;
+            line-height: 1.38 !important;
+            margin: 0.34rem 0 0;
+        }
+        .da-muted {
+            color: #777970;
+        }
 	        .da-trace-card-grid {
 	            display: grid;
 	            grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
@@ -2663,7 +4254,7 @@ def _app_css() -> str:
             font-family: var(--da-font);
         }
         .stApp {
-            background: var(--da-off-white);
+            background: #faf9f5;
             color: var(--da-near-black);
         }
         .block-container {
@@ -2759,6 +4350,17 @@ def _app_css() -> str:
             color: var(--da-near-black);
             font-size: 0.9rem;
         }
+        div[data-testid="stTextArea"] textarea[aria-label="Question"] {
+            min-height: 13.2rem !important;
+            line-height: 1.42 !important;
+            overflow-y: auto !important;
+            resize: vertical;
+            padding-bottom: 0.85rem !important;
+        }
+        div[data-testid="stTextArea"] div[data-baseweb="textarea"]:has(textarea[aria-label="Question"]),
+        div[data-testid="stTextArea"] div[data-baseweb="textarea"]:has(textarea[aria-label="Question"]) > div {
+            min-height: 13.2rem !important;
+        }
         div[data-testid="stExpander"] {
             border: 1px solid var(--da-border);
             border-radius: var(--da-radius);
@@ -2801,7 +4403,7 @@ def _app_css() -> str:
         .da-answer {
             padding: 0.15rem 0 0.25rem;
             color: var(--da-near-black);
-            font-size: 0.95rem;
+            font-size: 0.92rem;
             line-height: 1.58;
         }
         .da-selected-evidence-card,

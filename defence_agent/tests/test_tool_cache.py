@@ -126,6 +126,29 @@ def test_tool_cache_key_normalizes_tool_defaults_and_bounds(cache_env: None) -> 
     assert payload["persona_id"] == "clearance_secret"
     assert payload["allowed_access"] == ["unclassified", "secret"]
 
+    low_payload = cache_key_payload("search_documents", {"query": "What routing rule applies?", "top_k": 5}, tool_context)
+    assert low_payload["args"]["top_k"] == 8
+
+
+def test_tool_state_sends_authorized_sources_for_model_grounded_abstention(cache_env: None) -> None:
+    from defence_agent.tool_state import record_search_documents_state
+
+    result = _search_result()
+    result["policy_decision"] = "allow"
+    result["answerability"] = {"answerable": False, "reason": "insufficient_authorized_evidence"}
+    context = FakeToolContext({"persona_id": "clearance_unclassified"})
+
+    record_search_documents_state(
+        tool_context=context,
+        query="approved Arctic submarine basing schedule for 2031",
+        persona_id="clearance_unclassified",
+        result=result,
+    )
+
+    assert context.state["last_search_sources"]
+    assert context.state["last_search_audit"]["sources_sent_to_answer"]
+    assert context.state["search_history_sources"]
+
 
 def _search_result() -> dict[str, Any]:
     return {

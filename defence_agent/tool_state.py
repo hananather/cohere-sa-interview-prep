@@ -129,7 +129,10 @@ def _search_audit(
         "index": result.get("index", ""),
         "collection": result.get("collection", ""),
         "embedding_backend": result.get("embedding_backend", ""),
+        "retrieval_mode": result.get("retrieval_mode", ""),
+        "chunk_strategy": result.get("chunk_strategy", ""),
         "rerank_backend": result.get("rerank_backend", ""),
+        "retrieval_metrics": dict(result.get("retrieval_metrics", {}) or {}),
         "allowed_access": list(result.get("allowed_access", []) or []),
         "filters_applied": dict(result.get("filters_applied", {}) or {}),
         "policy_decision": result.get("policy_decision", ""),
@@ -144,6 +147,9 @@ def _source_summary(source: dict[str, Any]) -> dict[str, Any]:
     return {
         "citation_id": source.get("citation_id", ""),
         "chunk_id": source.get("chunk_id", ""),
+        "parent_page_id": source.get("parent_page_id", ""),
+        "retrieval_chunk_id": source.get("retrieval_chunk_id", ""),
+        "chunk_strategy": source.get("chunk_strategy", ""),
         "doc_id": source.get("doc_id", ""),
         "title": source.get("title", ""),
         "section": source.get("section", ""),
@@ -169,7 +175,10 @@ def _source_summary(source: dict[str, Any]) -> dict[str, Any]:
         "manifest_path": source.get("manifest_path", ""),
         "page_image_sha256": source.get("page_image_sha256", ""),
         "vector_score": source.get("vector_score"),
+        "bm25_score": source.get("bm25_score"),
+        "pre_rerank_score": source.get("pre_rerank_score"),
         "rerank_score": source.get("rerank_score"),
+        "retrieval_modes": source.get("retrieval_modes", []),
     }
 
 

@@ -12,6 +12,7 @@ from typing import Any
 
 from defence_agent.auth.context import DEMO_USERS
 from defence_agent.auth.policy import policy_engine
+from defence_agent.routing import AGENTIC_RAG, REVIEWED_AGENT, RUN_MODE_LABELS, SIMPLE_RAG
 from defence_agent.session import AgentTurnResult
 
 
@@ -216,6 +217,8 @@ class DefenceAgentViewModel:
     documents_sent_to_model: int
     thinking_blocks: tuple[dict[str, Any], ...]
     retrieval_status: str
+    routing: dict[str, Any]
+    critic: dict[str, Any]
     citations: tuple[CitationView, ...]
     evidence_pages: tuple[EvidencePageView, ...]
     sources: dict[str, SourceView]
@@ -262,6 +265,10 @@ def build_view_model(
     audit = result.answer_audit or {}
     retrieval = audit.get("retrieval", {}) if isinstance(audit.get("retrieval"), dict) else {}
     generation = audit.get("generation", {}) if isinstance(audit.get("generation"), dict) else {}
+    routing = _normalize_routing(audit.get("routing", {}))
+    reviewer_payload = audit.get("reviewer", audit.get("critic", {}))
+    critic = reviewer_payload if isinstance(reviewer_payload, dict) else {}
+    review_control = audit.get("review_control", {}) if isinstance(audit.get("review_control"), dict) else {}
 
     sources = _build_source_registry(audit)
     citations = _build_citations(audit)
@@ -282,6 +289,9 @@ def build_view_model(
         citation_count=len(citations),
         evidence_page_count=len(evidence_pages),
         generation_model=str(generation.get("model", "") or ""),
+        routing=routing,
+        critic=critic,
+        review_control=review_control,
     )
 
     return DefenceAgentViewModel(
@@ -306,6 +316,8 @@ def build_view_model(
         documents_sent_to_model=documents_sent_to_model,
         thinking_blocks=tuple(_thinking_blocks(generation.get("thinking_blocks", result.thinking_blocks))),
         retrieval_status=result.retrieval_status,
+        routing=dict(routing),
+        critic=dict(critic),
         citations=tuple(citations),
         evidence_pages=tuple(evidence_pages),
         sources=sources,
@@ -344,11 +356,18 @@ def sanitize_answer_audit(audit: dict[str, Any]) -> dict[str, Any]:
         "tool_call_records": list(audit.get("tool_call_records", []) or []),
         "tool_responses": list(audit.get("tool_responses", []) or []),
         "retrieval_status": audit.get("retrieval_status", ""),
+        "routing": _sanitize_routing(audit.get("routing", {})),
+        "reviewer": _sanitize_critic(audit.get("reviewer", audit.get("critic", {}))),
+        "review_control": _sanitize_review_control(audit.get("review_control", {})),
+        "context_budget": _sanitize_context_budget(audit.get("context_budget", {})),
         "retrieval": {
             "search_count": retrieval.get("search_count", 0),
             "searches": list(retrieval.get("searches", []) or []),
             "search_queries": list(retrieval.get("search_queries", []) or []),
             "allowed_access": list(retrieval.get("allowed_access", []) or []),
+            "retrieval_modes": list(retrieval.get("retrieval_modes", []) or []),
+            "chunk_strategies": list(retrieval.get("chunk_strategies", []) or []),
+            "retrieval_metrics": list(retrieval.get("retrieval_metrics", []) or []),
             "filters_applied": list(retrieval.get("filters_applied", []) or []),
             "policy_decisions": list(retrieval.get("policy_decisions", []) or []),
             "answerability": list(retrieval.get("answerability", []) or []),
@@ -366,8 +385,133 @@ def sanitize_answer_audit(audit: dict[str, Any]) -> dict[str, Any]:
             "target_answer_language": generation.get("target_answer_language", "auto"),
             "thinking_blocks": _thinking_blocks(generation.get("thinking_blocks", [])),
             "thinking_block_count": generation.get("thinking_block_count", 0),
+            "usage": _safe_dict(generation.get("usage", {})),
+            "billed_units": _safe_dict(generation.get("billed_units", {})),
         },
         "citations": [_sanitize_citation(citation) for citation in audit.get("citations", []) or []],
+    }
+
+
+def _sanitize_routing(value: Any) -> dict[str, Any]:
+    value = _normalize_routing(value)
+    if not value:
+        return {}
+    fields = (
+        "requested_mode",
+        "selected_mode",
+        "label",
+        "reason",
+        "accuracy_priority",
+        "latency_priority",
+        "expected_latency",
+        "expected_cost",
+        "uses_retrieval",
+        "uses_adk_agent",
+        "uses_reviewer",
+    )
+    return {field: value.get(field) for field in fields if field in value}
+
+
+def _normalize_routing(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    normalized = dict(value)
+    selected_mode = str(normalized.get("selected_mode") or "")
+    if selected_mode in RUN_MODE_LABELS:
+        normalized["label"] = RUN_MODE_LABELS[selected_mode]
+        return normalized
+
+    old_labels = {
+        "Simple RAG": (SIMPLE_RAG, RUN_MODE_LABELS[SIMPLE_RAG]),
+        "Research Agent": (AGENTIC_RAG, RUN_MODE_LABELS[AGENTIC_RAG]),
+        "Research + Reviewer": (REVIEWED_AGENT, RUN_MODE_LABELS[REVIEWED_AGENT]),
+    }
+    current_label = str(normalized.get("label") or "")
+    replacement = old_labels.get(current_label)
+    if replacement is not None:
+        normalized.setdefault("selected_mode", replacement[0])
+        normalized["label"] = replacement[1]
+    return normalized
+
+
+def _safe_dict(value: Any) -> dict[str, Any]:
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def _sanitize_context_budget(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    fields = (
+        "schema_version",
+        "method",
+        "context_window_tokens",
+        "context_window_used_pct",
+        "prompt_tokens_estimate",
+        "output_tokens_estimate",
+        "total_tokens_estimate",
+        "query_tokens_estimate",
+        "prior_answer_tokens_estimate",
+        "source_text_tokens_estimate",
+        "source_metadata_tokens_estimate",
+        "system_overhead_tokens_estimate",
+        "document_count",
+        "source_count",
+        "search_count",
+        "tool_call_count",
+        "provider_usage_available",
+        "provider_usage",
+        "provider_billed_units",
+        "note",
+    )
+    sanitized = {field: value.get(field) for field in fields if field in value}
+    sanitized["provider_usage"] = _safe_dict(sanitized.get("provider_usage", {}))
+    sanitized["provider_billed_units"] = _safe_dict(sanitized.get("provider_billed_units", {}))
+    return sanitized
+
+
+def _sanitize_critic(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    fields = (
+        "schema_version",
+        "reviewer",
+        "status",
+        "trust_score",
+        "trust_label",
+        "credibility_score",
+        "threshold",
+        "verified_citation_count",
+        "unverified_citation_count",
+        "total_citation_count",
+        "answer_citation_count",
+        "unreviewed_citation_count",
+        "low_trust_citation_count",
+        "citation_trust_counts",
+        "citation_reviews",
+        "release_gate",
+        "requires_human_decision",
+        "human_prompt",
+        "generator_feedback",
+        "suggested_search_queries",
+        "summary",
+        "overall_reason",
+        "limits",
+    )
+    return {field: value.get(field) for field in fields if field in value}
+
+
+def _sanitize_review_control(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        "schema_version": value.get("schema_version", ""),
+        "pattern": value.get("pattern", ""),
+        "research_agent": value.get("research_agent", ""),
+        "reviewer_agent": value.get("reviewer_agent", ""),
+        "max_review_cycles": value.get("max_review_cycles", 1),
+        "completed_review_cycles": value.get("completed_review_cycles", 0),
+        "cycles": list(value.get("cycles", []) or []),
+        "context_compaction": dict(value.get("context_compaction", {}) or {}),
     }
 
 
@@ -529,7 +673,12 @@ def _build_runtime_steps(
     citation_count: int,
     evidence_page_count: int,
     generation_model: str,
+    routing: dict[str, Any],
+    critic: dict[str, Any],
+    review_control: dict[str, Any],
 ) -> list[RuntimeStepView]:
+    route_label = str(routing.get("label") or "Multi-agent")
+    uses_adk_agent = bool(routing.get("uses_adk_agent", True))
     steps: list[RuntimeStepView] = [
         RuntimeStepView(
             index=1,
@@ -539,27 +688,37 @@ def _build_runtime_steps(
         RuntimeStepView(
             index=2,
             title="Agent runtime and session context",
-            detail="The agent runtime sends the query and session context to the model runtime.",
-            metrics=(("Persona", _persona_runtime_label(persona)),),
+            detail=f"{route_label} selected for this run.",
+            metrics=(
+                ("Persona", _persona_runtime_label(persona)),
+                ("Latency", str(routing.get("expected_latency") or "recorded")),
+                ("Cost", str(routing.get("expected_cost") or "recorded")),
+            ),
         ),
     ]
 
-    if tool_calls:
-        plan_detail = f"Command A planned {len(tool_calls)} ordered search_documents call(s)."
+    if tool_calls and uses_adk_agent:
+        plan_detail = f"Research sub-agent planned {len(tool_calls)} ordered search_documents call(s) with Command A."
         plan_status = "success"
+        markers = (("Research sub-agent", "command"),)
+    elif tool_calls:
+        plan_detail = "Direct RAG route issued one bounded search_documents call without the ADK planner."
+        plan_status = "success"
+        markers = (("Search", "search"),)
     else:
         plan_detail = (
             "Command A did not record a fresh search_documents call for this turn; "
             "the UI is showing the available audit state."
         )
         plan_status = "neutral"
+        markers = ()
     steps.append(
         RuntimeStepView(
             index=3,
             title="Model runtime tool plan",
             detail=plan_detail,
             status=plan_status,
-            markers=(("Command A", "command"),),
+            markers=markers,
         )
     )
 
@@ -632,6 +791,52 @@ def _build_runtime_steps(
     )
     next_index += 1
 
+    if critic:
+        for cycle in _review_cycle_runtime_steps(review_control, start_index=next_index):
+            steps.append(cycle)
+            next_index += 1
+
+        critic_status = str(critic.get("status", "") or "not_run")
+        if critic_status == "approved":
+            review_status = "success"
+        elif critic_status == "not_run":
+            review_status = "neutral"
+        else:
+            review_status = "denied"
+        score = critic.get("credibility_score")
+        score_label = "n/a" if score in ("", None) else str(score)
+        cycles = _review_cycle_label(review_control)
+        steps.append(
+            RuntimeStepView(
+                index=next_index,
+                title="Reviewer sub-agent trust check",
+                detail=_reviewer_runtime_detail(critic),
+                status=review_status,
+                markers=(("Reviewer sub-agent", "command"),) if critic_status != "not_run" else (),
+                metrics=(
+                    ("Trust score", score_label),
+                    ("Threshold", str(critic.get("threshold", "n/a") or "n/a")),
+                    ("Verified", str(critic.get("verified_citation_count", "n/a") or "n/a")),
+                    ("Unverified", str(critic.get("unverified_citation_count", "n/a") or "n/a")),
+                    ("Cycles", cycles),
+                    ("Gate", str(critic.get("release_gate", "not recorded") or "not recorded")),
+                ),
+            )
+        )
+        next_index += 1
+        if _critic_requires_human_decision(critic):
+            steps.append(
+                RuntimeStepView(
+                    index=next_index,
+                    title="Escalation path",
+                    detail="Reviewer threshold not met. Rerun with reviewer feedback or remove unsupported claims before release.",
+                    status="denied",
+                    markers=(("Reviewer sub-agent", "command"),),
+                    metrics=(("Gate", str(critic.get("release_gate", "human_continue_or_stop_required"))),),
+                )
+            )
+            next_index += 1
+
     steps.append(
         RuntimeStepView(
             index=next_index,
@@ -647,8 +852,116 @@ def _build_runtime_steps(
     return steps
 
 
+def _review_cycle_label(review_control: dict[str, Any]) -> str:
+    if not review_control:
+        return "n/a"
+    completed = review_control.get("completed_review_cycles", 0)
+    maximum = review_control.get("max_review_cycles", 1)
+    return f"{completed}/{maximum}"
+
+
+def _review_cycle_runtime_steps(
+    review_control: dict[str, Any],
+    *,
+    start_index: int,
+) -> list[RuntimeStepView]:
+    cycles = review_control.get("cycles", []) if isinstance(review_control, dict) else []
+    if not isinstance(cycles, list) or len(cycles) <= 1:
+        return []
+    steps: list[RuntimeStepView] = []
+    for offset, cycle in enumerate(cycles, start=0):
+        if not isinstance(cycle, dict):
+            continue
+        sent_feedback = bool(
+            cycle.get("feedback_sent_to_research_agent")
+            or cycle.get("feedback_sent_to_generator")
+        )
+        status = str(cycle.get("critic_status") or cycle.get("reviewer_status") or "")
+        step_status = "success" if status == "approved" else ("denied" if sent_feedback else "neutral")
+        steps.append(
+            RuntimeStepView(
+                index=start_index + offset,
+                title=f"Review cycle {cycle.get('cycle', offset + 1)}",
+                detail=_review_cycle_detail(cycle),
+                status=step_status,
+                markers=(("Reviewer sub-agent", "command"), ("Research sub-agent", "search")) if sent_feedback else (("Reviewer sub-agent", "command"),),
+                metrics=(
+                    ("Score", str(cycle.get("credibility_score", "n/a") or "n/a")),
+                    ("Gate", str(cycle.get("release_gate", "not recorded") or "not recorded")),
+                    ("Feedback", "sent to Research sub-agent" if sent_feedback else "none"),
+                    ("Searches", str(cycle.get("search_count", "n/a") or "n/a")),
+                    ("Sources", str(cycle.get("source_count", "n/a") or "n/a")),
+                ),
+            )
+        )
+    return steps
+
+
+def _review_cycle_detail(cycle: dict[str, Any]) -> str:
+    feedback = str(cycle.get("feedback_preview") or "").strip()
+    if feedback:
+        return _compact(_canonical_agent_terms(feedback), limit=260)
+    sent_feedback = bool(
+        cycle.get("feedback_sent_to_research_agent")
+        or cycle.get("feedback_sent_to_generator")
+    )
+    if sent_feedback:
+        char_count = cycle.get("feedback_char_count")
+        char_text = f" ({char_count} chars)" if char_count else ""
+        return f"Reviewer feedback was sent back to the Research sub-agent{char_text}; this older saved trace did not persist the exact text."
+    status = str(cycle.get("critic_status") or cycle.get("reviewer_status") or "not recorded")
+    return f"Reviewer cycle completed with status: {status}."
+
+
+def _reviewer_runtime_detail(critic: dict[str, Any]) -> str:
+    status = str(critic.get("status", "") or "not_run")
+    if status == "not_run":
+        return "Reviewer sub-agent was not run for this route."
+    score = critic.get("credibility_score")
+    score_label = "n/a" if score in ("", None) else str(score)
+    verified = str(critic.get("verified_citation_count", "n/a") or "n/a")
+    unverified = str(critic.get("unverified_citation_count", "n/a") or "n/a")
+    gate = str(critic.get("release_gate", "not recorded") or "not recorded")
+    status_line = (
+        f"status: {status}; score: {score_label}; verified citations: {verified}; "
+        f"unverified citations: {unverified}; gate: {gate}."
+    )
+    summary = str(critic.get("summary") or critic.get("overall_reason") or "").strip()
+    if summary:
+        return f"{status_line} {_compact(_canonical_agent_terms(summary), limit=180)}"
+    return status_line
+
+
+def _canonical_agent_terms(text: str) -> str:
+    replacements = (
+        ("Research + Reviewer", "Multi-agent"),
+        ("Simple RAG", "RAG"),
+        ("Research Agent", "Research sub-agent"),
+        ("Reviewer Agent", "Reviewer sub-agent"),
+    )
+    rendered = str(text)
+    for old, new in replacements:
+        rendered = rendered.replace(old, new)
+    return rendered
+
+
+def _critic_requires_human_decision(critic: dict[str, Any]) -> bool:
+    return bool(
+        critic.get("requires_human_decision")
+        or critic.get("release_gate") == "human_continue_or_stop_required"
+        or critic.get("status") == "needs_human_review"
+    )
+
+
 def _search_runtime_metrics(call: ToolCallView) -> tuple[tuple[str, str], ...]:
-    return (("Authorized pages", str(call.authorized_source_count)),)
+    metrics: list[tuple[str, str]] = [("Authorized pages", str(call.authorized_source_count))]
+    if call.rerank_score is not None:
+        metrics.append(("Top rerank", _format_score(call.rerank_score)))
+    if call.vector_score is not None:
+        metrics.append(("Top vector", _format_score(call.vector_score)))
+    if call.excluded_source_count:
+        metrics.append(("Excluded", str(call.excluded_source_count)))
+    return tuple(metrics)
 
 
 def _persona_runtime_label(persona: UiPersona) -> str:

@@ -19,6 +19,10 @@ async def _run(payload: dict[str, Any]) -> dict[str, Any]:
         user_id=str(payload["user_id"]),
         session_id=payload.get("session_id") or None,
         target_answer_language=str(payload.get("target_answer_language") or "auto"),
+        run_mode=str(payload.get("run_mode") or "reviewed_agent"),
+        accuracy_priority=int(payload.get("accuracy_priority") or 4),
+        latency_priority=int(payload.get("latency_priority") or 2),
+        max_review_cycles=int(payload.get("max_review_cycles") or 2),
     )
     return asdict(result)
 

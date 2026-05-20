@@ -16,10 +16,16 @@ security, accuracy, and traceability.
   vectors and metadata, and Rerank v4 orders authorized evidence.
 - Cited final answers: direct Cohere Chat receives only authorized documents and
   returns native document-RAG citation spans.
+- Reviewer Agent: a bounded second pass scores whether the cited evidence
+  supports the answer's claims. It does not answer the user or search for new
+  facts.
 - Security control demonstration: persona clearance controls which pages can
   reach the final answer model.
 - Traceability: `answer_audit` records filters, source IDs, excluded source
   metadata, rerank scores, Cohere document IDs, and citation spans.
+- Optional reasoning-model inspection: if a reasoning-capable Cohere Chat model
+  returns native `thinking` content blocks, the backend preserves them and the UI
+  can show them separately from the observable action audit.
 
 ## Main Files
 
@@ -29,6 +35,7 @@ security, accuracy, and traceability.
 - `session.py`: ADK runner, session storage, follow-up handling, and audit
   assembly.
 - `grounding.py`: direct Cohere final-answer call and citation extraction.
+- `critic.py`: backward-compatible module name for the Reviewer Agent.
 - `retrieval/`: normalized PDF page loading, Embed v4 page embeddings, Chroma, and Rerank.
 - `auth/`: fixed demo personas and access policy.
 - `data/corpus/`: active normalized page corpus and provenance.
@@ -131,6 +138,12 @@ registry.
 
 ## Active Docs
 
+- `docs/presentation_architecture_walkthrough.md`: interview-ready technical
+  walkthrough with user flow, data flow, agentic loop, guardrail, citation, UI
+  trace diagrams, code anchors, and gold-standard demo results.
+- `docs/technical_deep_dive_sequence.md`: proof-first technical walkthrough
+  plan for app/Trace demo, selective Cursor code anchors, evaluation, and
+  production mapping.
 - `docs/architecture.md`: runtime, ingestion, retrieval, and bilingual behavior.
 - `docs/security.md`: persona-aware retrieval and production mapping.
 - `docs/observability.md`: ADK runtime traces versus `answer_audit`.
@@ -150,7 +163,8 @@ registry.
   normalization adapter.
 - Synthetic `secret` and `top_secret` labels are illustrative demo tiers only.
 - Citation coverage checks whether claim-like answer sentences received
-  citations. Citation precision still needs transcript review.
+  citations. The Reviewer Agent adds a citation-support score, but it still
+  does not prove truth outside the supplied evidence.
 - Excluded source text is not returned from `search_documents` or included in
   `answer_audit`.
 - Retired legacy implementations are archived outside the main repo at
